@@ -6,8 +6,10 @@ const LABELS: Record<ServiceState, string> = {
   closed: "Closed",
 };
 
+/* Open uses the brand lime. Paused and closed keep the amber and red of the
+   light on the desk, because the badge mirrors the hardware. */
 const STYLES: Record<ServiceState, string> = {
-  active: "bg-emerald-100 text-emerald-800 ring-emerald-300",
+  active: "bg-primary text-ink ring-medium-green",
   paused: "bg-amber-100 text-amber-900 ring-amber-300",
   closed: "bg-rose-100 text-rose-800 ring-rose-300",
 };
@@ -22,7 +24,7 @@ export function DeskStateBadge({
   return (
     <span
       className={[
-        "inline-flex items-center gap-2 rounded-full font-medium ring-1",
+        "inline-flex items-center gap-2 rounded-full font-semibold ring-1",
         STYLES[state],
         size === "lg" ? "px-5 py-2 text-xl" : "px-3 py-1 text-sm",
       ].join(" ")}

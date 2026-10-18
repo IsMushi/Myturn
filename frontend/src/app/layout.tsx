@@ -11,21 +11,22 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-slate-50 text-slate-900 antialiased">
-        <header className="border-b border-slate-200 bg-white">
-          <nav className="mx-auto flex max-w-5xl items-center gap-4 px-4 py-3">
-            <Link href="/" className="text-lg font-semibold tracking-tight">
+      <body className="min-h-screen bg-soft-mint text-ink antialiased">
+        <header className="border-b border-line bg-white">
+          <nav className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
+            <span className="h-3 w-3 rounded-full bg-primary" />
+            <Link href="/" className="text-lg font-semibold tracking-tight text-deep-green">
               MyTurn
             </Link>
-            <span className="hidden text-sm text-slate-500 sm:inline">Know your turn.</span>
-            <div className="ml-auto flex gap-5 text-sm font-medium text-slate-600">
-              <Link href="/" className="hover:text-slate-900">
+            <span className="hidden text-sm text-medium-green sm:inline">Know your turn.</span>
+            <div className="ml-auto flex gap-5 text-sm font-medium text-medium-green">
+              <Link href="/" className="hover:text-deep-green">
                 Visitor
               </Link>
-              <Link href="/screen" className="hover:text-slate-900">
+              <Link href="/screen" className="hover:text-deep-green">
                 Screen
               </Link>
-              <Link href="/staff" className="hover:text-slate-900">
+              <Link href="/staff" className="hover:text-deep-green">
                 Staff
               </Link>
             </div>

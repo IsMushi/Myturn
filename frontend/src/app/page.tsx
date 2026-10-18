@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 
 import { DeskStateBadge } from "@/components/DeskStateBadge";
 import { api } from "@/lib/api";
-import { useTicketToken, useMounted } from "@/lib/useTicketToken";
+import { useMounted, useTicketToken } from "@/lib/useTicketToken";
 import { usePolling } from "@/lib/usePolling";
 import type { TicketCreated, TicketState } from "@/lib/types";
 
@@ -65,24 +65,24 @@ export default function VisitorPage() {
 
   return (
     <div className="mx-auto max-w-xl">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Take your turn</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold tracking-tight text-deep-green">Take your turn</h1>
         <DeskStateBadge state={state} />
       </div>
 
-      <p className="mt-2 text-sm text-slate-600">
+      <p className="mt-2 text-sm text-medium-green">
         One service desk, one queue. The number at the desk is shown below, and this page keeps
         your place even if you close it.
       </p>
 
-      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-line bg-white p-6 shadow-sm">
         {mounted && !token && (
           <div className="text-center">
-            <p className="text-sm text-slate-600">Tap the button to join the queue.</p>
+            <p className="text-sm text-medium-green">Tap the button to join the queue.</p>
             <button
               onClick={() => void takeTicket()}
               disabled={busy || state === "closed"}
-              className="mt-4 w-full rounded-xl bg-slate-900 px-6 py-4 text-lg font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              className="mt-4 w-full rounded-xl bg-deep-green px-6 py-4 text-lg font-semibold text-white transition hover:bg-medium-green disabled:cursor-not-allowed disabled:bg-line disabled:text-medium-green"
             >
               {busy ? "Issuing…" : state === "closed" ? "The desk is closed" : "Take a ticket"}
             </button>
@@ -91,12 +91,14 @@ export default function VisitorPage() {
 
         {token && ticket && (
           <div className="text-center">
-            <p className="text-sm font-medium tracking-wide text-slate-500 uppercase">
+            <p className="text-sm font-medium tracking-wide text-medium-green uppercase">
               Your number
             </p>
-            <p className="mt-1 text-7xl font-bold tabular-nums">{ticket.ticket_no}</p>
+            <p className="mt-1 text-7xl font-bold tabular-nums text-deep-green">
+              {ticket.ticket_no}
+            </p>
             <p className="mt-4 text-lg font-medium">{statusLine(ticket)}</p>
-            <p className="mt-2 text-sm text-slate-600">
+            <p className="mt-2 text-sm text-medium-green">
               {ticket.status === "waiting"
                 ? ticket.ahead === 0
                   ? "You are next in line."
@@ -105,27 +107,31 @@ export default function VisitorPage() {
             </p>
 
             <dl className="mt-6 grid grid-cols-2 gap-3 text-left text-sm">
-              <div className="rounded-lg bg-slate-50 p-3">
-                <dt className="text-slate-500">Now being served</dt>
-                <dd className="text-xl font-semibold tabular-nums">{served ?? "—"}</dd>
+              <div className="rounded-lg bg-light-lime/40 p-3">
+                <dt className="text-medium-green">Now being served</dt>
+                <dd className="text-xl font-semibold tabular-nums text-deep-green">
+                  {served ?? "—"}
+                </dd>
               </div>
-              <div className="rounded-lg bg-slate-50 p-3">
-                <dt className="text-slate-500">Waiting</dt>
-                <dd className="text-xl font-semibold tabular-nums">{desk?.waiting ?? "—"}</dd>
+              <div className="rounded-lg bg-light-lime/40 p-3">
+                <dt className="text-medium-green">Waiting</dt>
+                <dd className="text-xl font-semibold tabular-nums text-deep-green">
+                  {desk?.waiting ?? "—"}
+                </dd>
               </div>
             </dl>
 
-            <div className="mt-6 flex justify-center gap-3">
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
               <button
                 onClick={() => void takeTicket()}
                 disabled={busy}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-ink hover:bg-light-lime disabled:opacity-50"
               >
                 Take another ticket
               </button>
               <button
                 onClick={forgetTicket}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50"
+                className="rounded-lg border border-line px-4 py-2 text-sm font-semibold text-deep-green hover:bg-soft-mint"
               >
                 Forget this ticket
               </button>
@@ -133,17 +139,16 @@ export default function VisitorPage() {
           </div>
         )}
 
-        {!mounted && <p className="text-center text-slate-500">Loading…</p>}
+        {!mounted && <p className="text-center text-medium-green">Loading…</p>}
 
-        {(error || (pollError && pollError.status !== 404)) && (
-          <p className="mt-4 text-center text-sm text-rose-600">
-            {error ?? pollError?.message}
-          </p>
-        )}
-        {pollError?.status === 404 && (
-          <p className="mt-4 text-center text-sm text-rose-600">
+        {error && <p className="mt-4 text-center text-sm text-rose-700">{error}</p>}
+        {pollError && pollError.status === 404 && (
+          <p className="mt-4 text-center text-sm text-rose-700">
             This ticket is no longer on the server. Take a new one.
           </p>
+        )}
+        {pollError && pollError.status !== 404 && (
+          <p className="mt-4 text-center text-sm text-rose-700">{pollError.message}</p>
         )}
       </section>
     </div>

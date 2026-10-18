@@ -38,81 +38,79 @@ export default function StaffPage() {
   }
 
   if (!data) {
-    return (
-      <p className="text-slate-500">{error ? error.message : "Loading the queue…"}</p>
-    );
+    return <p className="text-medium-green">{error ? error.message : "Loading the queue…"}</p>;
   }
 
   const device = data.device;
   const called = data.called;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight">Service desk</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-deep-green">Service desk</h1>
         <DeskStateBadge state={data.service_state} />
-        <span className="text-sm text-slate-500">
+        <span className="text-sm text-medium-green">
           {data.waiting} waiting
           {data.service_updated_by ? ` · set by ${data.service_updated_by}` : ""}
         </span>
         <button
           onClick={() => void run(() => api.logout())}
-          className="ml-auto rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium hover:bg-slate-50"
+          className="ml-auto rounded-lg border border-line px-3 py-1.5 text-sm font-semibold text-deep-green hover:bg-soft-mint"
         >
           Sign out
         </button>
       </div>
 
-      <section className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-4">
-        <span className="mr-2 text-sm font-medium text-slate-600">Desk state</span>
+      <section className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-white p-4">
+        <span className="mr-2 text-sm font-semibold text-deep-green">Desk state</span>
         {SERVICE_BUTTONS.map((button) => (
           <button
             key={button.state}
             onClick={() => void run(() => api.setService(button.state))}
             disabled={busy || data.service_state === button.state}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50 disabled:opacity-40"
+            className="rounded-lg border border-line px-4 py-2 text-sm font-semibold text-deep-green hover:bg-primary disabled:bg-light-lime disabled:text-ink disabled:opacity-100"
           >
             {button.label}
           </button>
         ))}
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4 text-sm">
-        <h2 className="font-semibold text-slate-700">Board</h2>
+      <section className="rounded-xl border border-line bg-white p-4 text-sm">
+        <h2 className="font-semibold text-deep-green">Board</h2>
         {device ? (
-          <p className="mt-2 flex flex-wrap items-center gap-x-6 gap-y-1 text-slate-600">
-            <span className={device.online ? "text-emerald-700" : "text-rose-600"}>
+          <p className="mt-2 flex flex-wrap items-center gap-x-6 gap-y-1 text-medium-green">
+            <span className={device.online ? "font-semibold text-medium-green" : "text-rose-700"}>
               {device.online ? "● online" : "● offline"}
             </span>
             <span>last report {relative(device.last_seen)}</span>
             <span>distance {device.distance_cm ?? "—"} cm</span>
             <span>{device.occupied ? "someone at the counter" : "counter free"}</span>
-            <span className={device.approach ? "font-medium text-amber-700" : ""}>
+            <span className={device.approach ? "font-semibold text-deep-green" : ""}>
               {device.approach ? "visitor approaching" : "no approach"}
             </span>
             <span>light {device.led_state ?? "—"}</span>
           </p>
         ) : (
-          <p className="mt-2 text-slate-600">No board has reported yet.</p>
+          <p className="mt-2 text-medium-green">No board has reported yet.</p>
         )}
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-5">
+      <section className="rounded-xl border border-line bg-white p-5">
         {called ? (
           <div className="text-center">
-            <p className="text-sm font-medium tracking-wide text-slate-500 uppercase">
+            <p className="text-sm font-semibold tracking-wide text-medium-green uppercase">
               Now calling
             </p>
-            <p className="text-6xl font-bold tabular-nums">{called.ticket_no}</p>
-            <p className="mt-2 text-sm text-slate-600">
+            <p className="text-6xl font-bold tabular-nums text-deep-green">{called.ticket_no}</p>
+            <p className="mt-2 text-sm text-medium-green">
               Called {relative(called.called_at)}. If nobody comes, the turn goes back to the
-              queue in <span className="font-medium">{data.hold_remaining ?? 0} s</span>.
+              queue in <span className="font-semibold text-deep-green">{data.hold_remaining ?? 0} s</span>.
             </p>
             <div className="mt-5 flex flex-wrap justify-center gap-3">
               <button
                 onClick={() => void run(() => api.ticketAction(called.ticket_id, "complete"))}
                 disabled={busy}
-                className="rounded-lg bg-emerald-600 px-5 py-2.5 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                className="rounded-lg bg-primary px-5 py-2.5 font-semibold text-ink hover:bg-light-lime disabled:opacity-50"
               >
                 Served
               </button>
@@ -126,7 +124,7 @@ export default function StaffPage() {
               <button
                 onClick={() => void run(() => api.ticketAction(called.ticket_id, "cancel"))}
                 disabled={busy}
-                className="rounded-lg bg-rose-600 px-5 py-2.5 font-semibold text-white hover:bg-rose-500 disabled:opacity-50"
+                className="rounded-lg bg-rose-700 px-5 py-2.5 font-semibold text-white hover:bg-rose-600 disabled:opacity-50"
               >
                 Cancelled
               </button>
@@ -134,31 +132,29 @@ export default function StaffPage() {
           </div>
         ) : (
           <div className="text-center">
-            <p className="text-sm text-slate-600">
-              No ticket is being called.
-            </p>
+            <p className="text-sm text-medium-green">No ticket is being called.</p>
             <button
               onClick={() => void run(() => api.callNext())}
               disabled={busy || data.waiting === 0}
-              className="mt-4 rounded-xl bg-slate-900 px-8 py-4 text-lg font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              className="mt-4 rounded-xl bg-deep-green px-8 py-4 text-lg font-semibold text-white hover:bg-medium-green disabled:cursor-not-allowed disabled:bg-line disabled:text-medium-green"
             >
               Call next
             </button>
           </div>
         )}
-        {notice && <p className="mt-4 text-center text-sm text-rose-600">{notice}</p>}
+        {notice && <p className="mt-4 text-center text-sm text-rose-700">{notice}</p>}
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
-        <h2 className="font-semibold text-slate-700">Waiting list</h2>
+      <section className="rounded-xl border border-line bg-white p-4">
+        <h2 className="font-semibold text-deep-green">Waiting list</h2>
         {data.queue.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-500">The queue is empty.</p>
+          <p className="mt-2 text-sm text-medium-green">The queue is empty.</p>
         ) : (
           <ul className="mt-3 flex flex-wrap gap-2">
             {data.queue.map((ticket) => (
               <li
                 key={ticket.ticket_id}
-                className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold tabular-nums"
+                className="rounded-lg bg-light-lime px-3 py-2 text-sm font-semibold tabular-nums text-ink"
               >
                 {ticket.ticket_no}
               </li>
@@ -193,40 +189,41 @@ function SignIn({ onSignedIn }: { onSignedIn: () => Promise<void> }) {
   return (
     <form
       onSubmit={(event) => void submit(event)}
-      className="mx-auto max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+      className="mx-auto max-w-sm rounded-2xl border border-line bg-white p-6 shadow-sm"
     >
-      <h1 className="text-xl font-semibold tracking-tight">Staff sign in</h1>
-      <p className="mt-1 text-sm text-slate-600">
-        The dashboard is for the person at the desk.
-      </p>
+      <div className="flex items-center gap-2">
+        <span className="h-3 w-3 rounded-full bg-primary" />
+        <h1 className="text-xl font-semibold tracking-tight text-deep-green">Staff sign in</h1>
+      </div>
+      <p className="mt-1 text-sm text-medium-green">The dashboard is for the person at the desk.</p>
 
-      <label className="mt-5 block text-sm font-medium text-slate-700">
+      <label className="mt-5 block text-sm font-semibold text-deep-green">
         Name
         <input
           value={name}
           onChange={(event) => setName(event.target.value)}
-          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base"
+          className="mt-1 w-full rounded-lg border border-line bg-soft-mint px-3 py-2 text-base font-normal text-ink outline-none focus:border-medium-green"
           autoComplete="username"
         />
       </label>
 
-      <label className="mt-4 block text-sm font-medium text-slate-700">
+      <label className="mt-4 block text-sm font-semibold text-deep-green">
         Password
         <input
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base"
+          className="mt-1 w-full rounded-lg border border-line bg-soft-mint px-3 py-2 text-base font-normal text-ink outline-none focus:border-medium-green"
           autoComplete="current-password"
         />
       </label>
 
-      {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
+      {error && <p className="mt-3 text-sm text-rose-700">{error}</p>}
 
       <button
         type="submit"
         disabled={busy}
-        className="mt-5 w-full rounded-lg bg-slate-900 px-4 py-2.5 font-semibold text-white hover:bg-slate-700 disabled:opacity-50"
+        className="mt-5 w-full rounded-lg bg-deep-green px-4 py-2.5 font-semibold text-white hover:bg-medium-green disabled:opacity-50"
       >
         {busy ? "Signing in…" : "Sign in"}
       </button>

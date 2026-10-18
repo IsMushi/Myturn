@@ -77,20 +77,21 @@ def queue():
 
     info = None
     if device is not None:
-        age = seconds_since(device["last_seen"])
+        last_seen_age = seconds_since(device["last_seen"])
+        report_age = seconds_since(report["reported_at"]) if report else None
         info = {
             "label": device["label"],
             "last_seen": device["last_seen"],
-            "online": age is not None
-            and age <= current_app.config["DEVICE_ONLINE_SECONDS"],
+            "online": last_seen_age is not None
+            and last_seen_age <= current_app.config["DEVICE_ONLINE_SECONDS"],
             "distance_cm": report["distance_cm"] if report else None,
             "occupied": bool(report["occupied"]) if report else False,
             "led_state": report["led_state"] if report else None,
             "reported_at": report["reported_at"] if report else None,
             # An approach only counts while the reading is fresh.
             "approach": bool(report and report["approach"])
-            and (seconds_since(report["reported_at"]) or 1e9)
-            <= current_app.config["APPROACH_WINDOW_SECONDS"],
+            and report_age is not None
+            and report_age <= current_app.config["APPROACH_WINDOW_SECONDS"],
         }
 
     hold = current_app.config["HOLD_SECONDS"]

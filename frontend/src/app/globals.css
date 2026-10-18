@@ -1,1 +1,66 @@
 @import "tailwindcss";
+
+/* Google Sans is a licensed typeface that ships with Google's own products, so
+   it cannot be fetched from Google Fonts. Put the font files in public/fonts/
+   (see the README in that folder) and they are picked up here automatically.
+   Until the files are added, the browser falls back to the next family in the
+   stack below, so the interface still looks right. */
+@font-face {
+  font-family: "Google Sans";
+  src:
+    url("/fonts/GoogleSans-Regular.woff2") format("woff2"),
+    url("/fonts/GoogleSans-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Google Sans";
+  src:
+    url("/fonts/GoogleSans-Medium.woff2") format("woff2"),
+    url("/fonts/GoogleSans-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Google Sans";
+  src:
+    url("/fonts/GoogleSans-Bold.woff2") format("woff2"),
+    url("/fonts/GoogleSans-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* MyTurn colour theme and typeface.
+   Tailwind publishes these as utilities (bg-primary, text-deep-green,
+   border-line) and also writes the same variables into :root, so plain CSS and
+   inline styles can use var(--color-primary) and so on. */
+@theme {
+  --font-sans:
+    "Google Sans", "Product Sans", "DM Sans", ui-sans-serif, system-ui, "Segoe UI", Roboto,
+    Arial, sans-serif;
+
+  --color-primary: #80ef24;
+  --color-deep-green: #00594f;
+  --color-medium-green: #29835d;
+  --color-light-lime: #b9f477;
+  --color-soft-mint: #eaf7ef;
+  --color-white: #ffffff;
+
+  --color-text: #073d35;
+  --color-border: #b8d8c7;
+
+  /* Short names for the two variables that read badly as utilities. */
+  --color-ink: #073d35;
+  --color-line: #b8d8c7;
+}
+
+body {
+  background-color: var(--color-soft-mint);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+}
