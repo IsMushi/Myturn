@@ -36,8 +36,8 @@ person moves
   │
   ├─ the module's comparator fires                (its own time, tens of ms)
   ├─ the module holds the output HIGH             for Tx seconds (0.5 – 5 s)
-  ├─ the firmware waits for the pin to hold       PIR_DEBOUNCE_MS (150 ms)
-  │    the same value
+  ├─ the firmware reads the pin as a duty cycle   3 of 10 samples in 200 ms,
+  │    over a 200 ms window, so about 40 ms        PIR_SAMPLE_MS
   ├─ the approach latches                         APPROACH_MS (10 s)
   │    and is reported at the fast rate           FAST_MS (1 s)
   └─ after 10 s with nobody at the counter        the approach is written
@@ -84,9 +84,23 @@ changing one means editing the file, recompiling and flashing the board.
 
 | Constant | Value | What it does | If you change it |
 |---|---|---|---|
-| `PIR_WARMUP_MS` | 60000 (60 s) | The module needs about a minute to settle after power-on. Until it passes, the PIR reports nothing at all. | Shorter risks false triggers from the warm-up; the 60 s is the module's own requirement |
-| `PIR_DEBOUNCE_MS` | 150 | The pin must hold the same value this long before the firmware believes it | Longer filters more chatter but delays a real approach; shorter lets the flicker through |
+| `PIR_WARMUP_MS` | 60000 (60 s) | The module needs about a minute to settle after power-on. Until it passes, the PIR reports nothing at all | Shorter risks false triggers from the warm-up; the 60 s is the module's own requirement |
+| `PIR_SAMPLE_MS` | 20 | How often the pin is sampled | The window is ten samples, so this sets how long a window is: 20 × 10 = 200 ms |
 | `APPROACH_MS` | 10000 (10 s) | How long one approach is remembered before it is written off as a walk-past | Longer keeps "somebody is coming" true for longer, which also keeps the fast report rate on for longer |
+
+**How the pin is read.** The module's output flickers when somebody is
+standing at the counter, so the pin is not read as a level. It is read as a
+**duty cycle** over a 200 ms window: the pin is sampled every 20 ms, and three
+of the last ten samples being HIGH is taken as motion.
+
+That matters more than it looks. A filter that waits for the pin to *hold*
+one value freezes on whichever level it happened to catch, and a frozen LOW is
+a PIR that has stopped working rather than one that is slower. The duty cycle
+cannot freeze: a flicker reads as motion, which is what a flicker at a counter
+is, and the answer comes in about 40 ms.
+
+A single electrical glitch is still rejected, and an idle sensor produces no
+readings at all.
 
 ## 3. The PIR: the delay in the API
 
@@ -114,11 +128,13 @@ on the fast rate. That is what filled the log with a reading every 25 ms.
 
 | What you see | Cause | Fix |
 |---|---|---|
-| A reading every 25 ms, `pir` alternating HIGH and LOW | The PIR output is chattering and the raw pin was believed as it arrived | **Turn `Tx` clockwise to 3-5 s** - the module then holds the output high and the chatter cannot get through. The firmware debounce of 150 ms is the second line of defence |
+| **Motion is not detected at all for the first minute after a flash** | The PIR is in its warm-up. `PIR_WARMUP_MS` is 60 s, and until it passes the module reports nothing, so the board reports nothing | Wait a minute. The log says `pir: warmup` while it is happening, and `pir: LOW` or `pir: HIGH` afterwards |
+| **Motion is not detected, long after the warm-up** | `Sx` is not sensitive enough, or the module faces away from the counter | Turn `Sx` counter-clockwise a little at a time. Check the module faces the counter and not down the room |
+| **Motion is detected but feels late** | The module's own `Tx` is not the cause - the firmware answers in about 40 ms - so the delay is in the module or the wiring | Check the module is powered from `VIN` and not `3V3`, and that the output reaches GPIO 19 |
+| **The approach stays "on" long after the person has gone** | `APPROACH_MS` is 10 s, and the ten seconds only run out if the person stops moving | Lower `APPROACH_MS` if the queue should recover faster |
+| A reading every 25 ms, `pir` alternating HIGH and LOW | The PIR output is chattering and the raw pin was believed as it arrived | **Turn `Tx` clockwise to 3-5 s** - the module then holds the output high and the chatter cannot get through |
 | `pir: HIGH` that never comes back to `LOW` | The pin is stuck high, so the approach never clears and the board stays on the one-second rate | Turn `Tx` up. If it persists, the output is being held high by the module, not by noise |
-| `pir: warmup` for the first minute after power-on | The module is settling | Nothing. It is the module's own requirement |
 | The PIR fires for people walking past | `Sx` is too sensitive | Turn `Sx` clockwise until the range is about 1-1.5 m, and face the module at the counter |
-| The PIR never fires for somebody at the counter | `Sx` is not sensitive enough, or the module is facing the wrong way | Turn `Sx` counter-clockwise a little, and check the module faces the counter |
 | The approach is reported, but the queue still moves on | The approach only ever *keeps* the full hold; it never calls anyone | This is by design. The approach is evidence, not authority |
 
 ---

@@ -32,10 +32,13 @@ static_assert(RECOVER_AFTER <= SAMPLES, "RECOVER_AFTER must fit in the window");
 // ---- PIR / reporting ----
 constexpr unsigned long PIR_WARMUP_MS = 60000;
 constexpr unsigned long APPROACH_MS   = 10000;
-// The PIR output flickers when somebody is standing at the counter. The pin
-// is only believed once it has held its value this long, so a flicker is
-// not mistaken for a stream of new approaches.
-constexpr unsigned long PIR_DEBOUNCE_MS = 150;
+// The module's output flickers when somebody is standing at the counter, so
+// the pin is read as a duty cycle over a short window rather than as a
+// level. The window is ten samples taken every PIR_SAMPLE_MS, so it covers
+// PIR_SAMPLE_MS * 10 of time, and three of those samples HIGH is taken as
+// motion. The answer comes in about 60 ms, and a flicker is read as motion
+// instead of freezing the reading.
+constexpr unsigned long PIR_SAMPLE_MS = 20;
 constexpr unsigned long INTERVAL_MS   = 5000;
 constexpr unsigned long FAST_MS       = 1000;
 
