@@ -348,6 +348,32 @@ The distance reported is the median, not the last raw reading, and the LED state
 in the report is what the board actually applied - so the dashboard compares the
 server's intent with the hardware's behaviour rather than trusting either.
 
+### The static obstruction
+
+The board never decides that something at the counter is a bag. It reports the
+distance and the two flags, and the server reads the history.
+
+A bag left on the desk reads as occupied for as long as it is there, and a desk
+that cannot call anybody is a desk that has stopped working. So the server
+treats an object as an obstruction when **both** of these hold over the last
+`MYTURN_OBSTRUCTION_SECONDS` (300 s by default):
+
+- the distance has not moved - the whole spread is within
+  `MYTURN_OBSTRUCTION_TOLERANCE_CM` (15 cm), so it has been sitting there;
+- no approach was reported anywhere in that window - a visitor who came to the
+  counter brought an approach with them, and is never written off as a bag.
+
+Anything else - a faulty sensor, a missing reading, an object that only arrived
+during the window, or an approach somewhere in it - means "not enough to say",
+and the counter stays occupied. The rule relaxes one thing only: whether the
+desk may call the next number. The hold is not relaxed at all, because there
+an occupied counter is evidence *for* keeping the number, and shortening a
+hold is the generous act.
+
+The board still has the only vote on occupancy. The server is reading two
+measurements the board made and asking a different question about them: not
+"is something there" but "has this been here, untouched, with nobody near it".
+
 ### IOT-09 - tell a broken sensor from an empty room
 
 The board currently reports whatever it measured, including a reading that is

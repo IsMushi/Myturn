@@ -152,13 +152,22 @@ address.
   nobody at the counter since the call, the server shortens that hold to
   `MYTURN_MIN_CALL_SECONDS` (25 seconds). An occupied counter, an approach, a
   missing reading or an offline board keeps the full hold.
+* A bag left on the desk reads as occupied for as long as it is there, and a
+  desk that cannot call anybody is a desk that has stopped working. So an
+  object that has sat still for `MYTURN_OBSTRUCTION_SECONDS` (300 seconds), with
+  no approach reported near it anywhere in that window, is treated as an
+  obstruction and does not block the desk from calling. A visitor who walked up
+  and then stood still brought an approach with them, so they are never written
+  off as a bag. The hold rule is not relaxed at all; only the call is.
 * The queue recovers without a button: `sweep_queue()` runs when the desk page,
   the public state or the event stream reads the queue, and the requeue records
   whether the counter was empty in `ticket_events.detail`. Every desk that has
   left a call hanging is swept, and a requeued ticket goes to the back of **its
   own** service's queue with a fresh number from that service's counter.
 * The sensor only measures. Every decision about a ticket or the desk state is
-  made in the staff routes.
+  made in the staff routes. The ultrasonic alone decides occupancy and the PIR
+  alone reports an approach; the one place the server reads both together is
+  the static obstruction, below.
 * The browser is never trusted with a role: the role comes from the session the
   server issued, and the administration routes check it again on every request.
 * Registering can only ever create a staff account. An invitation cannot carry

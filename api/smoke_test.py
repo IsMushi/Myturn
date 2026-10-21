@@ -333,6 +333,7 @@ def main():
     check("the early requeue is waiting at the back",
           (reissued["ticket_no"], reissued["status"]) if reissued else None,
           (5, "waiting"))
+
     check("the early requeue says why it happened",
           "counter empty" in (reason["detail"] or "") if reason else False, True)
 
@@ -371,6 +372,91 @@ def main():
     )
     check("the called ticket can still be served", status, 200)
     # Bring the board back for the rest of the run.
+    call(
+        "POST", "/api/device/readings",
+        {"distance_cm": 160, "occupied": False, "approach": 0, "led_state": "green"},
+        key=DEVICE_KEY,
+    )
+
+    print("Static obstruction")
+    # A bag left on the desk reads as occupied for as long as it is there, and
+    # a desk that cannot call anybody is a desk that has stopped working. An
+    # object that has not moved, and that no approach was ever seen near, is
+    # an obstruction and must not block the desk.
+    conn = sqlite3.connect(config.DATABASE)
+    conn.row_factory = sqlite3.Row
+    board = conn.execute(
+        "select device_id from devices where desk_id = 1 order by device_id limit 1"
+    ).fetchone()
+    # The queue is remembered, because this section calls a number and the
+    # rest of the run counts what has been served.
+    top_ticket = conn.execute(
+        "select coalesce(max(ticket_id), 0) as top from tickets"
+    ).fetchone()["top"]
+    counters_before = {
+        row["name"]: row["value"] for row in conn.execute("select name, value from counters")
+    }
+    conn.close()
+    device_id = board["device_id"] if board else 1
+
+    def board_history(rows):
+        """Write a reading history straight into the table.
+
+        The board reports every five seconds, and a history that spans the
+        obstruction window cannot be made through the API, because every
+        report it accepts is stamped with the time it arrived.
+        """
+        conn = sqlite3.connect(config.DATABASE)
+        conn.execute("delete from device_reports")
+        for seconds, distance, occupied, approach in rows:
+            conn.execute(
+                "insert into device_reports (device_id, distance_cm, occupied, approach, "
+                "led_state, reported_at) values (?, ?, ?, ?, 'red', ?)",
+                (device_id, distance, occupied, approach, seconds_ago(seconds)),
+            )
+        conn.execute(
+            "update devices set last_seen = ? where device_id = ?",
+            (seconds_ago(0), device_id),
+        )
+        conn.commit()
+        conn.close()
+
+    window = config.OBSTRUCTION_SECONDS
+
+    # Something that has not moved, and that no approach was ever seen near.
+    board_history([(s, 50.0, 1, 0) for s in range(0, window + 20, 20)])
+    status, called = call("POST", "/api/staff/call-next", opener=staff)
+    check("a static obstruction does not block the desk", status, 200)
+    check("the desk still calls a number", called.get("ticket_no") is not None, True)
+
+    # The same, but somebody walked up: the approach says it is a visitor.
+    walked_up = [(s, 50.0, 1, 0) for s in range(0, window + 20, 20)]
+    walked_up[len(walked_up) // 2] = (walked_up[len(walked_up) // 2][0], 50.0, 1, 1)
+    board_history(walked_up)
+    status, blocked = call("POST", "/api/staff/call-next", opener=staff)
+    check("an approach keeps the counter occupied", status, 409)
+    check("the refusal names the counter", blocked.get("error"),
+          "the counter is occupied; wait for it to clear")
+
+    # Something that has moved: it is not sitting still, so it is not a bag.
+    board_history([(s, 50.0 + (20 if s > window // 2 else 0), 1, 0)
+                   for s in range(0, window + 20, 20)])
+    status, moved = call("POST", "/api/staff/call-next", opener=staff)
+    check("something that moved keeps the counter occupied", status, 409)
+    check("the refusal still names the counter", moved.get("error"),
+          "the counter is occupied; wait for it to clear")
+
+    # Leave the run the way it was found: no number left called, the counters
+    # where they were, and a board that reads an empty counter.
+    conn = sqlite3.connect(config.DATABASE)
+    conn.execute("delete from ticket_events where ticket_id > ?", (top_ticket,))
+    conn.execute("delete from tickets where ticket_id > ?", (top_ticket,))
+    for name, value in counters_before.items():
+        conn.execute("update counters set value = ? where name = ?", (value, name))
+    conn.execute("delete from sqlite_sequence where name = 'tickets'")
+    conn.execute("insert into sqlite_sequence (name, seq) values ('tickets', ?)", (top_ticket,))
+    conn.commit()
+    conn.close()
     call(
         "POST", "/api/device/readings",
         {"distance_cm": 160, "occupied": False, "approach": 0, "led_state": "green"},

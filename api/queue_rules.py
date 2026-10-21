@@ -12,11 +12,93 @@ With several desks, the evidence is per counter. A call made at Desk 1 is not
 shortened by a board at Desk 2, and a sweep works through every desk that has
 left a call hanging.
 """
+from datetime import datetime, timedelta, timezone
+
 from flask import current_app
 
 from broadcast import signal
 from journal import log_event
 from util import seconds_since
+
+
+def counter_occupied(conn, desk_id, apply_obstruction=True):
+    """Whether the counter currently reads as occupied.
+
+    Returns True, False, or None when there is no usable reading. The board
+    is evidence, not authority: an offline board or a missing report means
+    "nobody knows", which is not the same as "somebody is there", and the
+    caller must not block the desk on data that is not there.
+
+    A bag left on the desk reads as occupied for as long as it sits there,
+    and a desk that cannot call anybody is a desk that has stopped working.
+    An object that has not moved, and that no approach was ever seen near, is
+    therefore an obstruction and does not block the desk. A visitor who walked
+    up and then stood still brought an approach with them, and is never
+    written off as a bag.
+    """
+    device = conn.execute(
+        "select device_id, last_seen from devices where desk_id = ? "
+        "order by device_id limit 1",
+        (desk_id,),
+    ).fetchone()
+    if device is None or device["last_seen"] is None:
+        return None
+    age = seconds_since(device["last_seen"])
+    if age is None or age > current_app.config["DEVICE_ONLINE_SECONDS"]:
+        return None
+    report = conn.execute(
+        "select occupied from device_reports where device_id = ? "
+        "order by report_id desc limit 1",
+        (device["device_id"],),
+    ).fetchone()
+    if report is None:
+        return None
+    if not report["occupied"]:
+        return False
+    if apply_obstruction and _is_obstruction(conn, device["device_id"]):
+        return False
+    return True
+
+
+def _is_obstruction(conn, device_id):
+    """Whether what is at the counter has sat still long enough to be an
+    obstruction rather than a visitor.
+
+    Two things have to be true together. The distance must not have moved: an
+    object that is still is still, whatever it is. And no approach may have
+    been seen anywhere in the window: a visitor who came to the counter and
+    then stood still brought an approach with them, and the desk must not
+    call the next person over them.
+
+    A faulty sensor, a missing reading or an object that only arrived during
+    the window all mean "not enough to say", and the answer is no: the
+    counter stays occupied, because guessing here would let a call go out
+    over somebody who is there.
+    """
+    window = current_app.config["OBSTRUCTION_SECONDS"]
+    tolerance = current_app.config["OBSTRUCTION_TOLERANCE_CM"]
+    if window <= 0:
+        return False
+    since = (datetime.now(timezone.utc) - timedelta(seconds=window)).isoformat(
+        timespec="seconds"
+    )
+    readings = conn.execute(
+        "select distance_cm, occupied, approach from device_reports "
+        "where device_id = ? and reported_at >= ? order by report_id",
+        (device_id, since),
+    ).fetchall()
+    if len(readings) < 3:
+        return False  # not enough history to call anything an obstruction
+    distances = []
+    for row in readings:
+        if row["distance_cm"] is None or row["distance_cm"] < 0:
+            return False  # a faulty sensor says nothing about this
+        if row["approach"]:
+            return False  # something moved: that is a visitor, not a bag
+        if not row["occupied"]:
+            return False  # it only arrived during the window
+        distances.append(row["distance_cm"])
+    return (max(distances) - min(distances)) <= tolerance
 
 
 def _evidence(conn, called):

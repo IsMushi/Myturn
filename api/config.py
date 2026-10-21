@@ -28,6 +28,16 @@ MIN_CALL_SECONDS = int(os.environ.get("MYTURN_MIN_CALL_SECONDS", "25"))
 MIN_GRACE_SECONDS = int(os.environ.get("MYTURN_MIN_GRACE_SECONDS", "10"))
 # How long an approach report counts as "a visitor is at the counter now".
 APPROACH_WINDOW_SECONDS = int(os.environ.get("MYTURN_APPROACH_WINDOW_SECONDS", "10"))
+# How long an object must sit still at the counter before it is treated as an
+# obstruction rather than a visitor, and how far the distance may drift in
+# that time and still count as still. A bag left on the desk reads as
+# occupied for as long as it is there, and a desk that cannot call anybody is
+# a desk that has stopped working. An object that has not moved, and that no
+# approach was ever seen near, is an obstruction: it does not block the desk.
+# A visitor who walked up and then stood still brought an approach with them
+# and is never written off as a bag.
+OBSTRUCTION_SECONDS = int(os.environ.get("MYTURN_OBSTRUCTION_SECONDS", "300"))
+OBSTRUCTION_TOLERANCE_CM = float(os.environ.get("MYTURN_OBSTRUCTION_TOLERANCE_CM", "15"))
 # How long without a report before the board is shown as offline.
 DEVICE_ONLINE_SECONDS = int(os.environ.get("MYTURN_DEVICE_ONLINE_SECONDS", "30"))
 

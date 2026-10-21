@@ -12,7 +12,7 @@ from flask import Blueprint, current_app, jsonify, request, session
 from broadcast import signal
 from db import get_db
 from journal import log_event
-from queue_rules import hold_limit, requeue, sweep_queue
+from queue_rules import counter_occupied, hold_limit, requeue, sweep_queue
 from routes.visitor import desk_state, service_info, service_time, ticket_label
 from security import (
     check_staff_password,
@@ -83,25 +83,16 @@ def _desk_occupied(conn, desk_id):
     a fresh report says it is free, and None when there is no board or the
     board is offline -- in which case the caller must not be blocked on data
     that is not there.
+
+    An object that has sat still at the counter, with no approach ever seen
+    near it, is an obstruction rather than a visitor and does not block the
+    desk. The rule lives in `queue_rules.counter_occupied`.
+
+    The hold rule keeps its own, stricter reading: there, an occupied counter
+    is evidence *for* keeping the number, and shortening a hold is the
+    generous act, so nothing is relaxed there.
     """
-    device = conn.execute(
-        "select device_id, last_seen from devices where desk_id = ? "
-        "order by device_id limit 1",
-        (desk_id,),
-    ).fetchone()
-    if device is None or device["last_seen"] is None:
-        return None
-    age = seconds_since(device["last_seen"])
-    if age is None or age > current_app.config["DEVICE_ONLINE_SECONDS"]:
-        return None
-    report = conn.execute(
-        "select occupied from device_reports where device_id = ? "
-        "order by report_id desc limit 1",
-        (device["device_id"],),
-    ).fetchone()
-    if report is None:
-        return None
-    return bool(report["occupied"])
+    return counter_occupied(conn, desk_id)
 
 
 def _setting(conn, desk_id):

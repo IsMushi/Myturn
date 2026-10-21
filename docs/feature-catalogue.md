@@ -225,6 +225,14 @@ The rules that make the queue trustworthy. This is the part the report defends.
   IOT-10 both stay inside that line - they read the distance, never a person.
   IOT-10 is the implemented half: the server shortens a hold only from a fresh,
   empty, approach-free reading, and otherwise keeps the full hold.
+* There is one narrow exception to the occupancy rule, and it is the server
+  that applies it, not the board. A bag left on the desk reads as occupied for
+  as long as it is there, and a desk that cannot call anybody is a desk that
+  has stopped working. So an object that has sat still for
+  `MYTURN_OBSTRUCTION_SECONDS` with no approach seen near it in that whole
+  window is treated as an obstruction and does not block the desk. A visitor
+  who walked up and then stood still brought an approach with them, so they
+  are never written off as a bag, and the hold rule is not relaxed at all.
 * IOT-11 matters because the board is the one component that cannot be restarted
   by refreshing a page: a Wi-Fi drop should lose readings, not the service.
 * IOT-05 and IOT-15 are built in software: the board applies the colour and
