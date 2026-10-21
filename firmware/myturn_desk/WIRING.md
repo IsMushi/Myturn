@@ -12,9 +12,26 @@
 | Red LED             | anode     | GPIO 25 via 220 ohm  | cathode to GND                                |
 | Green LED           | anode     | GPIO 26 via 220 ohm  | cathode to GND                                |
 | Yellow LED          | anode     | GPIO 27 via 220 ohm  | cathode to GND                                |
+| Blue LED            | anode     | GPIO 33 via 220 ohm  | cathode to GND. The call light.               |
 | Buzzer (active mod) | VCC       | 3V3                  |                                               |
 |                     | GND       | GND                  |                                               |
 |                     | I/O       | GPIO 32 (D32)        | HIGH = sound. Passive buzzer: set BUZZER_PASSIVE 1 |
+
+## What each light means
+
+| Light  | GPIO | Meaning                                                            |
+|--------|------|--------------------------------------------------------------------|
+| Green  | 26   | Desk open, the counter is free                                     |
+| Red    | 25   | Desk open, someone is at the counter (the ultrasonic sensor says so) |
+| Yellow | 27   | Desk paused or closed, or the server cannot be reached - the safe state |
+| Blue   | 33   | **A visitor is being called.** Nothing else uses this colour.       |
+
+Blue is the call light, so it needs its own LED on GPIO 33: the other three
+cannot show it. The buzzer on GPIO 32 announces the same call in sound - one
+beep for a new number, two for a recall.
+
+At power-on the board blinks Red, Yellow, Green, Blue and then settles on
+Yellow, so the colours are checked on every start.
 
 ## ECHO voltage divider (protects GPIO 21)
 
@@ -53,7 +70,7 @@ VIN (5V).
 
 ### LEDs
 
-Leave the three LEDs unplugged until the 220 ohm resistors arrive. Wiring an LED
+Leave the four LEDs unplugged until the 220 ohm resistors arrive. Wiring an LED
 straight to a pin can burn the LED or the pin. The sensor, the PIR and the API all
 work without them, and the serial log still prints the state (`led: yellow` etc.).
 
@@ -68,7 +85,7 @@ resistance and lower it until the LED is bright but not hot.
 Cheap, and salvageable from any dead charger, radio or TV board; electronics shops
 in Musanze or Kigali sell them for a few francs each.
 
-- **220 ohm** per LED
+- **220 ohm** per LED (four: one per LED)
 - **1k and 2k** for the ECHO divider
 
 ## HC-SR04 header order (print on the board)
@@ -79,8 +96,9 @@ ECHO must reach GPIO 21 through the divider. Swapping them leaves the sensor
 untriggered and drives the ESP32 output into the sensor's ECHO output.
 
 ## Notes
-- A "RGB LED module" would make GPIO 27 the blue leg, not yellow. Use three separate
-  LEDs, or change the colour mapping in Indicators.cpp.
+- A "RGB LED module" would make GPIO 27 the blue leg, not yellow, and it has no
+  fourth channel for GPIO 33. Use four separate LEDs, or change the colour mapping
+  in Indicators.cpp.
 - Power from a good USB cable or a 5 V supply. If the board reboots when the buzzer
   sounds, the supply is sagging (brown-out).
 - Server (Flask): `app.run(host="0.0.0.0", port=5000)` and allow port 5000 through

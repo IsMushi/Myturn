@@ -15,5 +15,5 @@ void        beep(uint8_t times);
 void        baselineCall(long eventId); // reconnect/reassignment never replays an old call
 // One beep for a new call, two for a recall. The first reply after boot is a baseline.
 void        announceCall(long eventId, const String &type, long ageSeconds);
-void        runStartupSequence();   // blink Red->Yellow->Green, then Blue for invalid state
+void        runStartupSequence();   // blink Red->Yellow->Green->Blue, then settle on the safe yellow
 }

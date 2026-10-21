@@ -227,6 +227,11 @@ The rules that make the queue trustworthy. This is the part the report defends.
   empty, approach-free reading, and otherwise keeps the full hold.
 * IOT-11 matters because the board is the one component that cannot be restarted
   by refreshing a page: a Wi-Fi drop should lose readings, not the service.
+* IOT-05 and IOT-15 are built in software: the board applies the colour and
+  reports which one it applied, and the report was checked against a live call
+  (the board reported `blue` once a number was called). The four LEDs are a
+  wiring matter and are still to be fitted - `firmware/myturn_desk/WIRING.md`
+  carries the pin list and says which of them are waiting for their resistors.
 
 ## 6. Wall display (DIS)
 

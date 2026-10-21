@@ -28,7 +28,7 @@ A001, B001.
 
 * Python 3.11 or newer
 * Node.js 20 or newer
-* An ESP32 DevKitC, one HC-SR04, one HC-SR501, one RGB LED and a buzzer (only for the hardware demonstration)
+* An ESP32 DevKitC, one HC-SR04, one HC-SR501, four LEDs (red, green, yellow and blue) with 220 ohm resistors, and a buzzer (only for the hardware demonstration)
 
 ## Backend
 
@@ -362,8 +362,9 @@ The older HTTP device routes remain available for compatibility.
 The board sends a reading every five seconds, every second while the PIR sensor
 sees someone approaching, and immediately when occupancy, approach or the applied
 LED changes. It drives the light: green when the desk is open and
-free, red when it is open and occupied, yellow when it is paused, and off when
-it is closed.
+free, red when it is open and occupied, yellow when it is paused or closed, and
+blue while a visitor is being called. Blue is reserved for the call, so a closed
+desk is never mistaken for a number waiting to be collected.
 
 Desk changes and call events are pushed after committed changes, independently of
 the sensor reporting interval. The server also sends an authoritative snapshot

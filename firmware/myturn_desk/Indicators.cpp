@@ -95,7 +95,8 @@ void announceCall(long id, const String &type, long age) {
 }
 
 void runStartupSequence() {
-  // Blink sequence: Red -> Yellow -> Green, then settle on Blue
+  // Blink sequence: Red -> Yellow -> Green -> Blue, then settle on the safe
+  // yellow. It shows every LED is wired at power-on.
   setLight(Light::Red);
   delay(300);
   setLight(Light::Yellow);
@@ -103,6 +104,7 @@ void runStartupSequence() {
   setLight(Light::Green);
   delay(300);
   setLight(Light::Blue);
+  delay(300);
 }
 
 }  // namespace Indicators

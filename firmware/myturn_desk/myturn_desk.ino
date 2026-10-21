@@ -27,16 +27,19 @@ static Net::Setting deskSetting;   // last state read from the server; "paused" 
 static bool startupSequenceDone = false;
 
 static Light chooseLight(const Net::Setting &s, bool occupied) {
-  // When state is invalid or not yet received (!valid OR neither "active" nor "paused"):
-  // run startup sequence once (Red->Yellow->Green) then show Blue
-  if (!s.valid || (s.state != "active" && s.state != "paused")) {
-    if (!startupSequenceDone) {
+  // Yellow is the safe state: the desk is not known to be open. The board
+  // starts yellow and falls back to yellow when the server cannot be reached,
+  // so it never claims a desk is open that nobody has said is open.
+  if (!s.valid || s.state == "closed") {
+    if (!s.valid && !startupSequenceDone) {
       Indicators::runStartupSequence();
       startupSequenceDone = true;
     }
-    return Light::Blue;
+    return Light::Yellow;
   }
-  // Blue when actively calling a visitor (between call-next and served/no-show)
+  // Blue is the call light and only the call light: a visitor is being called,
+  // between call-next and served/no-show. Nothing else may use this colour, or
+  // a closed desk would look like a number waiting to be collected.
   if (s.state == "active" && s.callId > 0 && (s.callEvent == "called" || s.callEvent == "recalled")) {
     return Light::Blue;
   }

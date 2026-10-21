@@ -315,9 +315,9 @@ paraphrasing them; they are the numbers the hardware was actually flashed with.
 | `FAST_MS` | 1000 | Reporting interval while an approach is detected |
 | `APPROACH_MS` | 10000 | An approach that never becomes occupancy is a walk-past |
 | `PIR_WARMUP_MS` | 60000 | The PIR needs about a minute to settle after power-up |
-| `TRIG_PIN` / `ECHO_PIN` | D5 / D18 | HC-SR04 |
+| `TRIG_PIN` / `ECHO_PIN` | D5 / D21 | HC-SR04 |
 | `PIR_PIN` | D19 | HC-SR501 |
-| `RED_PIN` / `GREEN_PIN` / `YELLOW_PIN` | D25 / D26 / D27 | RGB LED (red / green / yellow) |
+| `RED_PIN` / `GREEN_PIN` / `YELLOW_PIN` / `BLUE_PIN` | D25 / D26 / D27 / D33 | Four LEDs: red, green, yellow, blue |
 | `BUZZER_PIN` | D32 | Buzzer: one beep for a call, two for a recall |
 | `BUZZER_PASSIVE` | 0 | 0 = active buzzer module; 1 = passive buzzer driven with `tone()` |
 | `BEEP_MAX_AGE_S` | 20 | A call older than this is not announced after a reconnect |
@@ -337,10 +337,12 @@ The loop, in order:
 6. Ask for the desk setting, then set the light: **green** when the desk is open
    and the counter is free, **red** when open and occupied, **yellow** when the
    desk is paused or closed (and yellow from power-up, so a board that has never
-   reached the server does not claim the desk is open). The same reply carries the
-   latest call event, so a new number sounds once and a recall sounds twice; the
-   first reply after boot is a silent baseline, and an event older than 20 seconds
-   is ignored.
+   reached the server does not claim the desk is open), and **blue** while a
+   visitor is being called. Blue is reserved for the call, so a closed desk can
+   never be mistaken for a number waiting to be collected. The same reply carries
+   the latest call event, so a new number sounds once and a recall sounds twice;
+   the first reply after boot is a silent baseline, and an event older than 20
+   seconds is ignored.
 
 The distance reported is the median, not the last raw reading, and the LED state
 in the report is what the board actually applied - so the dashboard compares the
