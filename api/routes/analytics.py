@@ -101,7 +101,7 @@ def queue_analytics():
 
     return jsonify(
         ok=True,
-        timestamp=now() + "Z",
+        timestamp=now(),
         data={
             "current_queue_length": queue_length,
             "average_wait_time_seconds": avg_wait_seconds,
@@ -181,7 +181,7 @@ def desk_analytics(desk_id):
 
     return jsonify(
         ok=True,
-        timestamp=now() + "Z",
+        timestamp=now(),
         data={
             "desk_id": row["desk_id"],
             "desk_name": row["name"],
@@ -241,6 +241,6 @@ def service_trends():
 
     return jsonify(
         ok=True,
-        timestamp=now() + "Z",
+        timestamp=now(),
         data={"period_days": 7, "trends": trends},
     )

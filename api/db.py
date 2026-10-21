@@ -94,6 +94,13 @@ def apply_schema(database, schema_file=SCHEMA_FILE, desk_name=None, desk_descrip
         if "contact" not in ticket_columns:
             conn.execute("alter table tickets add column contact text")
 
+        # The same for the duplicate-detection fingerprint. `create table if
+        # not exists` cannot add a column to a table that is already there, and
+        # the ticket insert names this one, so without the guard every ticket
+        # request fails on a database created before the column was added.
+        if "browser_fingerprint" not in ticket_columns:
+            conn.execute("alter table tickets add column browser_fingerprint text")
+
         conn.executescript(INDEXES)
     finally:
         conn.close()
@@ -217,6 +224,7 @@ def _rebuild_tickets(conn, service_id):
                 created_at   text    not null,
                 called_at    text,
                 closed_at    text,
+                browser_fingerprint text,
                 unique (service_id, ticket_no)
             )
             """

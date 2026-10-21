@@ -226,6 +226,15 @@ def main():
     check("dashboard sees the light the board applied", device["led_state"], "red")
 
     print("Hold rule")
+    # The Board section above left the board reporting an occupied counter.
+    # A desk that still has someone at it refuses to call the next visitor, so
+    # the counter has to read free before this section can call at all. The
+    # hold test is about timing, not about occupancy.
+    call(
+        "POST", "/api/device/readings",
+        {"distance_cm": 400, "occupied": False, "approach": 0, "led_state": "green"},
+        key=DEVICE_KEY,
+    )
     # Put a ticket in the called state first, so there is something to hold.
     status, held = call("POST", "/api/staff/call-next", opener=staff)
     check("next ticket is called before the hold test", (status, held["ticket_no"]), (200, 2))

@@ -54,49 +54,66 @@ def create_app():
     def health():
         """Production health check with database and desk status."""
         import sqlite3
-        from datetime import datetime
-        
+        from util import now, seconds_since
+
         status = {
             "ok": True,
             "service": "myturn-api",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": now(),
             "version": os.environ.get("MYTURN_ENV", "dev"),
             "database": {"connected": False, "tables": 0},
-            "desks": {"active": 0, "paused": 0, "offline": 0},
-            "devices": {"registered": 0}
+            "desks": {"active": 0, "paused": 0, "closed": 0, "offline": 0},
+            "devices": {"registered": 0, "online": 0},
         }
-        
+
         # Check database connectivity
         try:
             conn = sqlite3.connect(app.config["DATABASE"])
             cursor = conn.cursor()
-            
+
             # Count tables
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
             status["database"]["tables"] = len(cursor.fetchall())
             status["database"]["connected"] = True
-            
-            # Count desk states
-            cursor.execute("SELECT state FROM desks WHERE state IS NOT NULL")
-            states = cursor.fetchall()
-            for (state,) in states:
-                if state == "active":
-                    status["desks"]["active"] += 1
-                elif state == "paused":
-                    status["desks"]["paused"] += 1
-                else:
+
+            # Count desk states. A desk has no state column of its own: the
+            # state is the most recent row in desk_settings, the same row the
+            # board and the dashboard read.
+            cursor.execute(
+                "select d.is_active, "
+                "  (select ds.service_state from desk_settings ds "
+                "     where ds.desk_id = d.desk_id "
+                "     order by ds.setting_id desc limit 1) as state "
+                "from desks d"
+            )
+            for is_active, state in cursor.fetchall():
+                if not is_active:
                     status["desks"]["offline"] += 1
-            
-            # Count registered devices
-            cursor.execute("SELECT COUNT(*) FROM devices")
-            status["devices"]["registered"] = cursor.fetchone()[0]
-            
+                elif state == "active":
+                    status["desks"]["active"] += 1
+                elif state == "closed":
+                    status["desks"]["closed"] += 1
+                else:
+                    # Paused, or paused by default before a state is recorded.
+                    status["desks"]["paused"] += 1
+
+            # Count registered devices, and how many of them have been heard
+            # from recently enough to be trusted.
+            cursor.execute("SELECT last_seen FROM devices")
+            devices = cursor.fetchall()
+            status["devices"]["registered"] = len(devices)
+            window = app.config["DEVICE_ONLINE_SECONDS"]
+            for (last_seen,) in devices:
+                age = seconds_since(last_seen) if last_seen else None
+                if age is not None and age <= window:
+                    status["devices"]["online"] += 1
+
             conn.close()
         except sqlite3.Error as e:
             status["ok"] = False
             status["database"]["error"] = str(e)
             return jsonify(status), 503
-        
+
         return jsonify(status)
 
     app.register_blueprint(visitor_bp)

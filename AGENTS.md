@@ -73,7 +73,8 @@ For the web app, kill only Next's node processes - filter `Get-CimInstance Win32
 ## Verifying
 
 ```powershell
-cd myturn\api;  .\.venv\Scripts\python.exe smoke_test.py   # 196 checks, 0 failed - needs the API running
+cd myturn\api;  .\.venv\Scripts\python.exe smoke_test.py   # 206 checks, 0 failed - needs the API running
+cd myturn\api;  .\.venv\Scripts\python.exe check_device_ws.py --smoke  # the same suite plus the WebSocket checks, in a disposable office
 cd myturn\web; npx tsc --noEmit; npx eslint .; npm run build
 python C:\Users\Isaac\AppData\Local\Temp\opencode\verify_ui.py  # 71 checks, 0 failed - needs both servers
 python C:\Users\Isaac\AppData\Local\Temp\opencode\check_sidebar.py   # 8 checks
@@ -82,6 +83,7 @@ python C:\Users\Isaac\AppData\Local\Temp\opencode\check_console.py   # 45 checks
 
 - There is no unit-test framework. `smoke_test.py` (the API) and the Playwright scripts (the interface) are the entire suite. "Verified" means these were run, not that the code reads correctly.
 - `smoke_test.py` resets the transactional tables and the one account it creates, so it is repeatable - but it deliberately exhausts the forgot-password bucket (5 per 15 minutes, per process). A second run without restarting the API fails in the reset section with 429. **Restart the API between runs.**
+- `check_device_ws.py --smoke` runs the same 206 checks against a **disposable** API, database and device key, and adds the WebSocket checks. Use it when the real board is connected: the live board reports every five seconds, so it can overwrite the reading the suite is asserting on, and the run becomes a race. The disposable run is the one that means something.
 - `verify_ui.py`, `check_sidebar.py` and `check_console.py` live outside the repository, in the temp folder, and can be cleared at any time; recreate them rather than assuming they are there. Each registers its own account and removes it afterwards. Keep it that way - earlier runs left `staff...@example.com` accounts behind and the database had to be cleaned.
 - `check_console.py` needs the API restarted first, like `verify_ui.py`: it signs in several times, and the sign-in bucket is per process.
 - Kill port 3000 before `npm run build`, then restart the dev server.
