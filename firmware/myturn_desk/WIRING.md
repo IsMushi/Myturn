@@ -35,9 +35,11 @@ Yellow, so the colours are checked on every start.
 
 ## Reading the serial log
 
-Open the serial monitor at **115200 baud**. Every line is stamped with the
-uptime, and the log says what the board believes rather than only what it
-did, so a fault can be read off the screen.
+Open the serial monitor at **115200 baud**. Every part of the log is a **list**:
+a label, a colon, and the value, with the labels padded so the values line up
+and can be read straight down. Every block is stamped with the uptime, and the
+log says what the board believes rather than only what it did, so a fault can
+be read off the screen.
 
 At boot:
 
@@ -47,9 +49,9 @@ At boot:
   chip id     : 7CA8F5A8
   free heap   : 214368 bytes
   watchdog    : 8000 ms timeout, fed every 2000 ms
-Device WebSocket: ws://192.168.137.1:5000/ws/device
-Device key length: 32 characters
-Wi-Fi: joining "MyTurn hotspot"
+  endpoint    : ws://192.168.137.1:5000/ws/device
+  device key  : 32 characters
+  joining wifi: "MyTurn hotspot"
 ```
 
 Then the connection events, as they happen. These are the lines to read when
@@ -67,11 +69,22 @@ device key), **1001** means the board itself reconnected. The board never
 prints the key, only its length, so a key that was pasted short is visible
 without putting the secret in the log.
 
-Every five seconds the readings and the link:
+Every five seconds the readings and the link, in the same list form:
 
 ```
-[   14235 ms] data : distance no object     raw   400.0 cm | occupied no  | pir LOW  ready  | led green
-[   14235 ms] link : wifi up    192.168.137.12   -52 dBm | ws acked       | desk 1 state active  call none     | seq 142
+[    4658 ms] data :
+  distance   : 25.2 cm
+  raw        : 51.1 cm
+  occupied   : yes
+  pir        : warmup
+  led        : red
+[    4658 ms] link :
+  wifi       : up    ip 192.168.137.172  rssi -43 dBm
+  ws         : acked
+  desk       : 1
+  state      : active
+  call       : none
+  seq        : 2
 ```
 
 And the whole connection in one block, printed when it changes and every
@@ -79,14 +92,14 @@ And the whole connection in one block, printed when it changes and every
 
 ```
 === connection ================================================
-  uptime     : 14235 ms
-  wifi       : up   ip 192.168.137.12   rssi -52 dBm
+  uptime     : 7570 ms
+  wifi       : up    ip 192.168.137.172  rssi -40 dBm
   endpoint   : ws://192.168.137.1:5000/ws/device
-  socket     : up   authenticated ok
+  socket     : up     authenticated ok
   assignment : desk 1   state active   call none
   last event : authenticated: desk 1, state active, call none
   failures   : 0
-  telemetry  : seq 142   server time 2026-10-21T18:24:38+00:00
+  telemetry  : seq 1   server time 2026-10-21T19:29:28+00:00
 ================================================================
 ```
 
@@ -94,9 +107,14 @@ And the whole connection in one block, printed when it changes and every
   accepted. The `last event` line says why.
 - `ws no-ack` means the board is connected but the server has not confirmed
   its telemetry.
+- `ws stale state` means the last snapshot from the server is older than
+  twelve seconds. `ws config error` means the sketch could not work out the
+  address to call, and the `last event` line carries the detail.
 - `telemetry: seq 0` means no reading has been acknowledged yet.
 - The server's own clock is on the `telemetry` line, so the log and the
   database can be compared without trusting the board's clock.
+- `pir: warmup` means the PIR is still settling after power-on and is
+  reporting nothing; it says `LOW` or `HIGH` once it is ready.
 
 The sensor loop and the network task both write to the log, so every print
 holds a lock: a line is never split by the other task's output.

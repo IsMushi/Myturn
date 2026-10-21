@@ -48,6 +48,11 @@ static Light chooseLight(const Net::Setting &s, bool occupied) {
   return occupied ? Light::Red : Light::Green;
 }
 
+// Every block of the log is a list: a label, then a colon, then the value.
+// The labels are padded to the same width, so the values line up and the
+// list can be read straight down.
+#define LABEL_WIDTH 11
+
 static void logStatus(float cm) {
   char dist[24];
   if (Sensor::faulted()) strcpy(dist, "NO SENSOR");
@@ -58,26 +63,30 @@ static void logStatus(float cm) {
   Net::Connection c;
   Net::connection(c);
 
-  // The socket line names the reason when it is not ready, so a fault says
+  // The socket field names the reason when it is not ready, so a fault says
   // what is wrong instead of only that something is.
   const char *socket = Net::ready()
       ? (Net::readingAcknowledged() ? "acked" : "no-ack")
       : Net::lastError();
 
-  // One print, so a line never arrives half-written.
+  // One print, so a block never arrives half-written.
   Net::serialLock();
-  Serial.printf(
-    "[%8lu ms] data : distance %-12s raw %7.1f cm | occupied %-3s | pir %-4s %-5s | led %-6s\n"
-    "[%8lu ms] link : wifi %-4s %-15s %4d dBm | ws %-12s | desk %ld state %-7s call %-8s | seq %ld\n",
-    millis(), dist, Sensor::rawCm(),
-    Sensor::occupied() ? "yes" : "no",
-    Pir::motion() ? "HIGH" : "LOW", Pir::ready() ? "ready" : "warmup",
-    Indicators::lightName(Indicators::light()),
-    millis(),
-    c.wifiUp ? "up" : "down", c.ip, c.rssi,
-    socket,
-    c.deskId, c.serviceState, c.callEvent,
-    c.lastAckSequence);
+  Serial.printf("[%8lu ms] data :\n", millis());
+  Serial.printf("  %-*s: %s\n", LABEL_WIDTH, "distance", dist);
+  Serial.printf("  %-*s: %.1f cm\n", LABEL_WIDTH, "raw", Sensor::rawCm());
+  Serial.printf("  %-*s: %s\n", LABEL_WIDTH, "occupied", Sensor::occupied() ? "yes" : "no");
+  if (Pir::ready()) Serial.printf("  %-*s: %s\n", LABEL_WIDTH, "pir", Pir::motion() ? "HIGH" : "LOW");
+  else              Serial.printf("  %-*s: warmup\n", LABEL_WIDTH, "pir");
+  Serial.printf("  %-*s: %s\n", LABEL_WIDTH, "led", Indicators::lightName(Indicators::light()));
+
+  Serial.printf("[%8lu ms] link :\n", millis());
+  Serial.printf("  %-*s: %s    ip %s  rssi %d dBm\n", LABEL_WIDTH, "wifi",
+                c.wifiUp ? "up" : "down", c.ip, c.rssi);
+  Serial.printf("  %-*s: %s\n", LABEL_WIDTH, "ws", socket);
+  Serial.printf("  %-*s: %ld\n", LABEL_WIDTH, "desk", c.deskId);
+  Serial.printf("  %-*s: %s\n", LABEL_WIDTH, "state", c.serviceState);
+  Serial.printf("  %-*s: %s\n", LABEL_WIDTH, "call", c.callEvent);
+  Serial.printf("  %-*s: %ld\n", LABEL_WIDTH, "seq", c.lastAckSequence);
   Net::serialUnlock();
 }
 
@@ -89,23 +98,23 @@ static void logConnection(const Net::Connection &c) {
   Net::serialLock();
   Serial.printf(
     "=== connection ================================================\n"
-    "  uptime     : %lu ms\n"
-    "  wifi       : %-4s  ip %-15s  rssi %d dBm\n"
-    "  endpoint   : %s\n"
-    "  socket     : %-4s   authenticated %s\n"
-    "  assignment : desk %ld   state %-7s   call %s\n"
-    "  last event : %s\n"
-    "  failures   : %d\n"
-    "  telemetry  : seq %ld   server time %s\n"
+    "  %-*s: %lu ms\n"
+    "  %-*s: %s    ip %s  rssi %d dBm\n"
+    "  %-*s: %s\n"
+    "  %-*s: %s     authenticated %s\n"
+    "  %-*s: desk %ld   state %s   call %s\n"
+    "  %-*s: %s\n"
+    "  %-*s: %d\n"
+    "  %-*s: seq %ld   server time %s\n"
     "================================================================\n",
-    millis(),
-    c.wifiUp ? "up" : "down", c.ip, c.rssi,
-    c.endpoint,
-    c.socketUp ? "up" : "down", c.authenticated ? "ok" : "no",
-    c.deskId, c.serviceState, c.callEvent,
-    c.lastEvent,
-    c.failures,
-    c.lastAckSequence, c.lastAckTime);
+    LABEL_WIDTH, "uptime", millis(),
+    LABEL_WIDTH, "wifi", c.wifiUp ? "up" : "down", c.ip, c.rssi,
+    LABEL_WIDTH, "endpoint", c.endpoint,
+    LABEL_WIDTH, "socket", c.socketUp ? "up" : "down", c.authenticated ? "ok" : "no",
+    LABEL_WIDTH, "assignment", c.deskId, c.serviceState, c.callEvent,
+    LABEL_WIDTH, "last event", c.lastEvent,
+    LABEL_WIDTH, "failures", c.failures,
+    LABEL_WIDTH, "telemetry", c.lastAckSequence, c.lastAckTime);
   Net::serialUnlock();
 }
 
@@ -155,8 +164,10 @@ void setup() {
   esp_task_wdt_init(&wdt_config);
   esp_task_wdt_add(NULL);
   lastWdtFeed = millis();
+  Net::serialLock();
   Serial.printf("  watchdog    : %lu ms timeout, fed every %lu ms\n",
                 WDT_TIMEOUT_MS, WDT_FEED_INTERVAL_MS);
+  Net::serialUnlock();
 
   Indicators::begin();
   Sensor::begin();

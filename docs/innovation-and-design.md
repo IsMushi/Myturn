@@ -315,6 +315,7 @@ paraphrasing them; they are the numbers the hardware was actually flashed with.
 | `FAST_MS` | 1000 | Reporting interval while an approach is detected |
 | `APPROACH_MS` | 10000 | An approach that never becomes occupancy is a walk-past |
 | `PIR_WARMUP_MS` | 60000 | The PIR needs about a minute to settle after power-up |
+| `PIR_DEBOUNCE_MS` | 150 | The PIR output flickers when somebody stands at the counter; the pin is only believed once it has held its value this long |
 | `TRIG_PIN` / `ECHO_PIN` | D5 / D21 | HC-SR04 |
 | `PIR_PIN` | D19 | HC-SR501 |
 | `RED_PIN` / `GREEN_PIN` / `YELLOW_PIN` / `BLUE_PIN` | D25 / D26 / D27 / D33 | Four LEDs: red, green, yellow, blue |
@@ -331,7 +332,10 @@ The loop, in order:
 2. `occupied = median < 100 cm`. **The ultrasonic sensor has the only vote.**
 3. Accept a change only after it has lasted 2 seconds.
 4. `approach = PIR high` (once past the warm-up), cleared when it becomes
-   occupancy or after 10 seconds.
+   occupancy or after 10 seconds. The pin is debounced first: a person
+   standing at the counter makes the module flicker, and an undebounced pin
+   turns every flicker into a new report, so the log fills up and the server
+   is sent a reading on every loop instead of every five seconds.
 5. Report every 1 s while approaching, otherwise every 5 s, with three attempts
    per send.
 6. Ask for the desk setting, then set the light: **green** when the desk is open

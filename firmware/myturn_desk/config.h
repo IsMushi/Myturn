@@ -32,6 +32,10 @@ static_assert(RECOVER_AFTER <= SAMPLES, "RECOVER_AFTER must fit in the window");
 // ---- PIR / reporting ----
 constexpr unsigned long PIR_WARMUP_MS = 60000;
 constexpr unsigned long APPROACH_MS   = 10000;
+// The PIR output flickers when somebody is standing at the counter. The pin
+// is only believed once it has held its value this long, so a flicker is
+// not mistaken for a stream of new approaches.
+constexpr unsigned long PIR_DEBOUNCE_MS = 150;
 constexpr unsigned long INTERVAL_MS   = 5000;
 constexpr unsigned long FAST_MS       = 1000;
 

@@ -228,6 +228,7 @@ void onSocket(WStype_t type, uint8_t *payload, size_t length) {
 void networkTask(void *) {
   if (!configureUrl()) {
     invalidate(Status::ConfigurationError);
+    note("configuration error: check API_BASE, TLS CA and task memory");
     vTaskDelete(nullptr);
     return;
   }
@@ -240,10 +241,12 @@ void networkTask(void *) {
   socket.enableHeartbeat(WS_PING_MS, WS_ACK_TIMEOUT_MS, 2);
   if (secure) socket.beginSslWithCA(host.c_str(), port, path.c_str(), WS_CA_CERT, "");
   else socket.begin(host.c_str(), port, path.c_str(), "");
-  Serial.printf("Device WebSocket: %s\n", endpoint);
-  Serial.printf("Device key length: %d characters\n", (int)strlen(DEVICE_KEY));
+  serialLock();
+  Serial.printf("  endpoint    : %s\n", endpoint);
+  Serial.printf("  device key  : %d characters\n", (int)strlen(DEVICE_KEY));
+  Serial.printf("  joining wifi: \"%s\"\n", WIFI_SSID);
+  serialUnlock();
   WiFi.begin(WIFI_SSID, WIFI_PASS);
-  Serial.printf("Wi-Fi: joining \"%s\"\n", WIFI_SSID);
   unsigned long lastWifiTry = millis();
   bool wifiWasUp = false, haveLatest = false;
   ReadingFrame latest{};
@@ -373,13 +376,15 @@ bool takeSetting(Setting &out) {
 }
 
 const char *lastError() {
+  // These strings are printed in a column of the log, so they are kept short:
+  // the detail belongs in the event log, not in the width of a column.
   switch (status.load()) {
-    case Status::WifiDown: return "Wi-Fi disconnected";
-    case Status::Connecting: return "WebSocket reconnecting";
-    case Status::Authenticating: return "authenticating device";
-    case Status::Ready: return ready() ? "ready" : "desk state expired";
-    case Status::Stale: return "WebSocket state/acknowledgement missing";
-    case Status::ConfigurationError: return "check API_BASE, TLS CA and task memory";
+    case Status::WifiDown: return "wifi down";
+    case Status::Connecting: return "reconnecting";
+    case Status::Authenticating: return "authenticating";
+    case Status::Ready: return ready() ? "ready" : "state expired";
+    case Status::Stale: return "stale state";
+    case Status::ConfigurationError: return "config error";
     default: return "starting";
   }
 }
