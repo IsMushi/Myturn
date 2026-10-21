@@ -1,0 +1,96 @@
+.myturn-auth-shell {
+  display: grid;
+  min-height: 100svh;
+  grid-template-columns: minmax(340px, 44%) minmax(0, 1fr);
+  background: var(--color-white);
+}
+
+.myturn-auth-shell a:focus-visible,
+.myturn-auth-password-toggle:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
+  border-radius: 5px;
+}
+
+.myturn-auth-story {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(32px, 4vw, 64px);
+  background: var(--color-deep-green);
+  color: var(--color-white);
+}
+
+.myturn-auth-brand { align-self: flex-start; }
+.myturn-auth-brand > span { gap: 12px; }
+.myturn-auth-brand svg { width: 42px; height: 42px; border: 1px solid var(--color-medium-green); border-radius: 12px; }
+.myturn-auth-brand span span { font-size: 24px; }
+.myturn-auth-story-content { max-width: 440px; margin-block: 64px; }
+.myturn-auth-audience { color: var(--color-light-lime); font-size: 14px; }
+.myturn-auth-story h2 { margin-top: 20px; font-size: clamp(38px, 3.5vw, 58px); font-weight: 600; line-height: 1.08; letter-spacing: -0.04em; }
+.myturn-auth-intro { max-width: 350px; margin-top: 24px; font-size: 16px; line-height: 1.65; color: var(--color-soft-mint); }
+.myturn-auth-tools { display: grid; gap: 26px; margin-top: 48px; }
+.myturn-auth-tools li { display: flex; gap: 16px; align-items: flex-start; }
+.myturn-auth-tool-icon { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 42px; height: 42px; border: 1px solid var(--color-medium-green); border-radius: 12px; color: var(--color-light-lime); }
+.myturn-auth-tools h3 { font-size: 15px; font-weight: 600; }
+.myturn-auth-tools p { margin-top: 4px; color: var(--color-soft-mint); font-size: 13px; line-height: 1.6; }
+.myturn-auth-tagline { border-top: 1px solid var(--color-medium-green); padding-top: 24px; font-size: 13px; color: var(--color-soft-mint); }
+
+.myturn-auth-main { display: flex; min-width: 0; flex-direction: column; }
+.myturn-auth-topbar { display: flex; justify-content: flex-end; align-items: center; gap: 20px; padding: 32px 40px; }
+.myturn-auth-mobile-brand { display: none; }
+.myturn-auth-back { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: var(--color-deep-green); font-size: 14px; }
+.myturn-auth-back:hover { text-decoration: underline; text-underline-offset: 4px; }
+.myturn-auth-form-area { display: flex; align-items: center; flex: 1; padding: 36px clamp(28px, 5vw, 90px) 64px; }
+.myturn-auth-form-content { width: 100%; max-width: 420px; margin-inline: auto; }
+.myturn-auth-access { display: flex; gap: 8px; align-items: center; margin-bottom: 24px; color: var(--color-deep-green); font-size: 13px; }
+.myturn-auth-form-content h1 { color: var(--color-deep-green); font-size: 38px; font-weight: 600; line-height: 1.15; letter-spacing: -0.035em; }
+.myturn-auth-subtitle { margin-top: 12px; color: var(--color-deep-green); font-size: 15px; line-height: 1.6; }
+.myturn-auth-fields { margin-top: 32px; }
+.myturn-auth-help { margin-top: 26px; color: var(--color-deep-green); font-size: 13px; line-height: 1.65; }
+.myturn-auth-visitor { display: flex; align-items: center; gap: 14px; margin-top: 30px; padding: 20px; border: 1px solid var(--color-line); border-radius: 14px; color: var(--color-deep-green); background: var(--color-soft-mint); }
+.myturn-auth-visitor > svg { flex-shrink: 0; }
+.myturn-auth-visitor p { font-size: 14px; font-weight: 600; }
+.myturn-auth-visitor a { display: inline-block; margin-top: 4px; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; }
+.myturn-auth-footer { padding: 20px 28px; color: var(--color-deep-green); text-align: center; font-size: 12px; }
+
+.myturn-login-form, .myturn-auth-form { display: grid; gap: 24px; }
+.myturn-login-form input, .myturn-auth-form input { min-height: 54px; }
+.myturn-auth-form > button { min-height: 54px; }
+.myturn-auth-outcome { padding: 24px; border: 1px solid var(--color-line); border-radius: 16px; background: var(--color-soft-mint); color: var(--color-deep-green); }
+.myturn-auth-outcome h2 { margin-top: 16px; font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
+.myturn-auth-outcome p { margin-top: 10px; font-size: 14px; line-height: 1.7; }
+.myturn-auth-development-link { padding: 20px; border: 1px dashed var(--color-line); border-radius: 14px; color: var(--color-deep-green); }
+.myturn-auth-inline-link { display: inline-block; min-height: 44px; margin-top: 12px; padding-block: 10px; color: var(--color-deep-green); text-decoration: underline; text-underline-offset: 4px; font-size: 14px; font-weight: 500; }
+.myturn-auth-password-wrap { position: relative; }
+.myturn-auth-password-wrap input { padding-right: 56px; }
+.myturn-auth-password-toggle { position: absolute; top: 5px; right: 6px; display: flex; width: 44px; height: 44px; align-items: center; justify-content: center; border-radius: 999px; color: var(--color-deep-green); cursor: pointer; }
+.myturn-auth-password-toggle:hover { background: var(--color-soft-mint); }
+.myturn-auth-forgot { display: block; width: fit-content; margin-top: -10px; margin-left: auto; color: var(--color-deep-green); font-size: 13px; font-weight: 500; text-underline-offset: 3px; }
+.myturn-auth-forgot:hover { text-decoration: underline; }
+.myturn-login-submit { min-height: 54px; font-size: 16px; }
+.myturn-auth-roles { margin-top: -8px; color: var(--color-medium-green); font-size: 13px; line-height: 1.6; }
+.myturn-auth-divider { display: flex; align-items: center; gap: 16px; margin: 28px 0 22px; color: var(--color-medium-green); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+.myturn-auth-divider::before, .myturn-auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--color-line); }
+.myturn-auth-shared-heading { color: var(--color-deep-green); font-size: 16px; font-weight: 600; }
+.myturn-auth-shared-intro { margin-top: 8px; color: var(--color-medium-green); font-size: 13px; line-height: 1.6; }
+.myturn-shared-form { display: grid; gap: 18px; margin-top: 18px; padding: 20px; border: 1px solid var(--color-line); border-radius: 16px; background: var(--color-soft-mint); }
+.myturn-shared-form input { min-height: 50px; }
+
+@media (max-width: 959px) {
+  .myturn-auth-shell { display: block; }
+  .myturn-auth-story { display: none; }
+  .myturn-auth-main { min-height: 100svh; }
+  .myturn-auth-topbar { justify-content: space-between; padding: 20px 28px; border-bottom: 1px solid var(--color-line); }
+  .myturn-auth-mobile-brand { display: block; }
+  .myturn-auth-form-area { padding-top: 48px; padding-bottom: 48px; }
+}
+
+@media (max-width: 479px) {
+  .myturn-auth-topbar { padding: 16px 20px; gap: 12px; }
+  .myturn-auth-topbar .myturn-auth-back { font-size: 12px; }
+  .myturn-auth-form-area { padding: 36px 24px; }
+  .myturn-auth-form-content h1 { font-size: 32px; }
+  .myturn-auth-access { margin-bottom: 20px; font-size: 12px; }
+  .myturn-auth-visitor { padding: 16px; }
+}

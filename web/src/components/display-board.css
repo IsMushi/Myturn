@@ -1,0 +1,799 @@
+/* Screenshot-matched waiting-room display. All refinements are scoped here;
+   the shared brand and the other public/console pages remain unchanged. */
+.myturn-display {
+  --display-ink: #043f40;
+  --display-muted: #46737d;
+  --display-line: #ccece4;
+  --display-gutter: clamp(20px, 3.13vw, 60px);
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  min-height: 100svh;
+  flex-direction: column;
+  gap: clamp(22px, 1.67vw, 32px);
+  padding: 0 var(--display-gutter) 22px;
+  color: var(--display-ink);
+  background: #effbf7 url("/images/display-background.svg") center / 100% 100% no-repeat;
+}
+
+/* Header is edge-to-edge, with its content on the same grid as the cards. */
+.myturn-display-header {
+  display: flex;
+  min-height: clamp(68px, 4.6vw, 88px);
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-inline: calc(-1 * var(--display-gutter));
+  padding: 16px var(--display-gutter);
+  border-bottom: 1px solid var(--display-line);
+  background: rgb(255 255 255 / .24);
+}
+
+.myturn-display-home {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 18px;
+  text-decoration: none;
+}
+
+.myturn-display-home:hover .myturn-display-logo {
+  opacity: .82;
+}
+
+.myturn-display-home:focus-visible {
+  outline: 3px solid var(--display-ink);
+  outline-offset: 6px;
+}
+
+.myturn-display-logo {
+  gap: clamp(12px, .73vw, 14px);
+}
+
+.myturn-display-logo > svg {
+  width: clamp(40px, 2.7vw, 52px);
+  height: auto;
+  border: 1px solid rgb(0 71 67 / .16);
+  border-radius: 26%;
+  background: radial-gradient(ellipse at 30% 50%, #00726a, #004746 80%);
+  box-shadow: inset 0 0 12px rgb(0 47 48 / .25);
+}
+
+.myturn-display-logo > svg rect {
+  fill: transparent;
+}
+
+.myturn-display-logo > span {
+  font-size: clamp(22px, 1.68vw, 32px);
+  letter-spacing: -.035em;
+  color: var(--display-ink);
+}
+
+.myturn-display-logo > span > span {
+  color: inherit;
+}
+
+.myturn-display-status {
+  display: flex;
+  align-items: center;
+  gap: clamp(16px, 1.4vw, 26px);
+  font-size: clamp(12px, .96vw, 18px);
+  color: #195a60;
+}
+
+.myturn-display-connection,
+.myturn-display-updated {
+  display: inline-flex;
+  align-items: center;
+  gap: clamp(9px, .68vw, 13px);
+  white-space: nowrap;
+}
+
+.myturn-display-connection svg {
+  width: clamp(21px, 1.45vw, 28px);
+  height: auto;
+  color: #006a61;
+}
+
+.myturn-display-updated {
+  padding-left: clamp(18px, 1.57vw, 30px);
+  border-left: 1px solid #a3d7cd;
+  color: #00554f;
+}
+
+.myturn-display-updated svg {
+  width: clamp(18px, 1.18vw, 23px);
+  height: auto;
+  color: #006a61;
+}
+
+.myturn-display-connection[data-offline="true"],
+.myturn-display-connection[data-offline="true"] svg {
+  color: #92400e;
+}
+
+/* Welcome/title and the waiting total share one horizontal band. */
+.myturn-display-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: -8px;
+}
+
+.myturn-display-welcome {
+  margin-bottom: 5px;
+  font-size: clamp(15px, 1.14vw, 22px);
+  line-height: 1.25;
+  color: #00594f;
+}
+
+.myturn-display-title {
+  font-size: clamp(40px, 3.6vw, 69px);
+  font-weight: 700;
+  letter-spacing: -.035em;
+  line-height: 1;
+}
+
+.myturn-display-total {
+  display: flex;
+  min-height: clamp(70px, 4.85vw, 94px);
+  flex-shrink: 0;
+  align-items: center;
+  gap: clamp(12px, .73vw, 14px);
+  padding: 14px clamp(18px, 1.4vw, 26px);
+  border: 1px solid var(--display-line);
+  border-radius: clamp(16px, 1.15vw, 22px);
+  background: linear-gradient(160deg, #fff, #f5fdf9);
+  box-shadow: 0 8px 28px rgb(17 132 97 / .07);
+  font-size: clamp(14px, .97vw, 19px);
+  white-space: nowrap;
+}
+
+.myturn-display-total > svg:first-child {
+  width: clamp(26px, 1.85vw, 36px);
+  height: auto;
+  margin-right: clamp(4px, .52vw, 10px);
+  color: #08717a;
+}
+
+.myturn-display-total strong {
+  font-size: clamp(37px, 2.8vw, 54px);
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.myturn-display-total-chevron {
+  flex-shrink: 0;
+  margin-left: 2px;
+}
+
+/* Each service owns its real state, calls and waiting count. */
+.myturn-display-services {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1.045fr) minmax(0, 1fr) minmax(0, 1.04fr);
+  gap: clamp(16px, 1.15vw, 22px);
+}
+
+.myturn-display-service {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--display-line);
+  border-radius: clamp(18px, 1.25vw, 24px);
+  background: rgb(255 255 255 / .97);
+  box-shadow: 0 7px 24px rgb(19 139 105 / .06);
+}
+
+.myturn-display-service[data-fresh="true"] {
+  animation: myturn-display-called 2400ms ease-out 1;
+}
+
+.myturn-display-service-head {
+  display: flex;
+  min-height: clamp(70px, 4.6vw, 88px);
+  flex-shrink: 0;
+  align-items: center;
+  gap: clamp(12px, 1vw, 19px);
+  padding: clamp(12px, .84vw, 16px) clamp(16px, 1.4vw, 26px);
+}
+
+.myturn-display-letter {
+  display: flex;
+  width: clamp(41px, 2.85vw, 56px);
+  height: clamp(41px, 2.85vw, 56px);
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgb(0 86 73 / .2);
+  border-radius: clamp(11px, .74vw, 14px);
+  background: radial-gradient(ellipse at 25% 12%, #008c6b, #005647 75%);
+  box-shadow: inset 0 1px 5px rgb(1 55 49 / .25), 0 1px 2px rgb(0 82 62 / .08);
+  color: #fff;
+  font-size: clamp(23px, 1.6vw, 30px);
+  font-weight: 700;
+}
+
+.myturn-display-service:first-child .myturn-display-letter {
+  background: radial-gradient(ellipse at 10% 10%, #007c6d, #004c46 65%, #006e5f);
+}
+
+.myturn-display-service-head h2 {
+  flex: 1;
+  min-width: 0;
+  font-size: clamp(20px, 1.63vw, 31px);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -.025em;
+  overflow-wrap: anywhere;
+}
+
+.myturn-display-badge {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  padding: clamp(6px, .4vw, 8px) clamp(12px, .93vw, 18px);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: clamp(13px, .88vw, 17px);
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.myturn-display-badge-dot {
+  width: clamp(9px, .66vw, 13px);
+  height: clamp(9px, .66vw, 13px);
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.myturn-display-badge[data-state="active"] {
+  border-color: #a7f783;
+  background: radial-gradient(ellipse at 30% 40%, #d9ffc3, #c4ffa6);
+  color: #004c2f;
+}
+
+.myturn-display-badge[data-state="active"] .myturn-display-badge-dot {
+  background: #079100;
+  box-shadow: inset 0 1px 3px rgb(0 88 0 / .2);
+}
+
+.myturn-display-badge[data-state="paused"] {
+  border-color: #ffd06b;
+  background: radial-gradient(ellipse at 30% 40%, #fff4d2, #ffedb4);
+  color: #884000;
+}
+
+.myturn-display-badge[data-state="closed"] {
+  border-color: #fecdd3;
+  background: #ffe4e6;
+  color: #9f1239;
+}
+
+.myturn-display-service-body {
+  display: flex;
+  flex: 1;
+  min-height: clamp(210px, 12.8vw, 246px);
+  align-items: center;
+  justify-content: center;
+  padding: clamp(16px, 1vw, 19px) 18px 22px;
+  border-top: 1px solid var(--display-line);
+  text-align: center;
+}
+
+.myturn-display-idle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.myturn-display-idle-icon {
+  display: block;
+  width: clamp(145px, 10.6vw, 202px);
+  margin-bottom: 8px;
+  mix-blend-mode: multiply;
+}
+
+.myturn-display-idle-icon img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.myturn-display-idle h3 {
+  font-size: clamp(23px, 1.68vw, 32px);
+  font-weight: 700;
+  letter-spacing: -.025em;
+  line-height: 1.3;
+}
+
+.myturn-display-idle p {
+  max-width: 36ch;
+  margin-top: 8px;
+  font-size: clamp(14px, .97vw, 19px);
+  line-height: 1.4;
+  color: var(--display-muted);
+  text-wrap: balance;
+}
+
+/* Numbers stay live, including simultaneous calls at multiple desks. */
+.myturn-display-active {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.myturn-display-calling {
+  font-size: clamp(13px, .85vw, 16px);
+  font-weight: 600;
+  color: var(--display-muted);
+}
+
+.myturn-display-numbers {
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 24px;
+}
+
+.myturn-display-call {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.myturn-display-number {
+  font-size: clamp(56px, 7.1vw, 136px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -.05em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  animation: myturn-display-number-in 450ms ease-out both;
+}
+
+.myturn-display-active:not([data-count="1"]) .myturn-display-number {
+  font-size: clamp(40px, 3.48vw, 66px);
+}
+
+.myturn-display-desk {
+  margin-top: 7px;
+  font-size: clamp(14px, .97vw, 19px);
+  font-weight: 600;
+  color: var(--display-muted);
+  overflow-wrap: anywhere;
+}
+
+.myturn-display-instruction {
+  font-size: clamp(13px, .85vw, 16px);
+  color: var(--display-muted);
+}
+
+/* Who is waiting: the next numbers of this queue, as chips. */
+.myturn-display-waiting-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px clamp(12px, 1vw, 18px);
+  padding: 0 clamp(16px, 1.4vw, 26px);
+}
+
+.myturn-display-waiting-title {
+  font-size: clamp(12px, .8vw, 15px);
+  font-weight: 600;
+  color: var(--display-muted);
+}
+
+.myturn-display-waiting-chips {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.myturn-display-waiting-chip {
+  padding: 3px clamp(9px, .62vw, 12px);
+  border: 1px solid var(--display-line);
+  border-radius: 999px;
+  background: rgb(255 255 255 / .72);
+  font-size: clamp(13px, .88vw, 17px);
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--display-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The queue is longer than the list: the count in the footer still says how much. */
+.myturn-display-waiting-more {
+  border-style: dashed;
+  color: var(--display-muted);
+  font-weight: 500;
+}
+
+.myturn-display-service-foot {
+  display: flex;
+  min-height: clamp(60px, 3.9vw, 76px);
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px clamp(16px, 1.4vw, 26px);
+  border-top: 1px solid var(--display-line);
+  font-size: clamp(13px, .92vw, 18px);
+  color: var(--display-muted);
+}
+
+.myturn-display-service-waiting {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: clamp(12px, 1.15vw, 22px);
+}
+
+.myturn-display-service-waiting svg {
+  width: clamp(21px, 1.45vw, 28px);
+  height: auto;
+  flex-shrink: 0;
+  color: #007469;
+  stroke-width: 1.8;
+}
+
+.myturn-display-service-count {
+  font-size: clamp(26px, 1.76vw, 35px);
+  font-weight: 700;
+  line-height: 1;
+  color: #00605a;
+  font-variant-numeric: tabular-nums;
+}
+
+.myturn-display-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  margin-top: -8px;
+  font-size: clamp(13px, .88vw, 17px);
+  line-height: 1.35;
+  color: var(--display-muted);
+}
+
+.myturn-display-footer p {
+  display: flex;
+  align-items: center;
+  gap: clamp(16px, 1.57vw, 30px);
+}
+
+.myturn-display-footer p > span {
+  padding-left: clamp(16px, 1.57vw, 30px);
+  border-left: 1px solid #a3d7cd;
+}
+
+.myturn-display-footer svg {
+  width: clamp(23px, 1.63vw, 31px);
+  height: auto;
+  flex-shrink: 0;
+  color: #00665d;
+  stroke-width: 1.8;
+}
+
+.myturn-display-footer > span {
+  color: #006472;
+}
+
+/* Loading, no services and network failure never masquerade as an empty queue. */
+.myturn-display-state {
+  display: flex;
+  flex: 1;
+  min-height: 50svh;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 32px;
+  border: 1px solid var(--display-line);
+  border-radius: 24px;
+  background: #fff;
+  text-align: center;
+}
+
+.myturn-display-state-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(64px, 5vw, 80px);
+  height: clamp(64px, 5vw, 80px);
+  border-radius: 50%;
+  background: rgb(255 255 255 / .6);
+  color: var(--display-muted);
+  margin-bottom: 4px;
+}
+
+.myturn-display-state h2 {
+  font-size: clamp(22px, 1.7vw, 32px);
+  font-weight: 600;
+}
+
+.myturn-display-state p {
+  max-width: 46ch;
+  font-size: clamp(14px, 1.02vw, 20px);
+  color: var(--display-muted);
+}
+
+.myturn-display-warning {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border: 1px solid #fcd34d;
+  border-radius: 12px;
+  background: #fffbeb;
+  color: #78350f;
+}
+
+.myturn-display-warning p {
+  flex: 1;
+  min-width: min(100%, 240px);
+}
+
+.myturn-display-warning svg {
+  flex-shrink: 0;
+}
+
+.myturn-display-spin {
+  animation: myturn-display-spin 1s linear infinite;
+}
+
+/* Loading placeholders use the finished layout, not fake service data. */
+.myturn-display-placeholder {
+  max-width: 100%;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: #e1f1eb;
+  animation: myturn-display-skeleton 1.8s ease-in-out infinite;
+}
+
+.myturn-display-placeholder-welcome {
+  width: clamp(220px, 21.5vw, 410px);
+  height: clamp(19px, 1.43vw, 27px);
+  margin-bottom: 5px;
+}
+
+.myturn-display-placeholder-title {
+  width: clamp(250px, 21vw, 400px);
+  height: clamp(40px, 3.6vw, 69px);
+}
+
+.myturn-display-placeholder-summary {
+  width: clamp(210px, 14vw, 270px);
+  height: clamp(37px, 2.8vw, 54px);
+}
+
+.myturn-display-placeholder-letter {
+  width: clamp(41px, 2.85vw, 56px);
+  height: clamp(41px, 2.85vw, 56px);
+  border-radius: 14px;
+}
+
+.myturn-display-placeholder-name {
+  flex: 1;
+  min-width: 60px;
+  height: clamp(24px, 1.68vw, 32px);
+}
+
+.myturn-display-placeholder-badge {
+  width: clamp(68px, 5.4vw, 108px);
+  height: clamp(30px, 2.1vw, 42px);
+  border-radius: 999px;
+}
+
+.myturn-display-skeleton .myturn-display-idle {
+  width: 100%;
+}
+
+.myturn-display-placeholder-art {
+  width: clamp(84px, 5.5vw, 110px);
+  height: clamp(84px, 5.5vw, 110px);
+  margin-bottom: 14px;
+  border-radius: 50%;
+}
+
+.myturn-display-placeholder-message {
+  width: 52%;
+  height: clamp(26px, 2.15vw, 40px);
+}
+
+.myturn-display-placeholder-description {
+  width: 70%;
+  height: clamp(20px, 1.4vw, 27px);
+  margin-top: 8px;
+}
+
+.myturn-display-placeholder-waiting {
+  width: 55%;
+  height: 22px;
+}
+
+.myturn-display-placeholder-count {
+  width: 22px;
+  height: clamp(26px, 1.85vw, 36px);
+}
+
+@keyframes myturn-display-skeleton {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .45; }
+}
+
+@keyframes myturn-display-number-in {
+  from { opacity: .4; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes myturn-display-called {
+  0%, 100% { box-shadow: 0 7px 24px rgb(19 139 105 / .06); }
+  15%, 65% { box-shadow: 0 0 0 4px #b9f477, 0 7px 24px rgb(19 139 105 / .1); }
+}
+
+@keyframes myturn-display-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* The reference is a wide wall monitor. On smaller screens, keep the same
+   hierarchy without squeezing the labels or hiding useful queue information. */
+@media (min-width: 1101px) and (max-width: 1550px) {
+  .myturn-display-service-head {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .myturn-display-service-head h2 {
+    font-size: clamp(20px, 1.65vw, 26px);
+  }
+
+  .myturn-display-badge {
+    margin-left: auto;
+    padding: 6px 12px;
+  }
+}
+
+@media (min-width: 721px) and (max-width: 1100px) {
+  .myturn-display-services {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .myturn-display-service-head {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .myturn-display-service-head h2 {
+    font-size: 21px;
+  }
+
+  .myturn-display-badge {
+    margin-left: auto;
+    padding: 6px 12px;
+  }
+
+  .myturn-display-total {
+    gap: 10px;
+    padding-inline: 18px;
+  }
+
+  .myturn-display-title {
+    font-size: 45px;
+  }
+}
+
+@media (max-width: 720px) {
+  .myturn-display-header {
+    flex-wrap: wrap;
+    gap: 16px;
+    padding-block: 16px;
+  }
+
+  .myturn-display-status {
+    width: 100%;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 12px;
+  }
+
+  .myturn-display-updated {
+    gap: 7px;
+    padding-left: 12px;
+  }
+
+  .myturn-display-intro {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  .myturn-display-welcome {
+    max-width: 30ch;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  .myturn-display-title {
+    font-size: clamp(37px, 8.6vw, 52px);
+  }
+
+  .myturn-display-total {
+    min-height: 70px;
+    gap: 12px;
+    padding: 12px 18px;
+    font-size: 15px;
+  }
+
+  .myturn-display-total > svg:first-child {
+    margin-right: 0;
+  }
+
+  .myturn-display-services {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+
+  .myturn-display-service-head {
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .myturn-display-service-head h2 {
+    font-size: 20px;
+  }
+
+  .myturn-display-badge {
+    gap: 6px;
+    margin-left: auto;
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+
+  .myturn-display-service-body {
+    min-height: 232px;
+  }
+
+  .myturn-display-number {
+    font-size: clamp(60px, 17vw, 102px);
+  }
+
+  .myturn-display-active:not([data-count="1"]) .myturn-display-number {
+    font-size: clamp(40px, 11vw, 64px);
+  }
+
+  .myturn-display-footer {
+    gap: 16px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .myturn-display-footer p {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .myturn-display-footer p > span {
+    padding-left: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .myturn-display-service,
+  .myturn-display-number,
+  .myturn-display-spin,
+  .myturn-display-placeholder {
+    animation: none;
+  }
+}

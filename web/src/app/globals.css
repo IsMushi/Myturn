@@ -1,0 +1,204 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Google Sans, self-hosted from the files served by Google Fonts so the demo
+   does not depend on the CDN. Both files are the variable font: the Latin
+   subset for everyday text and the Latin Extended subset for accented
+   characters. Together they cover 400 to 700 in a single download per subset. */
+@font-face {
+  font-family: "Google Sans";
+  src: url("/fonts/GoogleSans-LatinExt.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113,
+    U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Google Sans";
+  src: url("/fonts/GoogleSans-Latin.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308,
+    U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Device identifiers use the locally hosted JetBrains Mono regular face. */
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("/fonts/JetBrainsMono-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* MyTurn colour theme.
+   Tailwind publishes these as utilities (bg-primary, text-deep-green,
+   border-line) and also writes the same variables into :root, so plain CSS and
+   inline styles can use var(--color-primary) and so on. */
+@theme {
+  --font-sans:
+    "Google Sans", "Product Sans", "DM Sans", ui-sans-serif, system-ui, "Segoe UI", Roboto,
+     Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --color-deep-green: #00594f;
+  --color-medium-green: #29835d;
+  --color-light-lime: #b9f477;
+  --color-soft-mint: #eaf7ef;
+  --color-white: #ffffff;
+
+  --color-text: #073d35;
+
+  /* Short names for the two variables that read badly as utilities. */
+  --color-ink: #073d35;
+  --color-line: #b8d8c7;
+}
+
+/* shadcn/ui semantic tokens (Tailwind v4).
+   Values are mapped onto the MyTurn brand palette so existing components
+   keep their colours while new shadcn components pick them up automatically. */
+:root {
+  --background: #eaf7ef;
+  --foreground: #073d35;
+
+  --card: #ffffff;
+  --card-foreground: #073d35;
+
+  --popover: #ffffff;
+  --popover-foreground: #073d35;
+
+  --primary: #80ef24;
+  --primary-foreground: #073d35;
+
+  --secondary: #b9f477;
+  --secondary-foreground: #00594f;
+
+  --muted: #eaf7ef;
+  --muted-foreground: #29835d;
+
+  --accent: #b9f477;
+  --accent-foreground: #00594f;
+
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+
+  --border: #b8d8c7;
+  --input: #b8d8c7;
+  --ring: #80ef24;
+
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: #073d35;
+  --foreground: #eaf7ef;
+
+  --card: #00594f;
+  --card-foreground: #eaf7ef;
+
+  --popover: #00594f;
+  --popover-foreground: #eaf7ef;
+
+  --primary: #80ef24;
+  --primary-foreground: #073d35;
+
+  --secondary: #29835d;
+  --secondary-foreground: #eaf7ef;
+
+  --muted: #00594f;
+  --muted-foreground: #b8d8c7;
+
+  --accent: #29835d;
+  --accent-foreground: #eaf7ef;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+
+  --border: #29835d;
+  --input: #29835d;
+  --ring: #80ef24;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+}
+
+/* Field controls take their radius from `inputClass` / `selectTriggerClass`
+   (`rounded-full`), so a text input, a textarea and a select trigger line up
+   exactly. Pinning a second radius here would win over the utility — this
+   file is unlayered, utilities are not — and the select, a button, would keep
+   the larger one while the input shrank. */
+
+/* Blocks that fade in as they are scrolled to.
+   On screen the animation is a small nicety; on paper, and for a browser with
+   scripting switched off, the content has to be there regardless. */
+@media print {
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* Printing a ticket prints the ticket.
+   A visitor who prints the page wants the number on paper, so the navigation,
+   the buttons and the instructions step out of the way and only the ticket is
+   laid down. */
+@media print {
+  .print-hide {
+    display: none !important;
+  }
+
+  body {
+    background-color: var(--color-white);
+  }
+
+  [data-print="ticket"] {
+    break-inside: avoid;
+    border: 1px solid var(--color-border);
+  }
+}

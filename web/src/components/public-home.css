@@ -1,0 +1,338 @@
+.myturn-home-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: clamp(650px, 48vw, 870px);
+  background: var(--color-white);
+}
+
+.myturn-home-inner,
+.myturn-home-nav {
+  width: 86.6%;
+  max-width: 1448px;
+  margin-inline: auto;
+}
+
+.myturn-home-inner {
+  position: relative;
+  z-index: 1;
+  padding-top: clamp(60px, 5vw, 88px);
+  padding-bottom: 88px;
+  pointer-events: none;
+}
+
+.myturn-home-copy {
+  width: 46%;
+  pointer-events: auto;
+}
+
+.myturn-home-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 18px;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  color: var(--color-deep-green);
+  font-size: clamp(11px, 0.9vw, 15px);
+  line-height: 1.4;
+}
+
+.myturn-home-headline {
+  margin-top: clamp(28px, 2.15vw, 36px);
+  color: var(--color-deep-green);
+  font-size: clamp(64px, 5.3vw, 88px);
+  font-weight: 700;
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+}
+
+.myturn-home-description {
+  max-width: 590px;
+  margin-top: clamp(24px, 1.55vw, 26px);
+  color: var(--color-deep-green);
+  font-size: clamp(18px, 1.38vw, 22px);
+  line-height: 1.55;
+}
+
+.myturn-home-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: clamp(32px, 2.75vw, 46px);
+}
+
+.myturn-home-actions a {
+  min-height: clamp(56px, 4.1vw, 69px);
+  padding: 16px 28px;
+  font-size: clamp(16px, 1.32vw, 22px);
+  gap: 12px;
+  border-radius: 999px;
+}
+
+.myturn-home-primary { min-width: 37%; }
+.myturn-home-secondary { min-width: 42%; }
+
+.myturn-home-trust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px clamp(16px, 1.67vw, 28px);
+  margin-top: clamp(32px, 2.75vw, 46px);
+}
+
+.myturn-home-trust li {
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 0.84vw, 14px);
+  color: var(--color-deep-green);
+  font-size: clamp(13px, 1vw, 17px);
+  line-height: 1.35;
+}
+
+.myturn-home-trust li > span:last-child { max-width: clamp(80px, 7.1vw, 118px); }
+
+.myturn-home-trust-icon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: clamp(40px, 3vw, 51px);
+  height: clamp(40px, 3vw, 51px);
+  border-radius: 50%;
+  background: var(--color-soft-mint);
+}
+
+.myturn-home-visual {
+  position: absolute;
+  z-index: 0;
+  right: 0;
+  bottom: 0;
+  width: 53.5%;
+  margin: 0;
+}
+
+.myturn-home-scene {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.myturn-home-live-panel {
+  position: absolute;
+  right: 24px;
+  bottom: 28px;
+  width: clamp(280px, 23vw, 330px);
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: var(--color-white);
+  color: var(--color-deep-green);
+}
+
+.myturn-home-live-panel > [role="status"] { padding: 18px 20px; }
+.myturn-home-live-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.myturn-home-live-header > span:first-child { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 500; }
+.myturn-home-live-state { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 999px; background: var(--color-soft-mint); font-size: 11px; line-height: 1.4; }
+.myturn-home-live-state > span { width: 6px; height: 6px; border-radius: 50%; background: var(--color-medium-green); }
+.myturn-home-live-state[data-state="paused"] { background: #fff5d6; color: #785500; }
+.myturn-home-live-state[data-state="paused"] > span { background: #a46f00; }
+.myturn-home-live-state[data-state="closed"] { background: #fff1f2; color: #9f1239; }
+.myturn-home-live-state[data-state="closed"] > span { background: #be123c; }
+.myturn-home-live-state[data-state="offline"], .myturn-home-live-state[data-state="loading"] { background: var(--color-soft-mint); }
+.myturn-home-live-state[data-state="offline"] > span, .myturn-home-live-state[data-state="loading"] > span { background: var(--color-line); }
+.myturn-home-live-service { overflow: hidden; margin-top: 18px; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.myturn-home-live-body { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+.myturn-home-live-icon { display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 12px; background: var(--color-soft-mint); }
+.myturn-home-live-label { font-size: 11px; line-height: 1.4; }
+.myturn-home-live-value { margin-top: 3px; font-size: 16px; font-weight: 500; line-height: 1.4; }
+.myturn-home-live-value[data-called="true"] { font-size: 30px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; letter-spacing: -0.035em; }
+.myturn-home-live-link { display: flex; min-height: 44px; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 20px; border-top: 1px solid var(--color-line); background: var(--color-soft-mint); font-size: 12px; font-weight: 500; }
+.myturn-home-live-link:hover { background: var(--color-light-lime); }
+.myturn-home-live-link:focus-visible { outline: 2px solid var(--color-deep-green); outline-offset: -5px; }
+
+.myturn-home-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--color-white);
+  border-bottom: 1px solid var(--color-soft-mint);
+}
+
+.myturn-home-nav { min-height: 84px; }
+
+.myturn-home-nav > a:first-child > span { gap: 16px; }
+.myturn-home-nav > a:first-child svg { width: 42px; height: 42px; }
+.myturn-home-nav > a:first-child span span { font-size: 25px; color: var(--color-deep-green); }
+
+.myturn-home-nav-links { margin-left: clamp(30px, 4vw, 68px); }
+
+.myturn-home-nav-link {
+  position: relative;
+  display: block;
+  padding: 14px 18px;
+  border-radius: 6px;
+  color: var(--color-deep-green);
+  font-size: clamp(14px, 1.16vw, 20px);
+  white-space: nowrap;
+}
+
+.myturn-home-nav-link[aria-current]::after {
+  position: absolute;
+  right: 18px;
+  bottom: 2px;
+  left: 18px;
+  height: 2px;
+  background: var(--color-primary);
+  content: "";
+}
+
+.myturn-home-nav-link:hover { background: var(--color-soft-mint); }
+.myturn-home-nav-link:focus-visible { outline: 2px solid var(--color-deep-green); outline-offset: 2px; }
+
+.myturn-home-sign-in { font-size: clamp(14px, 1.16vw, 20px); }
+
+.myturn-home-header-ticket {
+  min-height: clamp(46px, 3.6vw, 60px);
+  margin-left: 20px;
+  padding-inline: clamp(20px, 1.9vw, 32px);
+  font-size: clamp(14px, 1.2vw, 20px);
+  border-radius: 16px;
+}
+
+.myturn-home-container { width: 86.6%; max-width: 1448px; margin-inline: auto; }
+.myturn-home-page { background: var(--color-white); color: var(--color-deep-green); }
+.myturn-home-section { padding-block: clamp(56px, 5.5vw, 88px); scroll-margin-top: 100px; }
+.myturn-home-page h2 { font-size: clamp(30px, 2.9vw, 44px); font-weight: 600; line-height: 1.15; letter-spacing: -0.035em; text-wrap: balance; }
+.myturn-home-page h3 { font-size: 19px; font-weight: 600; line-height: 1.35; letter-spacing: -0.015em; }
+.myturn-home-kicker { margin-bottom: 16px; font-size: 14px; }
+.myturn-home-section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 40px; }
+.myturn-home-section-heading > p { max-width: 380px; font-size: 16px; line-height: 1.65; }
+.myturn-home-how { border-top: 1px solid var(--color-line); }
+.myturn-home-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 32px; margin-top: 48px; }
+.myturn-home-steps li { padding-top: 20px; border-top: 2px solid var(--color-line); }
+.myturn-home-step-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+.myturn-home-step-top span { font-size: 13px; font-weight: 500; }
+.myturn-home-steps li > p { max-width: 280px; margin-top: 12px; font-size: 15px; line-height: 1.7; }
+.myturn-home-features { background: var(--color-soft-mint); }
+.myturn-home-feature-layout { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: clamp(48px, 8vw, 140px); align-items: center; }
+.myturn-home-feature-intro > p:not(.myturn-home-kicker) { max-width: 360px; margin-top: 24px; font-size: 17px; line-height: 1.65; }
+.myturn-home-text-link { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; color: var(--color-deep-green); font-size: 15px; font-weight: 600; text-underline-offset: 5px; }
+.myturn-home-text-link:hover { text-decoration: underline; }
+.myturn-home-feature-intro > a { margin-top: 24px; }
+.myturn-home-feature-list article { display: flex; align-items: flex-start; gap: 22px; padding-block: 26px; border-bottom: 1px solid var(--color-line); }
+.myturn-home-feature-list article:first-child { padding-top: 0; }
+.myturn-home-feature-list article:last-child { border-bottom: 0; padding-bottom: 0; }
+.myturn-home-feature-icon { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 48px; height: 48px; background: var(--color-white); border-radius: 14px; }
+.myturn-home-feature-list p { max-width: 420px; margin-top: 7px; font-size: 15px; line-height: 1.65; }
+.myturn-home-hardware { background: var(--color-deep-green); color: var(--color-white); }
+.myturn-home-hardware .myturn-home-kicker { color: var(--color-light-lime); }
+.myturn-home-hardware .myturn-home-section-heading > p { color: var(--color-soft-mint); }
+.myturn-home-device-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 40px; margin-top: 48px; }
+.myturn-home-device-list article > svg { color: var(--color-light-lime); margin-bottom: 22px; }
+.myturn-home-device-list article > span { display: block; margin-top: 5px; color: var(--color-light-lime); font-size: 13px; }
+.myturn-home-device-list p { max-width: 260px; margin-top: 16px; color: var(--color-soft-mint); font-size: 14px; line-height: 1.7; }
+.myturn-home-sensor-note { display: flex; align-items: flex-start; gap: 12px; margin-top: 40px; padding-top: 28px; border-top: 1px solid var(--color-medium-green); color: var(--color-soft-mint); font-size: 13px; line-height: 1.7; }
+.myturn-home-sensor-note svg { flex-shrink: 0; margin-top: 3px; color: var(--color-light-lime); }
+.myturn-home-about-layout { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: clamp(48px, 8vw, 140px); align-items: center; }
+.myturn-home-about-text { max-width: 590px; margin-top: 24px; font-size: 16px; line-height: 1.75; }
+.myturn-home-about-text:first-child { margin-top: 0; }
+.myturn-home-team-section { margin-top: 64px; padding-top: 48px; border-top: 1px solid var(--color-line); }
+.myturn-home-team-section h2 { font-size: clamp(28px, 2.4vw, 36px); }
+.myturn-home-team-heading > p { margin-top: 12px; font-size: 16px; line-height: 1.65; }
+.myturn-home-profile-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; margin-top: 32px; }
+.myturn-home-profile-card { min-width: 0; padding: 36px 24px; border: 1px solid var(--color-line); border-radius: 20px; text-align: center; }
+.myturn-home-profile-avatar { display: flex; align-items: center; justify-content: center; width: 80px; height: 80px; margin: 0 auto 24px; border-radius: 50%; background: var(--color-soft-mint); color: var(--color-deep-green); font-size: 26px; font-weight: 500; }
+.myturn-home-profile-card h3 { overflow-wrap: anywhere; font-size: 17px; line-height: 1.5; }
+.myturn-home-profile-card p { margin-top: 8px; font-size: 14px; }
+.myturn-home-profile-contact { display: flex; flex-direction: column; align-items: center; gap: 9px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--color-line); list-style: none; }
+.myturn-home-profile-contact li { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--color-medium-green); font-size: 13px; }
+.myturn-home-profile-contact svg { flex-shrink: 0; width: 15px; height: 15px; }
+.myturn-home-profile-contact a { overflow-wrap: anywhere; color: var(--color-deep-green); text-decoration: none; }
+.myturn-home-profile-contact a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.myturn-home-team-description { max-width: 720px; margin: 24px auto 0; text-align: center; font-size: 14px; line-height: 1.7; }
+.myturn-home-closing { background: var(--color-soft-mint); padding-block: 52px; }
+.myturn-home-closing-inner { display: flex; align-items: center; justify-content: space-between; gap: 32px; }
+.myturn-home-closing p { margin-top: 12px; font-size: 16px; line-height: 1.6; }
+.myturn-home-closing-actions { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; gap: 12px; }
+.myturn-home-closing-actions > a:first-child { min-width: 220px; min-height: 54px; }
+.myturn-home-footer { color: var(--color-deep-green); }
+.myturn-home-page a:focus-visible { outline: 2px solid currentColor; outline-offset: 5px; border-radius: 5px; }
+.myturn-home-skip { position: fixed; top: -100px; left: 20px; z-index: 100; padding: 14px 20px; border-radius: 8px; background: var(--color-deep-green); color: var(--color-white); }
+.myturn-home-skip:focus { top: 12px; }
+
+@media (max-width: 959px) {
+  .myturn-home-steps, .myturn-home-device-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 36px; }
+  .myturn-home-section-heading { align-items: flex-start; }
+  .myturn-home-section-heading > p { max-width: 260px; font-size: 14px; }
+  .myturn-home-feature-layout, .myturn-home-about-layout { gap: 40px; }
+  .myturn-home-profile-grid { gap: 16px; }
+  .myturn-home-profile-card { padding-inline: 18px; }
+}
+
+@media (max-width: 699px) {
+  .myturn-home-container { width: auto; margin-inline: 24px; }
+  .myturn-home-section-heading, .myturn-home-closing-inner { flex-direction: column; align-items: flex-start; gap: 24px; }
+  .myturn-home-section-heading > p { max-width: 380px; }
+  .myturn-home-steps { gap: 32px 24px; margin-top: 32px; }
+  .myturn-home-step-top { margin-bottom: 18px; }
+  .myturn-home-steps li > p { font-size: 14px; }
+  .myturn-home-feature-layout, .myturn-home-about-layout { grid-template-columns: 1fr; }
+  .myturn-home-team-section { margin-top: 40px; padding-top: 36px; }
+  .myturn-home-profile-grid { grid-template-columns: 1fr; }
+  .myturn-home-profile-card { padding: 28px 24px; }
+  .myturn-home-feature-list article { gap: 16px; }
+  .myturn-home-feature-list h3, .myturn-home-steps h3 { font-size: 18px; }
+  .myturn-home-closing-actions { width: 100%; align-items: stretch; }
+  .myturn-home-closing-actions .myturn-home-text-link { align-self: center; }
+}
+
+@media (max-width: 379px) {
+  .myturn-home-steps, .myturn-home-device-list { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 1279px) and (min-width: 1100px) {
+  .myturn-home-actions { gap: 12px; }
+  .myturn-home-actions a { padding-inline: 18px; }
+  .myturn-home-trust { gap: 16px; }
+  .myturn-home-trust li { gap: 8px; }
+  .myturn-home-trust li > span:last-child { max-width: 82px; }
+  .myturn-home-nav-links { margin-left: 16px; }
+  .myturn-home-nav-link { padding-inline: 12px; }
+}
+
+@media (max-width: 1099px) {
+  .myturn-home-hero { min-height: 0; display: flex; flex-direction: column; }
+  .myturn-home-inner { width: auto; margin-inline: 24px; padding: 48px 0 36px; order: -1; }
+  .myturn-home-copy { width: 100%; max-width: 620px; }
+  .myturn-home-headline { font-size: clamp(48px, 8vw, 76px); }
+  .myturn-home-description { font-size: 20px; }
+  .myturn-home-visual { position: relative; width: min(100%, 760px); margin-left: auto; }
+  .myturn-home-actions a { min-height: 56px; font-size: 18px; }
+  .myturn-home-trust { gap: 20px; }
+  .myturn-home-trust li { font-size: 14px; }
+  .myturn-home-nav { width: auto; margin-inline: 24px; gap: 8px; }
+  .myturn-home-nav > a:first-child > span { gap: 10px; }
+  .myturn-home-nav > a:first-child svg { width: 36px; height: 36px; }
+  .myturn-home-nav > a:first-child span span { font-size: 18px; }
+  .myturn-home-nav-links { margin-left: 12px; }
+  .myturn-home-nav-link { padding-inline: 10px; font-size: 14px; }
+  .myturn-home-header-ticket { margin-left: 0; padding-inline: 16px; font-size: 14px; }
+  .myturn-home-live-panel { position: relative; bottom: auto; right: auto; width: calc(100% - 48px); max-width: 440px; margin: -16px auto 32px; }
+}
+
+@media (max-width: 479px) {
+  .myturn-home-nav { margin-inline: 16px; }
+  .myturn-home-nav > a:first-child svg { width: 32px; height: 32px; }
+  .myturn-home-nav > a:first-child span { font-size: 18px; }
+  .myturn-home-header-ticket { min-height: 44px; padding-inline: 12px; font-size: 13px; border-radius: 12px; }
+  .myturn-home-inner { margin-inline: 20px; padding-top: 36px; }
+  .myturn-home-eyebrow { font-size: 10px; padding-inline: 12px; }
+  .myturn-home-headline { font-size: clamp(39px, 10.8vw, 52px); letter-spacing: -0.04em; }
+  .myturn-home-description { font-size: 18px; line-height: 1.5; }
+  .myturn-home-actions { gap: 12px; }
+  .myturn-home-actions a { width: 100%; font-size: 17px; }
+  .myturn-home-trust { gap: 12px; }
+  .myturn-home-trust li { flex: 1; min-width: 82px; flex-direction: column; align-items: flex-start; gap: 8px; font-size: 12px; }
+  .myturn-home-trust-icon { width: 38px; height: 38px; }
+  .myturn-home-live-panel { width: calc(100% - 40px); }
+}

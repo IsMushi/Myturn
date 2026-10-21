@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1916" height="821" viewBox="0 0 1916 821" fill="none">
+  <defs>
+    <linearGradient id="base" x1="940" y1="0" x2="1060" y2="821" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f4fcf9"/>
+      <stop offset="1" stop-color="#ecfcf6"/>
+    </linearGradient>
+    <linearGradient id="ribbon" x1="1870" y1="67" x2="1370" y2="584" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#a3e8cf" stop-opacity=".48"/>
+      <stop offset="1" stop-color="#c6f3e4" stop-opacity=".13"/>
+    </linearGradient>
+    <linearGradient id="left" x1="0" y1="600" x2="770" y2="380" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9ce5cc" stop-opacity=".42"/>
+      <stop offset="1" stop-color="#e1f9ef" stop-opacity=".12"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#base)" d="M0 0h1916v821H0z"/>
+  <path fill="#fff" fill-opacity=".46" d="M0 0h1022c-24 57-58 88-110 98H0z"/>
+  <path fill="#c9f3e6" fill-opacity=".25" d="M1198 98h718v160c-206 11-359-51-472-43-134 10-213-24-246-117Z"/>
+  <path fill="url(#ribbon)" d="M1916 57c-164 59-246 109-414 141-159-8-240 58-256 122-47 170 298 253 475 199 85-26 153-63 195-85V57Z"/>
+  <path fill="#a5ead0" fill-opacity=".17" d="M1916 253c-167 134-332 126-436 211 166-5 301-57 436-132v-79Z"/>
+  <path fill="url(#left)" d="M0 443c160-102 274-75 463-54 107 12 180-10 254-39-96 153-357 160-483 244C138 658 66 690 0 737V443Z"/>
+  <path fill="#a2e8cd" fill-opacity=".25" d="M0 587c126-43 223-15 330-42C213 626 105 650 0 737V587Z"/>
+  <path fill="#a0e9ca" fill-opacity=".24" d="M1352 169c24-5 43 7 39 33-24 13-46-2-39-33Z"/>
+</svg>

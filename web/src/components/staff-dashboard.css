@@ -1,0 +1,225 @@
+/* Scoped to the staff workspace: shared console and public pages stay unchanged. */
+.staff-workspace { color: var(--color-ink); display: grid; gap: 20px; min-width: 0; }
+.staff-workspace :is(button, a, summary, [tabindex]):focus-visible { outline: 2px solid var(--color-deep-green); outline-offset: 4px; }
+.staff-workspace button:not(:disabled), .staff-workspace summary { cursor: pointer; }
+.staff-workspace button:disabled { cursor: not-allowed; }
+.staff-page-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.staff-page-title { font-size: 22px; font-weight: 700; color: var(--color-deep-green); letter-spacing: -0.02em; margin: 0; }
+.staff-page-description { font-size: 13px; color: var(--color-medium-green); margin-top: 4px; }
+.staff-header-actions { display: flex; align-items: center; gap: 8px; }
+.staff-metrics-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+.staff-metric-card { background: var(--color-white); border: 1px solid var(--color-line); border-radius: 12px; padding: 20px; }
+.staff-page-title { font-size: 28px; font-weight: 600; letter-spacing: -.045em; line-height: 1.2; color: var(--color-deep-green); }
+.staff-page-description { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 14px; }
+.staff-service-letter { display: inline-grid; place-items: center; width: 23px; height: 23px; border-radius: 6px; background: var(--color-deep-green); color: var(--color-light-lime); font-size: 12px; font-weight: 600; flex-shrink: 0; }
+.staff-desk-picker { display: grid; gap: 5px; max-width: 360px; min-width: 0; }
+.staff-header-actions { display: flex; align-items: flex-end; gap: 14px; }
+.staff-desk-picker label { font-size: 12px; }
+.staff-workspace .staff-desk-select { width: 100%; min-height: 44px; color: var(--color-deep-green); background: var(--color-white); font-weight: 600; border: none; box-shadow: none; }
+/* The panels are cards on the mint workspace, not boxes drawn around: the
+   white surface on its own separates them from the page, so the border is
+   left out. */
+.staff-desk-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; border-radius: 12px; background: var(--color-white); }
+.staff-availability, .staff-state-controls { display: flex; align-items: center; }
+.staff-availability { gap: 16px; flex-wrap: wrap; }
+.staff-state-controls { border-left: 1px solid var(--color-line); padding-left: 12px; gap: 4px; }
+.staff-state-controls button { min-height: 44px; padding: 0 14px; border-radius: 999px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; transition: background 120ms ease, color 120ms ease, transform 120ms ease; }
+.staff-state-controls button svg { flex-shrink: 0; }
+.staff-state-controls button[aria-pressed="true"] { background: var(--color-deep-green); color: var(--color-white); }
+.staff-state-controls button:not(:disabled):hover { background: var(--color-soft-mint); color: var(--color-deep-green); }
+.staff-state-controls button[aria-pressed="true"]:not(:disabled):hover { background: var(--color-deep-green); color: var(--color-white); opacity: 0.9; }
+.staff-state-controls button:disabled:not([aria-pressed="true"]) { opacity: .4; cursor: not-allowed; }
+.staff-state-controls button:active:not(:disabled) { transform: scale(0.97); }
+.staff-state-controls button:focus-visible { outline: 2px solid var(--color-medium-green); outline-offset: 2px; }
+.staff-workspace .staff-refresh { min-width: 40px; height: 40px; padding: 8px; border: none; border-radius: 999px; background: var(--color-white); color: var(--color-deep-green); transition: background 120ms ease, transform 200ms ease; }
+.staff-workspace .staff-refresh:hover { background: var(--color-soft-mint); }
+.staff-workspace .staff-refresh:active { transform: scale(0.96); }
+.staff-workspace .staff-refresh:focus-visible { outline: 2px solid var(--color-medium-green); outline-offset: 2px; }
+.staff-connection-notice { display: flex; align-items: flex-start; gap: 12px; border: 1px solid var(--color-line); border-left: 3px solid var(--color-deep-green); padding: 16px; background: var(--color-white); border-radius: 8px; font-size: 14px; }
+.staff-connection-notice > svg { flex-shrink: 0; margin-top: 2px; }
+.staff-connection-notice > div { flex: 1; }
+.staff-connection-notice p { margin-top: 4px; line-height: 1.5; }
+.staff-connection-notice a, .staff-connection-notice button { flex-shrink: 0; }
+.staff-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 20px 0; border-top: 1px solid var(--color-line); border-bottom: 1px solid var(--color-line); }
+.staff-metric { min-width: 0; padding: 0 20px; border-left: 1px solid var(--color-line); }
+.staff-metric:first-child { padding-left: 0; border-left: none; }
+.staff-metric:last-child { padding-right: 0; }
+.staff-metric dt { font-size: 12px; font-weight: 500; }
+.staff-metric-value { font-size: 26px; letter-spacing: -.035em; font-weight: 600; line-height: 1.2; margin-top: 9px; overflow-wrap: anywhere; }
+.staff-metric:last-child .staff-metric-value { font-size: 20px; line-height: 31px; }
+.staff-metric-hint { margin-top: 6px; font-size: 11px; line-height: 1.5; }
+.staff-main-grid { display: grid; gap: 20px; min-width: 0; align-items: start; }
+.staff-call-panel, .staff-waiting-panel { min-width: 0; border-radius: 12px; background: var(--color-white); overflow: hidden; }
+.staff-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 22px; }
+.staff-panel-heading h2 { font-size: 15px; font-weight: 600; }
+.staff-panel-heading > span { font-size: 12px; }
+.staff-waiting-count { border-radius: 6px; background: var(--color-soft-mint); padding: 4px 8px; white-space: nowrap; }
+.staff-active-call { padding: 24px; }
+.staff-call-label { display: flex; align-items: center; gap: 7px; font-size: 13px; }
+.staff-call-label > span { width: 7px; height: 7px; border-radius: 50%; background: var(--color-medium-green); }
+.staff-ticket-number { color: var(--color-deep-green); font-size: clamp(56px, 5.6vw, 80px); line-height: 1.1; font-weight: 600; letter-spacing: -.055em; margin: 8px 0; overflow-wrap: anywhere; }
+.staff-call-service { font-size: 14px; }
+.staff-contact { display: block; width: fit-content; max-width: 100%; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; margin-top: 8px; }
+.staff-call-timers { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding-top: 22px; margin-top: 22px; border-top: 1px solid var(--color-line); }
+.staff-call-timers > div { display: grid; gap: 6px; }
+.staff-call-timers > div > span { font-size: 12px; display: flex; align-items: center; gap: 5px; }
+.staff-call-timers strong { font-size: 20px; font-weight: 600; }
+.staff-call-timers .staff-time-warning { color: #92400e; }
+.staff-call-explanation { margin-top: 12px; font-size: 12px; line-height: 1.6; max-width: 56ch; }
+.staff-ticket-actions { display: grid; gap: 10px; margin-top: 22px; }
+.staff-workspace .staff-serve, .staff-workspace .staff-call-next { width: 100%; min-height: 48px; border-radius: 999px; }
+.staff-secondary-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.staff-secondary-actions button { min-height: 44px; padding-inline: 12px; border-radius: 999px; }
+.staff-key-hint { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 21px; font: inherit; font-size: 11px; border: 1px solid currentColor; border-radius: 4px; opacity: .65; margin-left: auto; }
+.staff-serve > svg { margin-right: auto; }
+.staff-cancel { justify-self: start; display: inline-flex; align-items: center; gap: 12px; min-height: 44px; font-size: 12px; color: #9f1239; padding-inline: 2px; }
+.staff-cancel:hover:not(:disabled) { text-decoration: underline; text-underline-offset: 3px; }
+.staff-cancel:disabled { opacity: .5; }
+.staff-idle-call { padding: 30px 24px 24px; }
+.staff-idle-icon { display: inline-grid; place-items: center; width: 56px; height: 56px; border-radius: 12px; background: var(--color-soft-mint); color: var(--color-deep-green); }
+.staff-idle-call h3 { font-size: 25px; font-weight: 600; letter-spacing: -.035em; line-height: 1.25; margin-top: 20px; }
+.staff-idle-call p { margin-top: 10px; font-size: 14px; max-width: 43ch; line-height: 1.6; }
+.staff-workspace .staff-call-next { margin-top: 24px; justify-content: flex-start; }
+.staff-call-next svg { margin-left: auto; }
+.staff-call-next .staff-key-hint { margin-left: 4px; }
+.staff-idle-note { display: block; text-align: center; margin-top: 12px; font-size: 12px; }
+.staff-undo { display: flex; align-items: center; gap: 10px; padding: 16px; border-top: 1px solid var(--color-line); background: var(--color-soft-mint); }
+.staff-undo > svg { flex-shrink: 0; }
+.staff-undo > div { flex: 1; display: grid; gap: 3px; font-size: 12px; }
+.staff-undo > div > span { font-size: 11px; }
+.staff-undo button { font-size: 12px; padding: 10px; flex-shrink: 0; }
+.staff-action-progress, .staff-action-notice { display: flex; align-items: flex-start; gap: 8px; margin: 0 20px 16px; padding: 12px; border-radius: 8px; font-size: 13px; line-height: 1.5; }
+.staff-action-progress, .staff-action-notice--success { background: var(--color-soft-mint); }
+.staff-action-notice--error { background: #fff1f2; color: #9f1239; }
+.staff-action-notice > svg { flex-shrink: 0; margin-top: 2px; }
+.staff-queue-scroll { overflow: auto; max-height: 366px; scrollbar-width: thin; scrollbar-color: var(--color-line) transparent; }
+.staff-queue-scroll:focus-visible { outline-offset: -3px !important; }
+.staff-queue-table { width: 100%; font-size: 13px; border-collapse: collapse; text-align: left; }
+.staff-queue-table thead { position: sticky; top: 0; z-index: 1; background: var(--color-white); }
+.staff-queue-table th { font-size: 11px; font-weight: 500; padding: 12px 16px; border-bottom: 1px solid var(--color-line); }
+.staff-queue-table td { padding: 14px 16px; border-bottom: 1px solid var(--color-line); vertical-align: middle; }
+.staff-queue-table :is(th, td):first-child { padding-left: 22px; }
+.staff-queue-table :is(th, td):last-child { padding-right: 22px; text-align: right; white-space: nowrap; }
+.staff-queue-table :is(th, td):nth-child(2) { white-space: nowrap; font-size: 12px; }
+.staff-queue-table tbody tr:last-child td { border-bottom: none; }
+.staff-queue-ticket { font-size: 15px; font-weight: 600; }
+.staff-next-row { background: var(--color-soft-mint); }
+.staff-next-row td:first-child { box-shadow: inset 3px 0 var(--color-deep-green); }
+.staff-next-label { display: block; font-size: 11px; margin-top: 2px; }
+.staff-queue-contact { display: block; font-size: 11px; overflow-wrap: anywhere; max-width: 180px; margin-top: 5px; text-decoration: underline; text-underline-offset: 3px; }
+.staff-queue-footnote { font-size: 11px; line-height: 1.5; padding: 12px 22px; border-top: 1px solid var(--color-line); }
+.staff-queue-empty { padding: 36px 22px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; }
+.staff-queue-empty-icon { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 50%; background: var(--color-soft-mint); color: var(--color-medium-green); margin-bottom: 4px; }
+.staff-queue-empty strong { font-size: 14px; font-weight: 600; color: var(--color-deep-green); }
+.staff-queue-empty p { font-size: 13px; line-height: 1.6; max-width: 35ch; color: var(--color-medium-green); }
+.staff-queue-empty-hint { font-size: 12px; color: var(--color-medium-green); opacity: 0.85; margin-top: 2px; }
+.staff-walk-in { padding: 18px 22px; border-top: 1px solid var(--color-line); }
+.staff-walk-in > div { display: flex; align-items: center; gap: 8px; }
+.staff-walk-in h3 { font-size: 13px; font-weight: 500; }
+.staff-workspace .staff-walk-in-button { width: 100%; margin-top: 12px; min-height: 44px; font-size: 13px; border-radius: 999px; }
+.staff-walk-in > p { font-size: 12px; line-height: 1.5; margin-top: 10px; }
+.staff-walk-in-result { padding: 10px; background: var(--color-soft-mint); border-radius: 8px; }
+.staff-walk-in-result a { text-decoration: underline; text-underline-offset: 3px; }
+/* The figures as a sheet: a vertical list of days, each showing issued and
+   served counts, rather than a spreadsheet grid. The rows arrive one after
+   another when the period changes, so a new sheet is seen to be written. */
+.staff-sheet li { animation: staff-sheet-row-in .3s ease-out both; transition: background-color .16s ease; }
+
+@keyframes staff-sheet-row-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* The panels lift a little under the pointer, and arrive once when the page
+   opens. The motion is small on purpose: the desk is read at a glance. */
+.staff-call-panel, .staff-waiting-panel, .staff-device, .staff-trends {
+  transition: box-shadow .22s ease, transform .22s ease;
+  animation: staff-panel-in .34s ease-out both;
+}
+.staff-call-panel:hover, .staff-waiting-panel:hover, .staff-device:hover, .staff-trends:hover {
+  box-shadow: 0 12px 28px -20px rgb(7 61 53 / .5);
+}
+
+@keyframes staff-panel-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.staff-device, .staff-trends { border-radius: 12px; background: var(--color-white); min-width: 0; }
+/* The line that names a panel, above its content. The panels are never folded
+   away: a panel that is closed is a panel nobody reads. */
+.staff-panel-title { display: flex; align-items: center; gap: 12px; min-height: 76px; padding: 16px 20px; }
+.staff-panel-title > span { display: grid; gap: 5px; min-width: 0; }
+.staff-panel-title strong { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 14px; font-weight: 600; }
+.staff-panel-title small { font-size: 12px; line-height: 1.5; }
+.staff-device-icon { display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; background: var(--color-soft-mint); border-radius: 8px; }
+.staff-trends-icon { display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; background: var(--color-soft-mint); border-radius: 8px; }
+.staff-device-description { display: grid; gap: 5px; min-width: 0; }
+.staff-device-description strong { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 14px; font-weight: 600; }
+.staff-device-description small { font-size: 12px; line-height: 1.5; }
+.staff-device-state { font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 5px; border: 1px solid var(--color-line); }
+.staff-device-state--online { background: var(--color-soft-mint); }
+.staff-device-content { padding: 20px; }
+.staff-trend-content { padding: 20px; }
+.staff-device-note, .staff-trend-scope { font-size: 12px; line-height: 1.6; margin-bottom: 18px; }
+.staff-device-readings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.staff-device-readings dt { font-size: 12px; }
+.staff-device-readings dd { font-size: 14px; font-weight: 500; margin-top: 6px; overflow-wrap: anywhere; }
+.staff-device-identity { display: flex; flex-wrap: wrap; gap: 12px 24px; margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--color-line); font-size: 12px; }
+.staff-device-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 24px 20px; }
+.staff-device-empty-icon { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 50%; background: var(--color-soft-mint); color: var(--color-medium-green); margin-bottom: 4px; }
+.staff-device-empty strong { font-size: 14px; font-weight: 600; color: var(--color-deep-green); }
+.staff-device-empty p { font-size: 13px; line-height: 1.6; max-width: 38ch; color: var(--color-medium-green); }
+.staff-charts { display: grid; gap: 16px; min-width: 0; }
+.staff-charts > section { min-width: 0; }
+/* The keyboard shortcuts, in the dialog that opens them: a key beside what it
+   does, the way a card of keys is read. */
+.staff-shortcuts { display: grid; gap: 2px; margin-top: 4px; }
+.staff-shortcuts-row { display: flex; align-items: center; gap: 12px; padding: 5px 0; }
+.staff-shortcuts-row dt { flex-shrink: 0; }
+.staff-shortcuts-row dd { margin: 0; font-size: 13px; color: var(--color-medium-green); }
+.staff-shortcuts kbd { display: grid; place-items: center; width: 28px; height: 28px; background: var(--color-soft-mint); border: 1px solid var(--color-line); border-radius: 6px; font: inherit; font-size: 12px; font-weight: 600; color: var(--color-deep-green); }
+.staff-empty-desk { display: grid; justify-items: start; gap: 16px; padding: 28px; background: var(--color-white); border-radius: 12px; }
+.staff-empty-desk h2 { font-size: 20px; font-weight: 600; }
+.staff-empty-desk p { font-size: 14px; line-height: 1.6; }
+@media (min-width: 1200px) {
+  .staff-main-grid { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+  .staff-charts { grid-template-columns: minmax(0, .85fr) minmax(0, 1.4fr); }
+}
+@media (max-width: 639px) {
+  .staff-workspace { gap: 16px; }
+  .staff-page-header { align-items: stretch; flex-direction: column; gap: 16px; }
+  .staff-page-title { font-size: 26px; }
+  .staff-header-actions { flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+  .staff-desk-picker { max-width: none; flex: 1 1 12rem; }
+  .staff-desk-toolbar { flex-wrap: wrap; padding: 12px; gap: 10px; }
+  .staff-availability { justify-content: space-between; width: 100%; gap: 8px; }
+  .staff-state-controls { padding-left: 6px; }
+  .staff-state-controls button { padding-inline: 10px; }
+  .staff-summary { grid-template-columns: 1fr 1fr; row-gap: 24px; padding-block: 18px; }
+  .staff-metric { padding-inline: 16px; }
+  .staff-metric:nth-child(3) { border-left: none; padding-left: 0; }
+  .staff-metric-value { font-size: 24px; }
+  .staff-metric:last-child .staff-metric-value { font-size: 18px; line-height: 29px; }
+  .staff-active-call, .staff-idle-call { padding: 22px 18px; }
+  .staff-idle-call h3 { font-size: 23px; }
+  .staff-panel-heading { padding: 16px 18px; }
+  .staff-secondary-actions { gap: 8px; }
+  .staff-secondary-actions button { padding-inline: 8px; font-size: 12px; }
+  .staff-call-timers { gap: 10px; }
+  .staff-call-timers strong { font-size: 18px; }
+  .staff-queue-table :is(th, td) { padding-inline: 10px; }
+  .staff-queue-table :is(th, td):first-child { padding-left: 18px; }
+  .staff-queue-table :is(th, td):last-child { padding-right: 18px; }
+  .staff-queue-contact { max-width: 110px; }
+  .staff-device-readings { grid-template-columns: 1fr 1fr; }
+  .staff-device > .staff-panel-title, .staff-trends > .staff-panel-title { padding: 16px; }
+  .staff-device-content, .staff-trend-content { padding: 16px; }
+  .staff-undo { flex-wrap: wrap; }
+  .staff-undo button { margin-left: 28px; }
+  .staff-connection-notice { flex-wrap: wrap; }
+  .staff-connection-notice > div { min-width: 180px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .staff-workspace *, .staff-workspace *::before, .staff-workspace *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

@@ -1,0 +1,367 @@
+export type ServiceState = "active" | "paused" | "closed";
+
+export type TicketStatus = "waiting" | "called" | "completed" | "skipped" | "cancelled";
+
+export type StaffAction = "complete" | "skip" | "cancel";
+
+/** Who an account belongs to. A visitor never has one. */
+export type Role = "admin" | "staff";
+
+/** A staff or administrator account, as the API describes it. */
+export interface Account {
+  user_id: number;
+  full_name: string;
+  email: string;
+  role: Role;
+  is_active: boolean;
+  created_at: string;
+  last_login_at: string | null;
+}
+
+/** What GET /api/auth/me returns. */
+export interface SessionInfo {
+  user?: Account;
+  staff?: string;
+  shared: boolean;
+  csrf_token: string;
+}
+
+/** What a successful sign in returns. */
+export interface SignedIn {
+  user: Account;
+  csrf_token: string;
+  redirect: string;
+}
+
+export interface InvitationSummary {
+  invitation_id: number;
+  email: string;
+  role: Role;
+  created_at: string;
+  expires_at: string;
+}
+
+/** What GET /api/auth/users returns, for the administrator. */
+export interface AccountsListing {
+  users: Account[];
+  invitations: InvitationSummary[];
+}
+
+/** One line of the account's own history: what has happened to it. */
+export interface AccountEvent {
+  event: string;
+  at: string;
+  actor: string;
+  detail: string | null;
+}
+
+/** One decision the person made at the counter. */
+export interface AccountWork {
+  event: string;
+  at: string;
+  ticket_no: string;
+  label: string;
+  detail: string | null;
+}
+
+/** The editable description of a desk, from the older /api/auth/desk route. */
+export interface DeskProfile {
+  name: string;
+  description: string;
+  /** A service-time promise in seconds, or null when the desk sets none. */
+  target_seconds: number | null;
+  updated_at: string | null;
+  updated_by: string;
+}
+
+export interface DeskProfileResponse {
+  profile: DeskProfile;
+}
+
+/** One number being called at a counter. */
+export interface ServiceCall {
+  ticket_no: number;
+  /** The number as it is shown and spoken: A003. */
+  label: string;
+  /** The counter serving it, or null when it is not known. */
+  desk: string | null;
+  called_at: string | null;
+}
+
+/** One service the office offers, as GET /api/services reports it. */
+export interface Service {
+  /** The ticket letter, A, B or C. */
+  id: string;
+  letter: string;
+  name: string;
+  description: string;
+  /** False only when every desk of the service is closed. */
+  available: boolean;
+  service_state: ServiceState;
+  /** How many visitors are waiting for this service. */
+  waiting: number;
+  /**
+   * The next numbers this queue will call, in order.
+   *
+   * Bounded by the server: a long queue is a count, not a list that grows
+   * without end on a screen meant to be read from across a room.
+   */
+  waiting_labels: string[];
+  /** The numbers being called at this service's desks right now. */
+  now_serving: ServiceCall[];
+  target_seconds: number | null;
+  /** Seconds this service usually takes, or null when there is not enough history. */
+  average_service_seconds: number | null;
+  service_samples: number;
+}
+
+export interface ServicesListing {
+  services: Service[];
+  single_desk: boolean;
+  server_time: string;
+}
+
+/** What POST /api/tickets returns. */
+export interface TicketCreated {
+  ticket_no: number;
+  /** The number as it is shown: A003. */
+  label: string;
+  ahead: number;
+  /** The next few numbers ahead of this one, so the visitor sees the line. */
+  ahead_labels: string[];
+  token: string;
+  service_state: ServiceState;
+  service: Service;
+  /** The contact the visitor left, if they left one. */
+  contact: string | null;
+  created_at: string;
+}
+
+/** What GET /api/tickets/<token> returns. */
+export interface TicketState {
+  ticket_no: number;
+  /** The number as it is shown: A003. */
+  label: string;
+  status: TicketStatus;
+  ahead: number;
+  /** The next few numbers ahead of this one, so the visitor sees the line. */
+  ahead_labels: string[];
+  created_at: string;
+  called_at: string | null;
+  closed_at: string | null;
+  /** The counter serving this ticket, when it has been called. */
+  desk: string | null;
+  /** The contact the visitor left, if they left one. */
+  contact: string | null;
+  service_state: ServiceState;
+  service: Service;
+  server_time: string;
+}
+
+/** What GET /api/public/state returns. */
+export interface PublicState {
+  /** Every service the office offers, each with its own queue. */
+  services: Service[];
+  called_no: number | null;
+  called_at: string | null;
+  /** Visitors waiting across the whole office. */
+  waiting: number;
+  service_state: ServiceState;
+  /** Seconds the desk usually takes, or null when there is not enough history. */
+  average_service_seconds: number | null;
+  service_samples: number;
+  server_time: string;
+}
+
+export interface QueueTicket {
+  ticket_id: number;
+  ticket_no: number;
+  /** The number as it is shown: A003. */
+  label: string;
+  created_at: string;
+  /**
+   * A phone number or email the visitor left, so the desk can reach them.
+   * Only the desk sees it; the wall display never carries it.
+   */
+  contact: string | null;
+}
+
+export interface DeviceInfo {
+  label: string;
+  chip_id: string | null;
+  mac_address: string | null;
+  last_seen: string | null;
+  online: boolean;
+  distance_cm: number | null;
+  occupied: boolean;
+  led_state: string | null;
+  reported_at: string | null;
+  approach: boolean;
+}
+
+/** One counter, as GET /api/staff/desks reports it. */
+export interface DeskSummary {
+  desk_id: number;
+  name: string;
+  is_active: boolean;
+  service_id: number;
+  service_letter: string;
+  service_name: string;
+  service_state: ServiceState;
+  waiting: number;
+  device_online: boolean;
+}
+
+export interface DeskList {
+  desks: DeskSummary[];
+  server_time: string;
+}
+
+/** What GET /api/staff/queue returns. */
+export interface StaffQueue {
+  /** The counter this queue belongs to. */
+  desk: DeskSummary;
+  /** The service that counter serves. */
+  service: Service;
+  service_state: ServiceState;
+  service_updated_by: string | null;
+  service_updated_at: string | null;
+  waiting: number;
+  queue: QueueTicket[];
+  called: (QueueTicket & { called_at: string | null }) | null;
+  hold_seconds: number;
+  /** What the hold really is now: the board may shorten it while the counter is empty. */
+  effective_hold_seconds: number;
+  hold_shortened: boolean;
+  /** Why the hold is what it is, in the desk's words. Null when nobody is called. */
+  hold_reason: string | null;
+  /** How long a mistake may be taken back, in seconds. */
+  undo_seconds: number;
+  seconds_called: number | null;
+  hold_remaining: number | null;
+  /** What this session has worked through since midnight. */
+  tally: { actor: string | null; served: number; no_shows: number };
+  /**
+   * The two dashboard charts. Counted over this desk's service only, so a
+   * staff session can read them without administrator rights.
+   */
+  charts: {
+    outcomes: { served: number; no_shows: number; cancelled: number; waiting: number };
+    /** Oldest first, one row per date in the range, quiet days included. */
+    per_day: { day: string; issued: number; served: number }[];
+    /** What `per_day` actually covers, so the chart can label itself. */
+    range: { days: number; from: string; to: string };
+  };
+  /** What the desk usually takes, measured over served tickets. */
+  average_service_seconds: number | null;
+  service_samples: number;
+  device: DeviceInfo | null;
+  server_time: string;
+}
+
+/** A service as the administrator edits it. */
+export interface ServiceProfile {
+  service_id: number;
+  id: string;
+  letter: string;
+  name: string;
+  description: string;
+  target_seconds: number | null;
+  is_active: boolean;
+  updated_at: string | null;
+  updated_by: string;
+  desk_count: number;
+  service_state: ServiceState;
+  waiting: number;
+}
+
+export interface ServiceList {
+  services: ServiceProfile[];
+  server_time: string;
+}
+
+/** A counter as the administrator edits it. */
+export interface AdminDesk {
+  desk_id: number;
+  name: string;
+  is_active: boolean;
+  service_id: number;
+  service_letter: string;
+  service_name: string;
+  service_state: ServiceState;
+  waiting: number;
+  device_online: boolean;
+  updated_at: string | null;
+  updated_by: string | null;
+}
+
+export interface AdminDeskList {
+  desks: AdminDesk[];
+  server_time: string;
+}
+
+/**
+ * One line of the account history.
+ *
+ * The queue, the desk and the accounts each keep their own record; the activity
+ * page reads all three back in one order, so it shows what happened rather than
+ * only what is true now.
+ */
+export interface ActivityEntry {
+  kind: "ticket" | "desk" | "account";
+  event: string;
+  at: string;
+  actor: string;
+  ticket_no: number | null;
+  /** The number as it was shown: A003. */
+  label: string | null;
+  /** The service the entry belongs to. */
+  service: string | null;
+  /** The counter the entry belongs to. */
+  desk: string | null;
+  email: string | null;
+  detail: string | null;
+}
+
+export interface ActivityFeed {
+  entries: ActivityEntry[];
+  server_time: string;
+}
+
+/** What GET /api/auth/stats returns. */
+export interface Stats {
+  totals: {
+    issued: number;
+    served: number;
+    no_shows: number;
+    cancelled: number;
+    waiting: number;
+    no_show_percent: number;
+  };
+  per_day: { day: string; issued: number; served: number }[];
+  hours: { hour: number; issued: number }[];
+  histogram: { label: string; count: number }[];
+  median_service_seconds: number | null;
+  average_service_seconds: number | null;
+  service_samples: number;
+  /** Each service's own figures, so the queues can be compared. */
+  per_service: {
+    id: string;
+    letter: string;
+    name: string;
+    is_active: boolean;
+    issued: number;
+    served: number;
+    waiting: number;
+    average_service_seconds: number | null;
+    service_samples: number;
+  }[];
+  /** The service the figures describe, or null when they cover the office. */
+  service: { id: string; letter: string; name: string } | null;
+  /** The name the desk uses for itself, and the target it has set. */
+  desk_name: string;
+  target_seconds: number | null;
+  /** Share of measured tickets closed within the target, or null without one. */
+  within_target_percent: number | null;
+  server_time: string;
+}

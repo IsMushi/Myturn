@@ -1,0 +1,364 @@
+"use client";
+
+import { BarChart3, Clock3, RefreshCw, TrendingUp, Users, WifiOff } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+
+import { DeskStateBadge } from "@/components/DeskStateBadge";
+import { Button } from "@/components/ui/Button";
+import { ApiError, api } from "@/lib/api";
+import { formatDuration } from "@/lib/format";
+import { useLiveRefresh } from "@/lib/useLiveRefresh";
+import { usePolling } from "@/lib/usePolling";
+
+interface QueueAnalytics {
+  current_queue_length: number;
+  average_wait_time_seconds: number | null;
+  tickets_served_today: number;
+  busiest_hour: number | null;
+  estimated_wait_seconds: number | null;
+  service_rate_per_hour: number;
+}
+
+interface DeskAnalytics {
+  desk_id: number;
+  desk_name: string;
+  service_letter: string;
+  state: "active" | "paused" | "closed";
+  tickets_served_today: number;
+  average_service_time_seconds: number | null;
+  utilization_percent: number;
+  last_ticket_age_seconds: number | null;
+}
+
+interface TrendDay {
+  date: string;
+  total_tickets: number;
+  total_served: number;
+  average_wait_time_seconds: number | null;
+}
+
+interface TrendsData {
+  period_days: number;
+  trends: TrendDay[];
+}
+
+/**
+ * The office's numbers, in the same colours as the rest of the console.
+ *
+ * The figures are read from the analytics endpoints the API already serves, and
+ * every surface uses the MyTurn tokens (white panels on the mint workspace, deep
+ * green for headings, medium green for the second line), so the page reads as
+ * part of the console rather than a page of its own.
+ */
+export function AnalyticsDashboard() {
+  const [desks, setDesks] = useState<DeskAnalytics[]>([]);
+
+  const loadQueue = useCallback(async () => {
+    const response = await fetch("/api/analytics/queue");
+    if (!response.ok) {
+      throw new ApiError(response.status, `Request failed (${response.status})`);
+    }
+    return (await response.json()).data as QueueAnalytics;
+  }, []);
+  const { data: queue, error: queueError, refresh: refreshQueue } = usePolling(loadQueue, 30000);
+
+  const loadDesks = useCallback(async () => {
+    const { desks: list } = await api.desks();
+    const rows: DeskAnalytics[] = [];
+    for (const desk of list) {
+      try {
+        const response = await fetch(`/api/analytics/desk/${desk.desk_id}`);
+        if (!response.ok) continue;
+        const json = await response.json();
+        if (json.ok) rows.push(json.data as DeskAnalytics);
+      } catch {
+        // A desk that will not answer is skipped, not allowed to sink the page.
+      }
+    }
+    setDesks(rows);
+    return rows;
+  }, []);
+  const { error: deskError, refresh: refreshDesks } = usePolling(loadDesks, 30000);
+
+  const loadTrends = useCallback(async () => {
+    const response = await fetch("/api/analytics/trends");
+    if (!response.ok) {
+      throw new ApiError(response.status, `Request failed (${response.status})`);
+    }
+    return (await response.json()).data as TrendsData;
+  }, []);
+  const { data: trends, error: trendsError, refresh: refreshTrends } = usePolling(loadTrends, 60000);
+
+  const refreshAll = useCallback(() => {
+    void refreshQueue();
+    void refreshDesks();
+    void refreshTrends();
+  }, [refreshQueue, refreshDesks, refreshTrends]);
+  // The queue stream says when something moved; read again then rather than
+  // waiting for the next poll.
+  useLiveRefresh(refreshAll, 15000);
+
+  const hasError = Boolean(queueError || deskError || trendsError);
+
+  useEffect(() => {
+    document.title = "Queue analytics | MyTurn";
+    return () => {
+      document.title = "MyTurn";
+    };
+  }, []);
+
+  if (!queue && !hasError) return <Loading />;
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-deep-green">Queue analytics</h1>
+          <p className="mt-1 text-sm text-medium-green">
+            Real-time metrics and the last seven days, for every service desk.
+          </p>
+        </div>
+        <div className="ml-auto">
+          <Button variant="quiet" onClick={() => void refreshAll()}>
+            <RefreshCw size={16} aria-hidden="true" />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {hasError && <LoadError retry={refreshAll} />}
+
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Tile
+          label="Waiting now"
+          value={String(queue?.current_queue_length ?? "—")}
+          note="Across all services"
+          icon={<Users size={18} aria-hidden="true" />}
+        />
+        <Tile
+          label="Average wait"
+          value={
+            queue?.average_wait_time_seconds != null
+              ? formatDuration(queue.average_wait_time_seconds)
+              : "—"
+          }
+          note="Today, measured from served tickets"
+          icon={<Clock3 size={18} aria-hidden="true" />}
+        />
+        <Tile
+          label="Served today"
+          value={String(queue?.tickets_served_today ?? "—")}
+          note="Every desk"
+          icon={<TrendingUp size={18} aria-hidden="true" />}
+          accent
+        />
+        <Tile
+          label="Estimated wait"
+          value={
+            queue?.estimated_wait_seconds != null
+              ? formatDuration(queue.estimated_wait_seconds)
+              : "—"
+          }
+          note={queue?.busiest_hour != null ? `Busiest hour ${queue.busiest_hour}:00` : "For the next ticket"}
+          icon={<BarChart3 size={18} aria-hidden="true" />}
+        />
+      </section>
+
+      <section className="rounded-2xl bg-white p-5">
+        <h2 className="text-lg font-semibold text-deep-green">Desk performance</h2>
+        <p className="mt-1 text-sm text-medium-green">What each counter has done today.</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {desks.length > 0 ? (
+            desks.map((desk) => <DeskCard key={desk.desk_id} desk={desk} />)
+          ) : (
+            <p className="text-sm text-medium-green">No desk data available.</p>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-2xl bg-white p-5">
+        <h2 className="text-lg font-semibold text-deep-green">7-day trends</h2>
+        <p className="mt-1 text-sm text-medium-green">Tickets issued and served, day by day.</p>
+        <div className="mt-4 overflow-x-auto">
+          {trends ? (
+            <TrendsTable trends={trends} />
+          ) : (
+            <p className="text-sm text-medium-green">Counting…</p>
+          )}
+        </div>
+      </section>
+
+      <p className="text-xs text-medium-green">
+        Every figure on this page comes from the tickets and events the system already recorded.
+        Nothing here is projected or estimated.
+      </p>
+    </div>
+  );
+}
+
+function Loading() {
+  return (
+    <div className="space-y-5">
+      <div className="h-7 w-64 animate-pulse rounded bg-soft-mint" />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="h-24 animate-pulse rounded-2xl bg-soft-mint" />
+        ))}
+      </div>
+      <div className="h-56 animate-pulse rounded-2xl bg-white" />
+    </div>
+  );
+}
+
+function LoadError({ retry }: { retry: () => void }) {
+  return (
+    <div
+      role="alert"
+      className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3"
+    >
+      <WifiOff size={20} className="text-rose-700" aria-hidden="true" />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-deep-green">Unable to load the analytics</p>
+        <p className="text-sm text-medium-green">Check your connection, then try again.</p>
+      </div>
+      <Button variant="quiet" onClick={() => void retry()}>
+        Try again
+      </Button>
+    </div>
+  );
+}
+
+function Tile({
+  label,
+  value,
+  note,
+  icon,
+  accent = false,
+}: {
+  label: string;
+  value: string;
+  note?: string;
+  icon: React.ReactNode;
+  accent?: boolean;
+}) {
+  return (
+    <div className="rounded-2xl bg-white px-4 py-3">
+      <div className="flex items-center gap-2">
+        <span
+          className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${
+            accent ? "bg-primary text-ink" : "bg-soft-mint text-deep-green"
+          }`}
+        >
+          {icon}
+        </span>
+        <p className="text-xs font-medium uppercase tracking-wide text-medium-green">{label}</p>
+      </div>
+      <p className="mt-2 text-2xl font-semibold tabular-nums text-deep-green">{value}</p>
+      {note && <p className="mt-1 text-xs text-medium-green">{note}</p>}
+    </div>
+  );
+}
+
+function DeskCard({ desk }: { desk: DeskAnalytics }) {
+  return (
+    <div className="rounded-xl border border-line bg-soft-mint/40 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-deep-green text-xs font-bold text-light-lime">
+            {desk.service_letter}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-deep-green">{desk.desk_name}</p>
+            <p className="text-xs text-medium-green">Desk #{desk.desk_id}</p>
+          </div>
+        </div>
+        <DeskStateBadge state={desk.state} />
+      </div>
+      <dl className="mt-3 grid grid-cols-2 gap-2">
+        <div className="rounded-lg bg-white px-3 py-2">
+          <dt className="text-xs text-medium-green">Served today</dt>
+          <dd className="mt-0.5 text-base font-semibold tabular-nums text-deep-green">
+            {desk.tickets_served_today}
+          </dd>
+        </div>
+        <div className="rounded-lg bg-white px-3 py-2">
+          <dt className="text-xs text-medium-green">Utilization</dt>
+          <dd className="mt-0.5 text-base font-semibold tabular-nums text-deep-green">
+            {desk.utilization_percent.toFixed(0)}%
+          </dd>
+        </div>
+        <div className="rounded-lg bg-white px-3 py-2">
+          <dt className="text-xs text-medium-green">Average service</dt>
+          <dd className="mt-0.5 text-sm font-semibold tabular-nums text-deep-green">
+            {desk.average_service_time_seconds != null
+              ? formatDuration(desk.average_service_time_seconds)
+              : "—"}
+          </dd>
+        </div>
+        <div className="rounded-lg bg-white px-3 py-2">
+          <dt className="text-xs text-medium-green">Last ticket</dt>
+          <dd className="mt-0.5 text-sm font-semibold tabular-nums text-deep-green">
+            {desk.last_ticket_age_seconds != null
+              ? `${formatDuration(desk.last_ticket_age_seconds)} ago`
+              : "Never"}
+          </dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
+
+function TrendsTable({ trends }: { trends: TrendsData }) {
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  function formatDate(dateStr: string) {
+    const date = new Date(`${dateStr}T00:00:00`);
+    const dayName = days[date.getDay()];
+    const month = date.toLocaleString("en-US", { month: "short" });
+    return `${dayName}, ${month} ${date.getDate()}`;
+  }
+
+  if (trends.trends.length === 0) {
+    return (
+      <p className="flex flex-col items-center gap-2 py-8 text-center text-sm text-medium-green">
+        <BarChart3 size={28} className="opacity-40" aria-hidden="true" />
+        No tickets in the past week.
+      </p>
+    );
+  }
+
+  return (
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="border-b border-line bg-soft-mint text-medium-green">
+          <th scope="col" className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">
+            Date
+          </th>
+          <th scope="col" className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide">
+            Issued
+          </th>
+          <th scope="col" className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide">
+            Served
+          </th>
+          <th scope="col" className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide">
+            Average wait
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {trends.trends.map((day) => (
+          <tr key={day.date} className="border-b border-line last:border-b-0 hover:bg-soft-mint/60">
+            <td className="px-4 py-2.5 font-medium text-deep-green">{formatDate(day.date)}</td>
+            <td className="px-4 py-2.5 text-right tabular-nums text-deep-green">{day.total_tickets}</td>
+            <td className="px-4 py-2.5 text-right tabular-nums text-deep-green">{day.total_served}</td>
+            <td className="px-4 py-2.5 text-right tabular-nums text-medium-green">
+              {day.average_wait_time_seconds != null
+                ? formatDuration(day.average_wait_time_seconds)
+                : "—"}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}

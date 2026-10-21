@@ -1,0 +1,8 @@
+profiles:
+  esp32:
+    fqbn: esp32:esp32:esp32
+    platforms:
+      - platform: esp32:esp32 (3.3.12)
+    libraries:
+      - WebSockets (2.7.2)
+      - ArduinoJson (7.4.3)
