@@ -53,11 +53,12 @@ device routes remain compatible, but the updated firmware never polls them.
 ## Verified
 
 - ESP32 Dev Module compile: ESP32 core 3.3.12, WebSockets 2.7.2, ArduinoJson 7.4.3.
-  The final build used 1,108,285 bytes of application flash (84%) and 48,448 bytes
-  of static RAM (14%). Compilation used a temporary copy with example credentials;
-  private `secrets.h` was not copied into test artifacts or changed.
+  The build used 1,111,205 bytes of application flash (84%) and 48,824 bytes of
+  static RAM (14%). It was compiled with the Arduino IDE's own `arduino-cli`
+  (`compile --fqbn esp32:esp32:esp32`), against the local `secrets.h`; no
+  credential was copied into a test artifact or changed.
 - `api/.venv/Scripts/python.exe api/check_device_ws.py --smoke` (from repository
-  root): 25 real WebSocket/workflow checks and all 196 existing HTTP checks passed.
+  root): 25 real WebSocket/workflow checks and all 212 existing HTTP checks passed.
   The runner creates its own Flask server, device keys, accounts and temporary
   SQLite database. It never resets or uses the live office.
 - Checks cover authentication, pushed calls/recall/state, acknowledgements,

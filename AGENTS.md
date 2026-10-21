@@ -73,13 +73,17 @@ For the web app, kill only Next's node processes - filter `Get-CimInstance Win32
 ## Verifying
 
 ```powershell
-cd myturn\api;  .\.venv\Scripts\python.exe smoke_test.py   # 206 checks, 0 failed - needs the API running
+cd myturn\api;  .\.venv\Scripts\python.exe smoke_test.py   # 212 checks, 0 failed - needs the API running
 cd myturn\api;  .\.venv\Scripts\python.exe check_device_ws.py --smoke  # the same suite plus the WebSocket checks, in a disposable office
 cd myturn\web; npx tsc --noEmit; npx eslint .; npm run build
 python C:\Users\Isaac\AppData\Local\Temp\opencode\verify_ui.py  # 71 checks, 0 failed - needs both servers
 python C:\Users\Isaac\AppData\Local\Temp\opencode\check_sidebar.py   # 8 checks
 python C:\Users\Isaac\AppData\Local\Temp\opencode\check_console.py   # 45 checks, creates and removes its own account
 ```
+
+- The firmware compiles without the Arduino IDE. The CLI is bundled with it:
+  `& "$env:LOCALAPPDATA\Programs\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe" compile --fqbn esp32:esp32:esp32 firmware\myturn_desk`
+  The core (3.3.12), ArduinoJson (7.4.3) and WebSockets (2.7.2) are already installed, and `firmware/myturn_desk/secrets.h` is the local copy of `secrets.example.h`. **Compile the sketch after any firmware change** - the ESP-IDF version matters: ESP-IDF 5 has no `portMUTEX_TYPE` (a FreeRTOS 8 type), a mutex is a `SemaphoreHandle_t`.
 
 - There is no unit-test framework. `smoke_test.py` (the API) and the Playwright scripts (the interface) are the entire suite. "Verified" means these were run, not that the code reads correctly.
 - `smoke_test.py` resets the transactional tables and the one account it creates, so it is repeatable - but it deliberately exhausts the forgot-password bucket (5 per 15 minutes, per process). A second run without restarting the API fails in the reset section with 429. **Restart the API between runs.**
@@ -99,7 +103,7 @@ python C:\Users\Isaac\AppData\Local\Temp\opencode\check_console.py   # 45 checks
 ## Rules this project is judged on
 
 - Do not report a feature as complete unless it is implemented and verified.
-- The sensors only measure. The PIR reports an approach; occupancy is the HC-SR04's alone; nothing counts or identifies people.
+- The sensors only measure. The PIR reports an approach; occupancy is the HC-SR04's alone; nothing counts or identifies people. The one exception is the **static obstruction**: an object that has sat still at the counter for `MYTURN_OBSTRUCTION_SECONDS`, with no approach seen near it in that whole window, does not block the desk from calling. It is a bag, not a visitor. A visitor who walked up and then stood still brought an approach with them and is never written off as a bag, and the hold rule is not relaxed at all - only the call guard is.
 - The ticket number comes from the server's counter, never the browser, and the tracking URL uses an opaque token, never a sequential id. Every service has its own counter, and the number carries the letter of its service: A001, B001.
 - A desk calls one visitor at a time and belongs to one service; two desks may work the same service at once.
 - A ticket that nobody answers goes to the back of **its own service's** queue with a fresh number after `MYTURN_HOLD_SECONDS`, so an absent visitor cannot block the desk. The hold shortens to `MYTURN_MIN_CALL_SECONDS` only when the board is fresh and has seen nobody at the counter since the call; any missing or occupied evidence keeps the full hold.

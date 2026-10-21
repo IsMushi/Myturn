@@ -59,7 +59,9 @@ char lastCallEvent[12] = "none";
 char lastAckTime[32] = "";
 char lastIp[16] = "-";
 long lastAckSequence = 0;
-portMUTEX_TYPE serialMutex = nullptr;
+// A mutex, not a spinlock: Serial.printf can block while the UART buffer
+// drains, and a spinlock would hold the interrupts off for that long.
+SemaphoreHandle_t serialMutex = nullptr;
 
 // The serial log is the only place a connection problem can be seen, so every
 // transition is written as it happens. A connection that fails silently is
