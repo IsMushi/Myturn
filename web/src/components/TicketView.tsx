@@ -149,7 +149,7 @@ export function TicketView({ initialToken }: { initialToken?: string }) {
       });
       
       // Handle duplicate ticket detection (VIS-10, QUE-19)
-      if ((created as any).duplicate) {
+      if (created.duplicate) {
         // User already has an active ticket - redirect to their existing one immediately
         setStoredToken(created.token);
         setTrackUrl(`${window.location.origin}/ticket/${created.token}`);

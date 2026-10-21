@@ -112,6 +112,8 @@ export const api = {
       body: {
         source: options.source ?? "qr",
         service: options.service,
+        // The contact is optional and is what lets the desk reach the visitor.
+        contact: options.contact,
         browser_fingerprint: api._getBrowserFingerprint(),
       },
     }),

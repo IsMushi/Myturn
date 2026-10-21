@@ -135,6 +135,11 @@ export interface TicketCreated {
   /** The contact the visitor left, if they left one. */
   contact: string | null;
   created_at: string;
+  /**
+   * True when this browser already had a ticket waiting and the server
+   * returned that one instead of issuing a new number (VIS-10, QUE-19).
+   */
+  duplicate?: boolean;
 }
 
 /** What GET /api/tickets/<token> returns. */
