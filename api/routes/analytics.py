@@ -72,9 +72,8 @@ def queue_analytics():
     ).fetchone()
     busiest_hour = int(busiest["hour"]) if busiest else None
 
-    # Recent throughput over the last two hours, which is what the estimate is
-    # drawn from. A rolling window, not the office's day, is the right scale
-    # here: it says how fast the desk is working right now.
+    # Recent throughput over the last two hours, kept for the rate the page can
+    # show next to the estimate.
     two_hours_ago = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat(
         timespec="seconds"
     )
@@ -83,9 +82,22 @@ def queue_analytics():
         "where status = 'completed' and closed_at >= ?",
         (two_hours_ago,),
     ).fetchone()["c"]
-    service_rate = recent / 2.0 if recent > 0 else 1.0
+    service_rate = recent / 2.0 if recent > 0 else 0.0
 
-    estimated_wait = int((queue_length / service_rate) * 3600) if service_rate > 0 else None
+    # The estimate is the measurement the visitor page already trusts: the
+    # average time a served ticket took, times the numbers still ahead. It is
+    # withheld when nothing has been served today, rather than guessed from a
+    # queue that has not moved and would otherwise read as hours.
+    service_row = conn.execute(
+        "select avg((julianday(closed_at) - julianday(called_at)) * 86400) as avg_service "
+        "from tickets "
+        "where status = 'completed' and called_at is not null and closed_at is not null "
+        "and substr(" + local_sql("closed_at") + ", 1, 10) = ?",
+        (today,),
+    ).fetchone()
+    avg_service = service_row["avg_service"]
+
+    estimated_wait = int(queue_length * avg_service) if (avg_service and queue_length) else None
 
     return jsonify(
         ok=True,
