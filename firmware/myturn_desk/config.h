@@ -35,6 +35,10 @@ constexpr unsigned long APPROACH_MS   = 10000;
 constexpr unsigned long INTERVAL_MS   = 5000;
 constexpr unsigned long FAST_MS       = 1000;
 
+// How often the full connection block is written to the serial log, even when
+// nothing about the connection has changed.
+constexpr unsigned long CONNECTION_LOG_MS = 30000;
+
 // ---- Buzzer (0 = active module, 1 = passive buzzer) ----
 #define BUZZER_PASSIVE 0
 constexpr unsigned int  BUZZER_TONE_HZ  = 2200;

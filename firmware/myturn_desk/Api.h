@@ -20,6 +20,27 @@ struct Setting {
   long callAge = -1;
 };
 
+// A snapshot of the connection, for the serial log.
+//
+// The buffers are fixed size on purpose: the network task fills them while
+// the sensor loop reads them, and a heap-allocated String could be resized
+// under the reader's feet.
+struct Connection {
+  bool wifiUp;
+  int rssi;
+  char ip[16];
+  char endpoint[96];
+  bool socketUp;
+  bool authenticated;
+  char lastEvent[96];
+  int failures;
+  long deskId;
+  char serviceState[12];
+  char callEvent[12];
+  long lastAckSequence;
+  char lastAckTime[32];
+};
+
 void begin();
 bool connected();               // Wi-Fi only
 bool ready();                   // authenticated socket with a fresh desk snapshot
@@ -27,4 +48,11 @@ bool readingAcknowledged();
 bool postReading(const Reading &reading); // queued locally, NOT a server acknowledgement
 bool takeSetting(Setting &out); // consumes a pushed state; never makes an HTTP request
 const char *lastError();
+void connection(Connection &out); // the details behind the lastError() line
+
+// The serial log is written by two tasks - the sensor loop and the network
+// task. Holding this lock across a print keeps a line from being split by
+// the other task's output.
+void serialLock();
+void serialUnlock();
 }

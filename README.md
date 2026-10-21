@@ -374,6 +374,13 @@ reconnects. A missing connection or a snapshot older than twelve seconds restore
 the safe **paused/yellow** indication. This is a local safety indication, not a
 change to the desk's server-side availability.
 
+The serial log at 115200 baud is where a board that will not connect is
+diagnosed. Every line is stamped with the uptime, every connection transition
+is written as it happens (including the server's close code when it refuses the
+board), and a full connection block is printed when the connection changes and
+every thirty seconds otherwise. `firmware/myturn_desk/WIRING.md` has the format
+and what each line means.
+
 Each report has a sequence number and receives an acknowledgement after storage.
 Duplicate sequence numbers are not stored twice. A missing acknowledgement after
 four seconds reconnects the socket. Reconnect delays back off with jitter, up to

@@ -13,6 +13,7 @@
  * Net::Reading" and "'network_event_handle_t' does not name a type".
  */
 #include <WiFi.h>
+#include <esp_system.h>
 #include <esp_task_wdt.h>
 #include "config.h"
 #include "Sensor.h"
@@ -54,17 +55,58 @@ static void logStatus(float cm) {
   else if (cm >= MAX_CM) strcpy(dist, "no object");   // 400 cm is the sensor's "nothing in range" value
   else                   snprintf(dist, sizeof dist, "%.1f cm", cm);
 
-  Serial.printf("distance: %s (raw %.1f)\n", dist, Sensor::rawCm());
-  Serial.printf("occupied: %s\n", Sensor::occupied() ? "yes" : "no");
-  Serial.printf("pir: %s\n", Pir::motion() ? "HIGH" : "LOW");
-  Serial.printf("pir_ready: %s\n", Pir::ready() ? "yes" : "no");
-  Serial.printf("led: %s\n", Indicators::lightName(Indicators::light()));
-  Serial.print("wifi: ");
-  if (Net::connected()) Serial.printf("%d dBm @ %s\n", WiFi.RSSI(), WiFi.localIP().toString().c_str());
-  else                  Serial.println("down");
-  Serial.print("WebSocket: ");
-  if (Net::ready()) Serial.println(Net::readingAcknowledged() ? "ready, telemetry acknowledged" : "ready, awaiting telemetry ack");
-  else Serial.println(Net::lastError());
+  Net::Connection c;
+  Net::connection(c);
+
+  // The socket line names the reason when it is not ready, so a fault says
+  // what is wrong instead of only that something is.
+  const char *socket = Net::ready()
+      ? (Net::readingAcknowledged() ? "acked" : "no-ack")
+      : Net::lastError();
+
+  // One print, so a line never arrives half-written.
+  Net::serialLock();
+  Serial.printf(
+    "[%8lu ms] data : distance %-12s raw %7.1f cm | occupied %-3s | pir %-4s %-5s | led %-6s\n"
+    "[%8lu ms] link : wifi %-4s %-15s %4d dBm | ws %-12s | desk %ld state %-7s call %-8s | seq %ld\n",
+    millis(), dist, Sensor::rawCm(),
+    Sensor::occupied() ? "yes" : "no",
+    Pir::motion() ? "HIGH" : "LOW", Pir::ready() ? "ready" : "warmup",
+    Indicators::lightName(Indicators::light()),
+    millis(),
+    c.wifiUp ? "up" : "down", c.ip, c.rssi,
+    socket,
+    c.deskId, c.serviceState, c.callEvent,
+    c.lastAckSequence);
+  Net::serialUnlock();
+}
+
+// The connection in full, printed when it changes and every 30 s otherwise.
+// This is the block to read when a board will not connect: it says what the
+// board believes about the network, the socket, the assignment and the last
+// thing that happened, in one place.
+static void logConnection(const Net::Connection &c) {
+  Net::serialLock();
+  Serial.printf(
+    "=== connection ================================================\n"
+    "  uptime     : %lu ms\n"
+    "  wifi       : %-4s  ip %-15s  rssi %d dBm\n"
+    "  endpoint   : %s\n"
+    "  socket     : %-4s   authenticated %s\n"
+    "  assignment : desk %ld   state %-7s   call %s\n"
+    "  last event : %s\n"
+    "  failures   : %d\n"
+    "  telemetry  : seq %ld   server time %s\n"
+    "================================================================\n",
+    millis(),
+    c.wifiUp ? "up" : "down", c.ip, c.rssi,
+    c.endpoint,
+    c.socketUp ? "up" : "down", c.authenticated ? "ok" : "no",
+    c.deskId, c.serviceState, c.callEvent,
+    c.lastEvent,
+    c.failures,
+    c.lastAckSequence, c.lastAckTime);
+  Net::serialUnlock();
 }
 
 static void applyPushedSetting() {
@@ -93,8 +135,17 @@ static void sendReport() {
 void setup() {
   Serial.begin(115200);
   delay(300);
-  Serial.println("\nMyTurn service desk board");
-  
+
+  uint64_t mac = ESP.getEfuseMac();
+  Net::serialLock();
+  Serial.println("\n=== MyTurn service desk board ============================");
+  Serial.printf("  board MAC   : %02X:%02X:%02X:%02X:%02X:%02X\n",
+                (uint8_t)(mac >> 40), (uint8_t)(mac >> 32), (uint8_t)(mac >> 24),
+                (uint8_t)(mac >> 16), (uint8_t)(mac >> 8), (uint8_t)mac);
+  Serial.printf("  chip id     : %08X\n", (uint32_t)(mac >> 32));
+  Serial.printf("  free heap   : %lu bytes\n", (unsigned long)ESP.getFreeHeap());
+  Net::serialUnlock();
+
   // Initialize Watchdog Timer (8s timeout)
   esp_task_wdt_config_t wdt_config = {
     .timeout_ms = WDT_TIMEOUT_MS,
@@ -104,8 +155,9 @@ void setup() {
   esp_task_wdt_init(&wdt_config);
   esp_task_wdt_add(NULL);
   lastWdtFeed = millis();
-  Serial.printf("Watchdog: %lu ms timeout\n", WDT_TIMEOUT_MS);
-  
+  Serial.printf("  watchdog    : %lu ms timeout, fed every %lu ms\n",
+                WDT_TIMEOUT_MS, WDT_FEED_INTERVAL_MS);
+
   Indicators::begin();
   Sensor::begin();
   Pir::begin();
@@ -127,6 +179,31 @@ void loop() {
   // Applied every pass, from the last state read, so somebody arriving or
   // leaving turns the light over without waiting for the network.
   Indicators::setLight(chooseLight(deskSetting, Sensor::occupied()));
+
+  // The connection in full, when it changes and every 30 s otherwise, so a
+  // fault that never recovers is still on the log. It is read once a second
+  // rather than on every pass, because the sensor loop runs far faster than
+  // anything about the connection changes.
+  static char seenEvent[96] = "";
+  static bool seenWifi = false, seenSocket = false, seenAuth = false;
+  static unsigned long lastDetailAt = 0, lastCheckAt = 0;
+  if (millis() - lastCheckAt >= 1000) {
+    lastCheckAt = millis();
+    Net::Connection current;
+    Net::connection(current);
+    bool connectionChanged = current.wifiUp != seenWifi
+                          || current.socketUp != seenSocket
+                          || current.authenticated != seenAuth
+                          || strcmp(current.lastEvent, seenEvent) != 0;
+    if (connectionChanged || millis() - lastDetailAt >= CONNECTION_LOG_MS) {
+      logConnection(current);
+      seenWifi = current.wifiUp;
+      seenSocket = current.socketUp;
+      seenAuth = current.authenticated;
+      strlcpy(seenEvent, current.lastEvent, sizeof seenEvent);
+      lastDetailAt = millis();
+    }
+  }
 
   unsigned long interval = Pir::approaching() ? FAST_MS : INTERVAL_MS;
   // Occupancy, approach and applied LED changes are sent without waiting for

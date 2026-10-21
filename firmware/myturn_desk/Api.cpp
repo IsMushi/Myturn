@@ -6,6 +6,7 @@
 #include <esp_system.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
+#include <freertos/semphr.h>
 #include <freertos/task.h>
 #include <time.h>
 #include "config.h"
@@ -42,11 +43,33 @@ WebSocketsClient socket;
 String host, path, chipId, macAddress;
 bool socketUp = false, expectingInitial = true, waitingForAck = false;
 bool secure = false;
+bool wasAuthenticated = false;   // the assignment is only announced once per connection
 uint16_t port = 0;
 uint8_t failures = 0;
 long deskId = -1, sequence = 0, awaitingSequence = 0;
 unsigned long sentAt = 0, lastPingAt = 0;
 unsigned long sessionAt = 0;
+
+// The details of the connection, kept as fixed buffers because the network
+// task writes them while the sensor loop reads them.
+char endpoint[96] = "";
+char lastEvent[96] = "starting";
+char lastServiceState[12] = "unknown";
+char lastCallEvent[12] = "none";
+char lastAckTime[32] = "";
+char lastIp[16] = "-";
+long lastAckSequence = 0;
+portMUTEX_TYPE serialMutex = nullptr;
+
+// The serial log is the only place a connection problem can be seen, so every
+// transition is written as it happens. A connection that fails silently is
+// the hardest kind of fault to chase.
+void note(const char *event) {
+  strlcpy(lastEvent, event, sizeof lastEvent);
+  serialLock();
+  Serial.printf("[%8lu ms] ws   : %s\n", millis(), event);
+  serialUnlock();
+}
 
 void invalidate(Status reason) {
   authenticated.store(false);
@@ -90,6 +113,8 @@ bool configureUrl() {
   path = slash < 0 ? "" : base.substring(slash);
   while (path.endsWith("/")) path.remove(path.length() - 1);
   path += "/ws/device";
+  snprintf(endpoint, sizeof endpoint, "%s://%s:%u%s",
+           secure ? "wss" : "ws", host.c_str(), port, path.c_str());
   return host.length() && (!secure || WS_CA_CERT != nullptr);
 }
 
@@ -122,6 +147,20 @@ bool acceptState(const JsonDocument &doc) {
   lastStateAt.store(millis());
   status.store(Status::Ready);
   authenticated.store(true);
+
+  // The server has accepted the board. Say which counter it is watching and
+  // what that counter is doing, so the log shows the assignment, not just
+  // that a socket is open.
+  strlcpy(lastServiceState, state, sizeof lastServiceState);
+  strlcpy(lastCallEvent, frame.callEvent[0] ? frame.callEvent : "none", sizeof lastCallEvent);
+  if (!wasAuthenticated) {
+    char line[96];
+    snprintf(line, sizeof line, "authenticated: desk %ld, state %s, call %s",
+             freshDesk, lastServiceState, lastCallEvent);
+    note(line);
+  }
+  wasAuthenticated = true;
+
   xQueueOverwrite(states, &frame);
   return true;
 }
@@ -134,6 +173,7 @@ void onSocket(WStype_t type, uint8_t *payload, size_t length) {
     lastPingAt = millis();
     lastStateAt.store(millis());
     status.store(Status::Authenticating);
+    note("connected, sending hello");
     JsonDocument hello;
     hello["type"] = "hello";
     hello["key"] = DEVICE_KEY;
@@ -142,28 +182,45 @@ void onSocket(WStype_t type, uint8_t *payload, size_t length) {
   }
   if (type == WStype_DISCONNECTED) {
     socketUp = false;
+    wasAuthenticated = false;
     invalidate(Status::Connecting);
     if (failures < 5) failures++;
     unsigned long retry = WS_RETRY_BASE_MS * (1UL << failures);
     if (retry > WS_RETRY_MAX_MS) retry = WS_RETRY_MAX_MS;
     socket.setReconnectInterval(retry + (esp_random() % 500));
+    // The server closes with a code and a reason when it refuses the board:
+    // 1008 for a bad key, 1001 when the board reconnects. The bytes are
+    // printed as they arrive rather than guessed at, so the two can never be
+    // read the wrong way round.
+    char code[8];
+    if (payload != nullptr && length >= 2) {
+      snprintf(code, sizeof code, "%02x%02x", payload[0], payload[1]);
+    } else {
+      strlcpy(code, "----", sizeof code);
+    }
+    char line[96];
+    snprintf(line, sizeof line, "disconnected (code %s), retrying in %lu ms", code, retry);
+    note(line);
     return;
   }
-  if (type == WStype_ERROR) { invalidate(Status::Stale); return; }
+  if (type == WStype_ERROR) { invalidate(Status::Stale); note("socket error"); return; }
   if (type != WStype_TEXT) return;
-  if (length > 2048) { disconnectStale(); return; }
+  if (length > 2048) { disconnectStale(); note("frame too large"); return; }
   JsonDocument doc;
-  if (deserializeJson(doc, payload, length) || !doc.is<JsonObject>()) { disconnectStale(); return; }
+  if (deserializeJson(doc, payload, length) || !doc.is<JsonObject>()) { disconnectStale(); note("bad frame"); return; }
   const char *kind = doc["type"] | "";
   if (!strcmp(kind, "state")) {
-    if (!acceptState(doc)) disconnectStale();
+    if (!acceptState(doc)) { disconnectStale(); note("state rejected"); }
   } else if (!strcmp(kind, "ack")) {
     if (waitingForAck && doc["sequence"].is<long>() && doc["sequence"].as<long>() == awaitingSequence) {
       waitingForAck = false;
       haveAck.store(true);
       lastAckAt.store(millis());
+      lastAckSequence = doc["sequence"].as<long>();
+      const char *stamped = doc["server_time"] | "";
+      strlcpy(lastAckTime, stamped, sizeof lastAckTime);
     }
-  } else if (strcmp(kind, "pong")) disconnectStale();
+  } else if (strcmp(kind, "pong")) { disconnectStale(); note("unexpected message"); }
 }
 
 void networkTask(void *) {
@@ -181,8 +238,10 @@ void networkTask(void *) {
   socket.enableHeartbeat(WS_PING_MS, WS_ACK_TIMEOUT_MS, 2);
   if (secure) socket.beginSslWithCA(host.c_str(), port, path.c_str(), WS_CA_CERT, "");
   else socket.begin(host.c_str(), port, path.c_str(), "");
-  Serial.printf("Device WebSocket: %s://%s:%u%s\n", secure ? "wss" : "ws", host.c_str(), port, path.c_str());
+  Serial.printf("Device WebSocket: %s\n", endpoint);
+  Serial.printf("Device key length: %d characters\n", (int)strlen(DEVICE_KEY));
   WiFi.begin(WIFI_SSID, WIFI_PASS);
+  Serial.printf("Wi-Fi: joining \"%s\"\n", WIFI_SSID);
   unsigned long lastWifiTry = millis();
   bool wifiWasUp = false, haveLatest = false;
   ReadingFrame latest{};
@@ -193,11 +252,16 @@ void networkTask(void *) {
     unsigned long tick = millis();
     if (WiFi.status() != WL_CONNECTED) {
       invalidate(Status::WifiDown);
-      if (wifiWasUp) { socket.disconnect(); wifiWasUp = false; }
+      if (wifiWasUp) {
+        socket.disconnect();
+        wifiWasUp = false;
+        note("Wi-Fi lost");
+      }
       if (tick - lastWifiTry >= WIFI_RETRY_MS) {
         lastWifiTry = tick;
         WiFi.disconnect();
         WiFi.begin(WIFI_SSID, WIFI_PASS);
+        note("retrying Wi-Fi");
       }
     } else {
       if (!wifiWasUp) {
@@ -205,6 +269,11 @@ void networkTask(void *) {
         status.store(Status::Connecting);
         macAddress = WiFi.macAddress();
         if (secure) configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+        char line[96];
+        strlcpy(lastIp, WiFi.localIP().toString().c_str(), sizeof lastIp);
+        snprintf(line, sizeof line, "Wi-Fi up: ip %s, rssi %d dBm, mac %s",
+                 lastIp, WiFi.RSSI(), macAddress.c_str());
+        note(line);
       }
       // TCP/TLS handshakes may block this task, never the sensor/indicator loop.
       socket.loop();
@@ -244,6 +313,7 @@ void networkTask(void *) {
 } // namespace
 
 void begin() {
+  if (!serialMutex) serialMutex = xSemaphoreCreateMutex();
   states = xQueueCreate(1, sizeof(StateFrame));
   readings = xQueueCreate(1, sizeof(ReadingFrame));
   if (!states || !readings || xTaskCreate(networkTask, "myturn-network", 12288, nullptr, 1, nullptr) != pdPASS) {
@@ -251,9 +321,30 @@ void begin() {
   }
 }
 
+void serialLock() { if (serialMutex) xSemaphoreTake(serialMutex, portMAX_DELAY); }
+void serialUnlock() { if (serialMutex) xSemaphoreGive(serialMutex); }
+
 bool connected() { return WiFi.status() == WL_CONNECTED; }
 bool ready() { return authenticated.load() && connected() && millis() - lastStateAt.load() <= WS_STATE_TIMEOUT_MS; }
 bool readingAcknowledged() { return ready() && haveAck.load() && millis() - lastAckAt.load() < WS_STATE_TIMEOUT_MS; }
+
+void connection(Connection &out) {
+  out.wifiUp = connected();
+  out.rssi = out.wifiUp ? WiFi.RSSI() : 0;
+  // The address is cached rather than asked for: toString() allocates, and
+  // this is read from the sensor loop.
+  strlcpy(out.ip, lastIp, sizeof out.ip);
+  strlcpy(out.endpoint, endpoint, sizeof out.endpoint);
+  out.socketUp = socketUp;
+  out.authenticated = authenticated.load();
+  strlcpy(out.lastEvent, lastEvent, sizeof out.lastEvent);
+  out.failures = failures;
+  out.deskId = deskId;
+  strlcpy(out.serviceState, lastServiceState, sizeof out.serviceState);
+  strlcpy(out.callEvent, lastCallEvent, sizeof out.callEvent);
+  out.lastAckSequence = lastAckSequence;
+  strlcpy(out.lastAckTime, lastAckTime, sizeof out.lastAckTime);
+}
 
 bool postReading(const Reading &r) {
   if (!readings) return false;
