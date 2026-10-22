@@ -69,7 +69,7 @@ export function TicketRequestForm({
         )}
       </Step>
 
-      <p className="myturn-ticket-privacy"><ShieldCheck size={19} aria-hidden="true" /><span>Your ticket is private. No name or account is needed — a phone number or email is optional, and only the desk sees it.</span></p>
+      <p className="myturn-ticket-privacy"><ShieldCheck size={19} aria-hidden="true" /><span>Your ticket is private. No name or account is needed — a phone number or email is required, and only the desk sees it.</span></p>
       </div>
 
       <div className="myturn-ticket-summary">
@@ -93,9 +93,10 @@ export function TicketRequestForm({
           <>
             <div className="mb-4">
               <Field
-                label="Phone or email (optional)"
+                label="Phone or email (required)"
                 id="ticket-contact"
-                hint="So the desk can reach you if you step away. It is not an account, and nothing is sent automatically."
+                hint="Enter either your phone number or email address, but not both. So the desk can reach you when your number is called."
+                error={!contact && "This is required"}
               >
                 <TextInput
                   id="ticket-contact"
@@ -105,6 +106,7 @@ export function TicketRequestForm({
                   maxLength={120}
                   autoComplete="email"
                   placeholder="e.g. 082 123 4567 or you@example.com"
+                  required
                 />
               </Field>
             </div>

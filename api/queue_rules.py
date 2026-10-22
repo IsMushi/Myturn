@@ -55,12 +55,12 @@ def counter_occupied(conn, desk_id, apply_obstruction=True):
         return None
     if not report["occupied"]:
         return False
-    if apply_obstruction and _is_obstruction(conn, device["device_id"]):
+    if apply_obstruction and is_obstruction(conn, device["device_id"]):
         return False
     return True
 
 
-def _is_obstruction(conn, device_id):
+def is_obstruction(conn, device_id):
     """Whether what is at the counter has sat still long enough to be an
     obstruction rather than a visitor.
 
@@ -178,14 +178,14 @@ def requeue(conn, called, detail):
     ).fetchone()
     counter = "ticket:" + row["letter"]
     found = conn.execute(
-        "select value from counters where name = ?", (counter,)
+        "select value from ticket_numbers where name = ?", (counter,)
     ).fetchone()
     if found is None:
-        conn.execute("insert into counters (name, value) values (?, 0)", (counter,))
+        conn.execute("insert into ticket_numbers (name, value) values (?, 0)", (counter,))
         seq = 1
     else:
         seq = found["value"] + 1
-    conn.execute("update counters set value = ? where name = ?", (seq, counter))
+    conn.execute("update ticket_numbers set value = ? where name = ?", (seq, counter))
     # The visitor is looking at the old number while this happens, so the event
     # says which number was given up as well as which one was issued. The page
     # reads that back to explain a number that changed under the visitor.

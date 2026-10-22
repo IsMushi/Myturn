@@ -2,7 +2,7 @@
 
 The services, the desks, the device key and the board registration are left
 alone, so the firmware keeps working and the office keeps its shape. Every
-counter goes back to zero and every desk is put back to paused.
+ticket number goes back to zero and every desk is put back to paused.
 
     .venv\\Scripts\\python.exe reset.py
 """
@@ -22,8 +22,9 @@ def main():
         for table in TABLES:
             conn.execute(f"delete from {table}")
 
-        # One counter per service (ticket:A, ticket:B, ...), never one global.
-        conn.execute("update counters set value = 0 where name like 'ticket:%'")
+        # One number sequence per service (ticket:A, ticket:B, ...), never one
+        # global.
+        conn.execute("update ticket_numbers set value = 0 where name like 'ticket:%'")
         conn.execute(
             "delete from sqlite_sequence where name in "
             "('tickets', 'ticket_events', 'device_reports', 'desk_settings')"
@@ -41,7 +42,7 @@ def main():
     finally:
         conn.close()
 
-    print("Queue cleared, every counter back to zero, all desks set to paused.")
+    print("Queue cleared, every ticket number back to zero, all desks set to paused.")
 
 
 if __name__ == "__main__":

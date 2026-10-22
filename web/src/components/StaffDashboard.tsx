@@ -2,13 +2,13 @@
 
 import {
   ArrowRight, BarChart3, Check, Clock3, Keyboard, ListOrdered,
-  Loader2, Megaphone, Pause, Play, RotateCw, Ticket, Undo2, WifiOff, X,
+  Loader2, Megaphone, Pause, Play, RotateCw, Search, Ticket, Undo2, WifiOff, X,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 
 import type { ChartRange } from "@/components/DeskCharts";
 import { DeskStateBadge } from "@/components/DeskStateBadge";
@@ -19,13 +19,13 @@ import { Button, ButtonLink } from "@/components/ui/Button";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import { Select, SelectItem } from "@/components/ui/Field";
+import { Select, SelectItem, TextInput } from "@/components/ui/Field";
 import { ApiError, api } from "@/lib/api";
 import { clockTime, formatDuration, fullTimestamp, plural } from "@/lib/format";
 import { useLiveRefresh } from "@/lib/useLiveRefresh";
 import { usePolling, type PollError } from "@/lib/usePolling";
 import { useSession } from "@/lib/useSession";
-import type { DeskSummary, QueueTicket, ServiceState, StaffAction, StaffQueue } from "@/lib/types";
+import type { DeskSummary, QueueTicket, ServiceState, StaffAction, StaffQueue, TicketSearch, TicketSearchResult } from "@/lib/types";
 
 import "./staff-dashboard.css";
 
@@ -59,6 +59,33 @@ interface Notice {
 
 function contactHref(contact: string) {
   return contact.includes("@") ? `mailto:${contact}` : `tel:${contact.replace(/[^0-9+]/g, "")}`;
+}
+
+/** How a search hit stands, in the desk's words rather than a status code. */
+function searchStatus(ticket: TicketSearchResult) {
+  switch (ticket.status) {
+    case "waiting":
+      return "Waiting in this queue";
+    case "called":
+      return ticket.desk_name ? `Called at ${ticket.desk_name}` : "Being called";
+    case "completed":
+      return "Served";
+    case "skipped":
+      return "Marked as a no-show";
+    case "cancelled":
+      return "Cancelled";
+  }
+}
+
+/**
+ * When an undo window runs out, read from the wall clock.
+ *
+ * Only the click paths ask for it — the deadline is fixed when the person
+ * acts, never while the page draws — so it lives at module scope, outside the
+ * component the purity rule watches.
+ */
+function undoDeadline(seconds: number) {
+  return Date.now() + seconds * 1000;
 }
 
 function rememberedDesk(): number | null {
@@ -239,7 +266,19 @@ function DeskBoard({ deskId, desks, onPick }: {
   const [walkIn, setWalkIn] = useState<{ label: string; token: string } | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [cancelTicket, setCancelTicket] = useState<QueueTicket | null>(null);
+  // A pause carries the desk's own note and return time. The dialog starts
+  // empty every time: last break's reason is not this break's.
+  const [pauseOpen, setPauseOpen] = useState(false);
+  const [pauseMinutes, setPauseMinutes] = useState("30");
+  const [pauseReason, setPauseReason] = useState("");
   const [accessError, setAccessError] = useState<PollError | null>(null);
+  // The finder lives in a dialog rather than on the panel: a search box that
+  // sits beside the queue it searches pushes the queue down every time.
+  const [findOpen, setFindOpen] = useState(false);
+  const [findQuery, setFindQuery] = useState("");
+  const [findResult, setFindResult] = useState<TicketSearch | null>(null);
+  const [findError, setFindError] = useState<string | null>(null);
+  const [finding, setFinding] = useState(false);
   const mutationLock = useRef(false);
   const keepTicketRef = useRef<HTMLButtonElement>(null);
 
@@ -274,20 +313,18 @@ function DeskBoard({ deskId, desks, onPick }: {
   }
 
   async function run(action: () => Promise<unknown>, label: string, options: {
-    undoable?: Omit<Undoable, "until">;
+    undoable?: Undoable;
     success?: string;
     clearUndo?: boolean;
   } = {}) {
     if (mutationLock.current || blocked) return false;
     mutationLock.current = true;
-    const startedAt = Date.now();
     setPending(label);
     setNotice(null);
     try {
       await action();
       if (options.undoable) {
-        // Start conservatively at request time, not after a slow response.
-        setLast({ ...options.undoable, until: startedAt + (data?.undo_seconds ?? 10) * 1000 });
+        setLast(options.undoable);
       } else if (options.clearUndo) setLast(null);
       setNotice({ tone: "success", text: options.success ?? "Desk updated." });
       await refresh();
@@ -316,8 +353,10 @@ function DeskBoard({ deskId, desks, onPick }: {
   function decide(action: StaffAction, ticket: QueueTicket | null = called) {
     if (!ticket || called?.ticket_id !== ticket.ticket_id) return Promise.resolve(false);
     const what = action === "complete" ? "served" : action === "skip" ? "marked as a no-show" : "cancelled";
+    // The undo window starts at request time, not after a slow response.
+    const until = undoDeadline(data?.undo_seconds ?? 10);
     return run(() => api.ticketAction(ticket.ticket_id, action), "Saving the ticket…", {
-      undoable: { ticketId: ticket.ticket_id, label: ticket.label, what },
+      undoable: { ticketId: ticket.ticket_id, label: ticket.label, what, until },
       success: `${ticket.label} ${what}.`,
     });
   }
@@ -335,6 +374,56 @@ function DeskBoard({ deskId, desks, onPick }: {
       const created = await api.walkIn(deskId);
       setWalkIn({ label: created.label, token: created.token });
     }, "Issuing a walk-in ticket…", { success: "Walk-in ticket issued." });
+  }
+
+  async function findTicket(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const term = findQuery.trim();
+    if (!term) {
+      setFindResult(null);
+      setFindError(null);
+      return;
+    }
+    setFinding(true);
+    setFindError(null);
+    try {
+      setFindResult(await api.searchTickets(deskId, term));
+    } catch (failure) {
+      setFindResult(null);
+      setFindError(
+        failure instanceof ApiError ? failure.message : "The search could not be completed.",
+      );
+    } finally {
+      setFinding(false);
+    }
+  }
+
+  function callChosen(ticket: TicketSearchResult) {
+    void run(() => api.callTicket(deskId, ticket.ticket_id), "Calling the chosen ticket…", {
+      clearUndo: true,
+      success: `${ticket.label} called.`,
+    }).then((done) => {
+      if (done) {
+        setFindOpen(false);
+        setFindQuery("");
+        setFindResult(null);
+      }
+    });
+  }
+
+  function pauseDesk() {
+    setPauseMinutes("30");
+    setPauseReason("");
+    setPauseOpen(true);
+  }
+
+  function confirmPause() {
+    const minutes = Number(pauseMinutes);
+    void run(
+      () => api.setService(deskId, "paused", { pauseReason: pauseReason.trim(), pauseMinutes: minutes }),
+      "Pausing the desk…",
+      { success: `Desk paused for ${minutes} minutes.` },
+    ).then((done) => { if (done) setPauseOpen(false); });
   }
 
   // Keep one listener and current callbacks. Native controls, Radix portals,
@@ -388,7 +477,10 @@ function DeskBoard({ deskId, desks, onPick }: {
               return (
                 <button key={button.state} type="button" aria-pressed={data.service_state === button.state}
                   disabled={disabled || data.service_state === button.state}
-                  onClick={() => void run(() => api.setService(deskId, button.state), "Updating desk availability…", { success: `Desk ${button.state === "active" ? "opened" : button.state}.` })}>
+                  onClick={() => {
+                    if (button.state === "paused") { pauseDesk(); return; }
+                    void run(() => api.setService(deskId, button.state), "Updating desk availability…", { success: `Desk ${button.state === "active" ? "opened" : button.state}.` });
+                  }}>
                   <Icon size={14} aria-hidden="true" />
                   {button.label}
                 </button>
@@ -397,6 +489,55 @@ function DeskBoard({ deskId, desks, onPick }: {
           </div>
         </div>
       </div>
+
+      {/* The desk's own words, never a guess. When the return time has passed
+          the note says so, and the desk stays paused until somebody opens it. */}
+      {data.service_state === "paused" && (data.desk.pause_reason || data.desk.paused_until) && (
+        <p className="flex items-start gap-2 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900" role="status">
+          <Clock3 size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <span>
+            {data.desk.pause_reason ? `${data.desk.pause_reason}. ` : ""}
+            {data.desk.paused_until
+              ? Date.parse(data.desk.paused_until) <= serverNow
+                ? `The return time (${clockTime(data.desk.paused_until)}) has passed; the desk stays paused until someone opens it.`
+                : `Back at ${clockTime(data.desk.paused_until)}.`
+              : "No return time was given."}
+          </span>
+        </p>
+      )}
+
+      <Dialog open={pauseOpen} onOpenChange={setPauseOpen}>
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Pause this desk</DialogTitle>
+            <DialogDescription>
+              Waiting tickets keep their place. Say why and when you expect to be back, or leave both blank.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <label className="flex flex-col gap-1.5 text-sm font-medium">
+              Back in
+              <Select id="pause-minutes" value={pauseMinutes} onValueChange={setPauseMinutes}>
+                {[["15", "15 minutes"], ["30", "30 minutes"], ["45", "45 minutes"],
+                  ["60", "1 hour"], ["90", "1 hour 30 minutes"]].map(([value, label]) => (
+                  <SelectItem key={value} value={value}>{label}</SelectItem>
+                ))}
+              </Select>
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm font-medium">
+              Reason (optional)
+              <TextInput id="pause-reason" value={pauseReason} maxLength={80}
+                placeholder="On a break" onChange={(event) => setPauseReason(event.target.value)} />
+            </label>
+          </div>
+          <DialogFooter>
+            <Button variant="quiet" onClick={() => setPauseOpen(false)}>Cancel</Button>
+            <Button onClick={confirmPause} disabled={pending !== null}>
+              {pending ? "Pausing…" : "Pause desk"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <QueueConnectionToast interrupted={stale || Boolean(accessError)} accessDenied={expiredAccess}
         lastConfirmedAt={snapshot!.receivedAt} reconnect={refresh} />
@@ -483,8 +624,15 @@ function DeskBoard({ deskId, desks, onPick }: {
         <section className="staff-waiting-panel" aria-labelledby="waiting-queue-title">
           <div className="staff-panel-heading">
             <h2 id="waiting-queue-title">Waiting queue</h2>
-            <span className="staff-waiting-count" aria-live="polite" aria-atomic="true">{data.waiting} waiting</span>
+            <div className="flex items-center gap-2">
+              <span className="staff-waiting-count text-xs" aria-live="polite" aria-atomic="true">{data.waiting} waiting</span>
+              <Button variant="ghost" onClick={() => setFindOpen(true)}>
+                <Search size={16} aria-hidden="true" />
+                Find a ticket
+              </Button>
+            </div>
           </div>
+
           {data.queue.length > 0 ? (
             <>
               <div className="staff-queue-scroll" tabIndex={0} role="region" aria-label="Waiting tickets, in queue order">
@@ -543,6 +691,69 @@ function DeskBoard({ deskId, desks, onPick }: {
             <DailyAreaChart perDay={data.charts.per_day} range={range} onRangeChange={setRange} /></div>
         </div>
       </section>
+
+      {/* The finder, opened from the queue panel's heading. The keyboard
+          shortcuts stay inert inside it: the page's keys must never fire while
+          somebody is typing a number. */}
+      <Dialog open={findOpen} onOpenChange={setFindOpen}>
+        <DialogContent className="max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Find a ticket</DialogTitle>
+            <DialogDescription>
+              Today&apos;s {data.service.name} tickets and any still waiting. A bare number is read as a prefix.
+            </DialogDescription>
+          </DialogHeader>
+          <form className="flex flex-col gap-3" onSubmit={findTicket}>
+            <label htmlFor="find-ticket" className="text-sm font-semibold text-deep-green">
+              Ticket number
+            </label>
+            <TextInput
+              id="find-ticket"
+              value={findQuery}
+              onChange={(event) => setFindQuery(event.target.value)}
+              placeholder={`${data.service.id}012 or 12`}
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <Button type="submit" className="w-full" disabled={finding || findQuery.trim() === ""}>
+              {finding ? "Finding…" : "Find"}
+            </Button>
+            {findError && (
+              <p className="text-xs font-medium text-rose-700" role="alert">{findError}</p>
+            )}
+            {findResult && findResult.tickets.length === 0 && (
+              <p className="text-sm text-medium-green" role="status">
+                No {data.service.name} ticket matches “{findResult.query}”.
+              </p>
+            )}
+            {findResult && findResult.tickets.length > 0 && (
+              <ul className="max-h-[45vh] divide-y divide-line overflow-y-auto rounded-lg border border-line bg-white" aria-label="Matching tickets">
+                {findResult.tickets.map((ticket) => (
+                  <li key={ticket.ticket_id} className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2">
+                    <span className="text-sm font-semibold tabular-nums text-deep-green">{ticket.label}</span>
+                    <span className="text-xs text-medium-green">{searchStatus(ticket)}</span>
+                    {ticket.status === "waiting" ? (
+                      <Button
+                        type="button"
+                        variant="quiet"
+                        className="ml-auto"
+                        disabled={disabled}
+                        onClick={() => callChosen(ticket)}
+                      >
+                        Call {ticket.label}
+                      </Button>
+                    ) : (
+                      <span className="ml-auto text-xs text-medium-green">
+                        {clockTime(ticket.created_at)}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={cancelTicket !== null} onOpenChange={(open) => { if (!open) setCancelTicket(null); }}>
         <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md motion-reduce:animate-none"

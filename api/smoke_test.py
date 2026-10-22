@@ -16,11 +16,16 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from uuid import uuid4
 
 import config
 
 BASE = "http://127.0.0.1:5000"
 DEVICE_KEY = (Path(config.DATA_DIR) / "device_key.txt").read_text(encoding="utf-8").strip()
+
+# A visitor leaves one way to be reached, so every ticket in this run carries
+# the same one. The office is in Kigali, so the number is a local one.
+CONTACT = "visitor@example.test"
 
 passed = 0
 failed = 0
@@ -83,10 +88,10 @@ def reset():
     conn.execute("delete from invitations")
     conn.execute("delete from password_resets")
     conn.execute("delete from users where email = 'new@example.com'")
-    # One counter per service now, not one for the whole office.
-    conn.execute("update counters set value = 0 where name like 'ticket:%'")
+    # One number sequence per service now, not one for the whole office.
+    conn.execute("update ticket_numbers set value = 0 where name like 'ticket:%'")
     conn.execute("delete from sqlite_sequence")
-    # Every counter starts paused again, with a row of its own.
+    # Every desk starts paused again, with a row of its own.
     for (desk_id,) in conn.execute(
         "select desk_id from desks order by desk_id"
     ).fetchall():
@@ -112,12 +117,12 @@ def main():
     status, health = call("GET", "/api/health")
     check("health", status, 200)
 
-    status, first = call("POST", "/api/tickets", {"source": "qr"})
+    status, first = call("POST", "/api/tickets", {"source": "qr", "contact": CONTACT})
     check("first ticket is number 1", first.get("ticket_no"), 1)
     check("first ticket has nothing ahead", first.get("ahead"), 0)
 
-    _, second = call("POST", "/api/tickets", {"source": "qr"})
-    _, third = call("POST", "/api/tickets", {"source": "qr"})
+    _, second = call("POST", "/api/tickets", {"source": "qr", "contact": CONTACT})
+    _, third = call("POST", "/api/tickets", {"source": "qr", "contact": CONTACT})
     check("numbers increase", (second["ticket_no"], third["ticket_no"]), (2, 3))
     check("third ticket has two ahead", third["ahead"], 2)
     check("token is private and long", len(third["token"]), 22)
@@ -141,10 +146,14 @@ def main():
     check("a paused desk still takes tickets", services["services"][0]["available"], True)
     check("the ticket carries its service", state["service"]["id"], "A")
     check("the number carries the service's letter", first["label"], "A001")
-    status, _ = call("POST", "/api/tickets", {"source": "qr", "service": "desk-9"})
+    status, _ = call("POST", "/api/tickets", {"source": "qr", "service": "desk-9", "contact": CONTACT})
     check("a service the office does not offer is refused", status, 400)
-    status, _ = call("POST", "/api/tickets", {"source": "qr", "service": "Z"})
+    status, _ = call("POST", "/api/tickets", {"source": "qr", "service": "Z", "contact": CONTACT})
     check("an unknown ticket letter is refused", status, 400)
+    status, _ = call("POST", "/api/tickets", {"source": "qr"})
+    check("a ticket without a contact is refused", status, 400)
+    status, _ = call("POST", "/api/tickets", {"source": "qr", "contact": "a@b.com and 0781234567"})
+    check("a ticket with both an address and a number is refused", status, 400)
     check("no estimate before anything is served", public["average_service_seconds"], None)
 
     print("Staff")
@@ -181,6 +190,29 @@ def main():
     check("desk can be set active", (status, service["service_state"]), (200, "active"))
     status, _ = call("POST", "/api/staff/service", {"service_state": "busy"}, staff)
     check("unknown service state is refused", status, 400)
+
+    # A pause may say why and for how long. Both are the desk's own words, the
+    # queue repeats them back, and opening the desk clears them rather than
+    # leaving a promise nobody is keeping.
+    status, paused = call("POST", "/api/staff/service",
+                          {"service_state": "paused", "pause_reason": "On a break",
+                           "pause_minutes": 30}, staff)
+    check("a pause carries its reason",
+          (status, paused["pause_reason"]), (200, "On a break"))
+    check("a pause carries its return time", paused["paused_until"] is not None, True)
+    _, queue = call("GET", "/api/staff/queue", opener=staff)
+    check("the queue repeats the reason", queue["desk"]["pause_reason"], "On a break")
+    check("the queue repeats the return time",
+          queue["desk"]["paused_until"], paused["paused_until"])
+
+    status, _ = call("POST", "/api/staff/service",
+                     {"service_state": "paused", "pause_minutes": 3}, staff)
+    check("a pause shorter than five minutes is refused", status, 400)
+
+    status, reopened = call("POST", "/api/staff/service",
+                            {"service_state": "active"}, staff)
+    check("opening clears the reason", reopened["pause_reason"], None)
+    check("opening clears the return time", reopened["paused_until"], None)
 
     status, called = call("POST", "/api/staff/call-next", opener=staff)
     check("next ticket is called", (status, called["ticket_no"]), (200, 1))
@@ -403,8 +435,9 @@ def main():
     top_ticket = conn.execute(
         "select coalesce(max(ticket_id), 0) as top from tickets"
     ).fetchone()["top"]
-    counters_before = {
-        row["name"]: row["value"] for row in conn.execute("select name, value from counters")
+    numbers_before = {
+        row["name"]: row["value"]
+        for row in conn.execute("select name, value from ticket_numbers")
     }
     conn.close()
     device_id = board["device_id"] if board else 1
@@ -439,6 +472,10 @@ def main():
     check("a static obstruction does not block the desk", status, 200)
     check("the desk still calls a number", called.get("ticket_no") is not None, True)
 
+    _, obstruction_state = call("GET", "/api/staff/queue", opener=staff)
+    check("the counter is reported as an obstruction",
+          obstruction_state["device"]["obstruction"], True)
+
     # The same, but somebody walked up: the approach says it is a visitor.
     walked_up = [(s, 50.0, 1, 0) for s in range(0, window + 20, 20)]
     walked_up[len(walked_up) // 2] = (walked_up[len(walked_up) // 2][0], 50.0, 1, 1)
@@ -448,6 +485,10 @@ def main():
     check("the refusal names the counter", blocked.get("error"),
           "the counter is occupied; wait for it to clear")
 
+    _, approach_state = call("GET", "/api/staff/queue", opener=staff)
+    check("an approaching visitor is not called an obstruction",
+          approach_state["device"]["obstruction"], False)
+
     # Something that has moved: it is not sitting still, so it is not a bag.
     board_history([(s, 50.0 + (20 if s > window // 2 else 0), 1, 0)
                    for s in range(0, window + 20, 20)])
@@ -456,13 +497,13 @@ def main():
     check("the refusal still names the counter", moved.get("error"),
           "the counter is occupied; wait for it to clear")
 
-    # Leave the run the way it was found: no number left called, the counters
-    # where they were, and a board that reads an empty counter.
+    # Leave the run the way it was found: no number left called, the ticket
+    # numbers where they were, and a board that reads an empty counter.
     conn = sqlite3.connect(config.DATABASE)
     conn.execute("delete from ticket_events where ticket_id > ?", (top_ticket,))
     conn.execute("delete from tickets where ticket_id > ?", (top_ticket,))
-    for name, value in counters_before.items():
-        conn.execute("update counters set value = ? where name = ?", (value, name))
+    for name, value in numbers_before.items():
+        conn.execute("update ticket_numbers set value = ? where name = ?", (value, name))
     conn.execute("delete from sqlite_sequence where name = 'tickets'")
     conn.execute("insert into sqlite_sequence (name, seq) values ('tickets', ?)", (top_ticket,))
     conn.commit()
@@ -618,7 +659,7 @@ def main():
 
     csrf_token = saved
     for _ in range(3):
-        call("POST", "/api/tickets", {"source": "qr"})
+        call("POST", "/api/tickets", {"source": "qr", "contact": CONTACT})
 
     served_here = 0
     for _ in range(6):
@@ -735,7 +776,7 @@ def main():
     print("A second desk")
     # A visitor joins the queue of a service, not of a counter. The number
     # carries that service's letter and comes from that service's own counter.
-    status, other = call("POST", "/api/tickets", {"source": "qr", "service": "B"})
+    status, other = call("POST", "/api/tickets", {"source": "qr", "service": "B", "contact": CONTACT})
     check("a ticket may be taken for another service",
           (status, other["label"]), (201, "B001"))
     check("each service numbers from one", other["ticket_no"], 1)
@@ -773,6 +814,35 @@ def main():
         if desk_queue["called"]:
             call("POST", "/api/staff/tickets/%d/action"
                  % desk_queue["called"]["ticket_id"], {"action": "complete"}, staff)
+
+    print("Desk comparison")
+    csrf_token = saved
+    status, comparison = call("GET", "/api/analytics/desks")
+    check("the comparison answers in one read",
+          (status, comparison.get("ok")), (200, True))
+    rows = comparison.get("data", {}).get("desks", [])
+    check("it lists every counter, by service",
+          [row["service_letter"] for row in rows], ["A", "B", "C"])
+    _, one = call("GET", "/api/analytics/desk/1")
+    row_one = next(row for row in rows if row["desk_id"] == 1)
+    check("a desk's served count agrees with its own page",
+          row_one["tickets_served_today"], one["data"]["tickets_served_today"])
+    check("so does the measurement and its sample count",
+          (row_one["average_service_time_seconds"], row_one["service_samples"]),
+          (one["data"]["average_service_time_seconds"], one["data"]["service_samples"]))
+    check("a desk that has served is counted", row_one["tickets_served_today"] >= 4, True)
+    row_two = next(row for row in rows if row["desk_id"] == 2)
+    check("the second desk's visit is on the same sheet",
+          row_two["tickets_served_today"], 1)
+    check("a desk that never served withholds its average",
+          next(row for row in rows if row["desk_id"] == 3)["average_service_time_seconds"],
+          None)
+    check("each desk says when it last served",
+          isinstance(row_one["last_served_seconds_ago"], int), True)
+    check("no-shows sit beside served rather than inside it",
+          isinstance(row_one["no_shows_today"], int), True)
+    check("hours with work are counted, not guessed",
+          row_one["active_hours_today"] >= 1, True)
 
     print("The catalogue the administrator edits")
     csrf_token = admin_token
@@ -990,6 +1060,112 @@ def main():
     csrf_token = saved
     status, _ = call("POST", "/api/auth/profile", {"full_name": "New Person"}, staff)
     check("a shared classroom session has no name to change", status, 401)
+
+    print("Deleting an account")
+    target_id = target["user_id"]
+    endpoint = "/api/auth/users/%d" % target_id
+    csrf_token = admin_token
+    status, _ = call("POST", endpoint + "/active", {"is_active": False}, admin)
+    check("admin can switch off a member", status, 200)
+    status, _ = call("GET", "/api/auth/me", opener=member_again)
+    check("switching off blocks an existing member session", status, 401)
+    status, _ = call("POST", endpoint + "/active", {"is_active": True}, admin)
+    check("admin can restore a member", status, 200)
+    status, _ = call("DELETE", endpoint, {"confirm_email": "new@example.com"})
+    check("deleting an account requires sign-in", status, 401)
+    csrf_token = signed_in_again["csrf_token"]
+    status, _ = call("DELETE", endpoint, {"confirm_email": "new@example.com"}, member_again)
+    check("staff cannot delete an account", status, 403)
+    csrf_token = None
+    status, _ = call("DELETE", endpoint, {"confirm_email": "new@example.com"}, admin)
+    check("deleting an account requires a security token", status, 403)
+    csrf_token = admin_token
+    status, _ = call("DELETE", "/api/auth/users/999999", {"confirm_email": "no@example.com"}, admin)
+    check("deleting an unknown account is refused", status, 404)
+    status, _ = call("DELETE", "/api/auth/users/%d" % who["user"]["user_id"],
+                      {"confirm_email": who["user"]["email"]}, admin)
+    check("an administrator cannot delete their own account", status, 400)
+    status, _ = call("DELETE", endpoint, {"confirm_email": "wrong@example.com"}, admin)
+    check("deletion needs the correct account email", status, 400)
+    conn = sqlite3.connect(config.DATABASE)
+    conn.execute("insert into password_resets (user_id, token_hash, created_at, expires_at) "
+                 "values (?, ?, ?, ?)", (target_id, "delete-check-token", seconds_ago(0), seconds_ago(-3600)))
+    conn.commit()
+    conn.close()
+    status, deleted = call("DELETE", endpoint, {"confirm_email": "new@example.com"}, admin)
+    check("admin can delete a confirmed account", (status, deleted.get("email")),
+          (200, "new@example.com"))
+    _, listing = call("GET", "/api/auth/users", opener=admin)
+    check("deleted account leaves the roster",
+          any(row["user_id"] == target_id for row in listing["users"]), False)
+    status, _ = call("GET", "/api/auth/me", opener=member_again)
+    check("deleted account's existing session stops working", status, 401)
+    conn = sqlite3.connect(config.DATABASE)
+    check("deletion revokes password resets",
+          conn.execute("select count(*) from password_resets where user_id = ?", (target_id,)).fetchone()[0], 0)
+    check("account history remains auditable",
+          conn.execute("select count(*) from account_events where email = ? and event_type = 'account deleted'",
+                       ("new@example.com",)).fetchone()[0], 1)
+    conn.close()
+
+    print("Bulk account actions")
+    suffix = uuid4().hex[:12]
+    conn = sqlite3.connect(config.DATABASE)
+    batch = []
+    for name in ("One", "Two"):
+        email = "batch-check-%s-%s@example.invalid" % (name.lower(), suffix)
+        cursor = conn.execute(
+            "insert into users (full_name, email, password_hash, role, created_at) "
+            "values (?, ?, 'not-used', 'staff', ?)", ("Batch " + name, email, seconds_ago(0))
+        )
+        batch.append({"user_id": cursor.lastrowid, "email": email})
+    conn.commit()
+    conn.close()
+    csrf_token = None
+    status, _ = call("POST", "/api/auth/users/batch",
+                     {"action": "deactivate", "accounts": batch}, admin)
+    check("bulk actions require a security token", status, 403)
+    csrf_token = saved
+    status, _ = call("POST", "/api/auth/users/batch",
+                     {"action": "deactivate", "accounts": batch}, staff)
+    check("a shared session cannot run bulk actions", status, 401)
+    csrf_token = admin_token
+    status, _ = call("POST", "/api/auth/users/batch",
+                     {"action": "deactivate", "accounts": batch + batch[:1]}, admin)
+    check("duplicate selections are refused", status, 400)
+    status, _ = call("POST", "/api/auth/users/batch",
+                     {"action": "deactivate", "accounts": batch + [{"user_id": 999999, "email": "gone@example.invalid"}]}, admin)
+    check("a stale selection stops the whole operation", status, 409)
+    conn = sqlite3.connect(config.DATABASE)
+    check("stale bulk selection changed nobody",
+          [conn.execute("select is_active from users where user_id = ?", (row["user_id"],)).fetchone()[0]
+           for row in batch], [1, 1])
+    conn.close()
+    status, result = call("POST", "/api/auth/users/batch",
+                          {"action": "deactivate", "accounts": batch}, admin)
+    check("bulk switch off works", (status, result.get("changed")), (200, 2))
+    status, result = call("POST", "/api/auth/users/batch",
+                          {"action": "activate", "accounts": batch}, admin)
+    check("bulk switch on works", (status, result.get("changed")), (200, 2))
+    status, _ = call("POST", "/api/auth/users/batch",
+                     {"action": "delete", "accounts": batch}, admin)
+    check("bulk delete requires count confirmation", status, 400)
+    status, _ = call("POST", "/api/auth/users/batch",
+                     {"action": "delete", "accounts": batch + [{"user_id": who["user"]["user_id"],
+                                                                   "email": who["user"]["email"]}],
+                      "confirmation": "DELETE 3"}, admin)
+    check("bulk delete cannot include the signed-in administrator", status, 400)
+    status, result = call("POST", "/api/auth/users/batch",
+                          {"action": "delete", "accounts": batch, "confirmation": "DELETE 2"}, admin)
+    check("bulk delete removes both accounts", (status, result.get("changed")), (200, 2))
+    conn = sqlite3.connect(config.DATABASE)
+    check("bulk deleted accounts have left the database",
+          conn.execute("select count(*) from users where user_id in (?, ?)",
+                       (batch[0]["user_id"], batch[1]["user_id"])).fetchone()[0], 0)
+    check("bulk deletes retain two audit records",
+          conn.execute("select count(*) from account_events where email in (?, ?) and event_type = 'account deleted'",
+                       (batch[0]["email"], batch[1]["email"])).fetchone()[0], 2)
+    conn.close()
 
     print("Persistence")
     # Back to the shared classroom session for the last two checks.

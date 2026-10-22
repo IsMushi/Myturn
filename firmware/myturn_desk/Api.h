@@ -55,4 +55,14 @@ void connection(Connection &out); // the details behind the lastError() line
 // the other task's output.
 void serialLock();
 void serialUnlock();
+
+// One line in the log's own form, for any module that has something to say.
+// It takes the same lock as the blocks, so a message never lands in the
+// middle of one.
+void logEvent(const char *message);
+
+// One row of the log: a label, a colon, the value, and a note in parentheses
+// that says what the value means. The caller holds the serial lock, so a
+// whole block is written in one go.
+void logRow(const char *label, const char *value, const char *note);
 }

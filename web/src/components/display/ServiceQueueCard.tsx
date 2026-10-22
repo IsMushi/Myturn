@@ -5,16 +5,14 @@ import type { Service } from "@/lib/types";
 import { ActiveTicketDisplay } from "./ActiveTicketDisplay";
 import { EmptyQueueState } from "./EmptyQueueState";
 import { ServiceStatusBadge } from "./ServiceStatusBadge";
-import { WaitingList } from "./WaitingList";
 
 /**
  * One service on the wall.
  *
  * Every service gets a card, whatever its state, so the board always shows the
- * same three places to look. The header names the service, the body is either
- * the number being called or an honest empty state, the line below lists the
- * next numbers in that queue, and the footer repeats the queue length for that
- * service alone.
+ * same place to look. The header names the service, the body is either the
+ * number being called or an honest empty state, and the footer repeats this
+ * service's queue length. Waiting numbers live in the panel beside the cards.
  *
  * `fresh` is true for a couple of seconds after a new call arrives. It draws a
  * ring around the card and lets the number rise into place; it is not the only
@@ -32,9 +30,7 @@ export function ServiceQueueCard({ service, fresh }: { service: Service; fresh: 
       aria-labelledby={headingId}
     >
       <div className="myturn-display-service-head">
-        <span className="myturn-display-letter" aria-hidden="true">
-          {service.letter}
-        </span>
+        {/* Avatar symbol removed */}
         <h2 id={headingId}>{service.name}</h2>
         <ServiceStatusBadge state={service.service_state} />
       </div>
@@ -46,12 +42,6 @@ export function ServiceQueueCard({ service, fresh }: { service: Service; fresh: 
           <EmptyQueueState state={service.service_state} />
         )}
       </div>
-
-      <WaitingList
-        labels={service.waiting_labels}
-        total={service.waiting}
-        serviceName={service.name}
-      />
 
       <div className="myturn-display-service-foot">
         <span className="myturn-display-service-waiting">

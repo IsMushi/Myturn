@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { AnalyticsDashboard } from "@/components/AnalyticsDashboard";
+import { AccountGate } from "@/components/console/AccountGate";
 
 export const metadata: Metadata = {
   title: "Queue analytics — MyTurn",
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function AnalyticsPage() {
-  return <AnalyticsDashboard />;
+  return (
+    <AccountGate title="Queue analytics">
+      <AnalyticsDashboard />
+    </AccountGate>
+  );
 }

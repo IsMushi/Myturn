@@ -62,6 +62,16 @@ constexpr unsigned long WS_ACK_TIMEOUT_MS = 4000;
 constexpr unsigned long WS_STATE_TIMEOUT_MS = 12000;  // server refreshes state every 5 s
 constexpr unsigned long WS_READING_MAX_AGE_MS = 6000; // discard obsolete offline samples
 
+// ---- Serial log ----
+// Every row of the log is a label, then a colon, then the value, then a note
+// in parentheses that says what the value means. The labels and the values
+// are padded to the same width, so the block can be read straight down, and
+// every line explains itself - the log can be read without a manual.
+// Both the sensor loop and the network task print with it, so the whole log
+// reads as one system.
+constexpr int LOG_LABEL_WIDTH = 12;
+constexpr int LOG_VALUE_WIDTH = 22;
+
 // ---- Watchdog Timer ----
 constexpr unsigned long WDT_TIMEOUT_MS    = 8000;     // Reset if loop() blocks > 8s
 constexpr unsigned long WDT_FEED_INTERVAL_MS = 2000;  // Feed watchdog every 2s during long operations

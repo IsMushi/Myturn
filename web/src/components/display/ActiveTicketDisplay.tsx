@@ -16,14 +16,14 @@ export function ActiveTicketDisplay({ calls }: { calls: ServiceCall[] }) {
         {calls.map((call) => (
           <div className="myturn-display-call" key={`${call.label}-${call.desk ?? ""}`}>
             <p className="myturn-display-number">{call.label}</p>
-            <p className="myturn-display-desk">{call.desk ?? "At the service desk"}</p>
+            <p className="myturn-display-desk">{call.desk ?? "Ask staff for your counter"}</p>
           </div>
         ))}
       </div>
       <p className="myturn-display-instruction">
-        {calls.length > 1
+        {calls.every((call) => call.desk)
           ? "Please go to the counter shown with your number."
-          : "Please proceed to the service desk."}
+          : "Please ask staff which counter to visit."}
       </p>
     </div>
   );

@@ -48,18 +48,32 @@ static Light chooseLight(const Net::Setting &s, bool occupied) {
   return occupied ? Light::Red : Light::Green;
 }
 
-// Every block of the log is a list: a label, then a colon, then the value.
-// The labels are padded to the same width, so the values line up and the
-// list can be read straight down.
-#define LABEL_WIDTH 11
+// What the link to the server is doing, in words. The value in the "ws" row
+// names the state; this says what that state means.
+static const char *wsNote(const char *socket) {
+  if (!strcmp(socket, "acked"))          return "the server stored the reading";
+  if (!strcmp(socket, "no-ack"))        return "sent, but the server has not confirmed it";
+  if (!strcmp(socket, "wifi down"))     return "the board is not on the network";
+  if (!strcmp(socket, "reconnecting"))  return "the board is reconnecting to the server";
+  if (!strcmp(socket, "authenticating")) return "the server is checking the board";
+  if (!strcmp(socket, "state expired") || !strcmp(socket, "stale state"))
+                                        return "the server's last snapshot is too old";
+  if (!strcmp(socket, "config error"))  return "the sketch cannot work out where to connect";
+  return "the board has just started";
+}
 
-static void logStatus(float cm) {
-  char dist[24];
-  if (Sensor::faulted()) strcpy(dist, "NO SENSOR");
-  else if (cm < 0)       strcpy(dist, "warming up");
-  else if (cm >= MAX_CM) strcpy(dist, "no object");   // 400 cm is the sensor's "nothing in range" value
-  else                   snprintf(dist, sizeof dist, "%.1f cm", cm);
-
+// One report, one block, one timestamp.
+//
+// The sensors and the link are printed together because they belong to the
+// same cycle: what the board saw at the counter, and what it was doing about
+// it. One timestamp per block says which cycle a line belongs to; the earlier
+// format wrote two headers for the same cycle, so a reader had to guess
+// whether the two were the same moment.
+//
+// Every row carries a note that says what its value means, so the block can
+// be read on its own: what "400.0 cm" is, why the light is green, and what
+// "acked" says about the server.
+static void logReport(float cm) {
   Net::Connection c;
   Net::connection(c);
 
@@ -69,52 +83,220 @@ static void logStatus(float cm) {
       ? (Net::readingAcknowledged() ? "acked" : "no-ack")
       : Net::lastError();
 
-  // One print, so a block never arrives half-written.
-  Net::serialLock();
-  Serial.printf("[%8lu ms] data :\n", millis());
-  Serial.printf("  %-*s: %s\n", LABEL_WIDTH, "distance", dist);
-  Serial.printf("  %-*s: %.1f cm\n", LABEL_WIDTH, "raw", Sensor::rawCm());
-  Serial.printf("  %-*s: %s\n", LABEL_WIDTH, "occupied", Sensor::occupied() ? "yes" : "no");
-  if (Pir::ready()) Serial.printf("  %-*s: %s\n", LABEL_WIDTH, "pir", Pir::motion() ? "HIGH" : "LOW");
-  else              Serial.printf("  %-*s: warmup\n", LABEL_WIDTH, "pir");
-  Serial.printf("  %-*s: %s\n", LABEL_WIDTH, "led", Indicators::lightName(Indicators::light()));
+  char value[64], note[112];
 
-  Serial.printf("[%8lu ms] link :\n", millis());
-  Serial.printf("  %-*s: %s    ip %s  rssi %d dBm\n", LABEL_WIDTH, "wifi",
-                c.wifiUp ? "up" : "down", c.ip, c.rssi);
-  Serial.printf("  %-*s: %s\n", LABEL_WIDTH, "ws", socket);
-  Serial.printf("  %-*s: %ld\n", LABEL_WIDTH, "desk", c.deskId);
-  Serial.printf("  %-*s: %s\n", LABEL_WIDTH, "state", c.serviceState);
-  Serial.printf("  %-*s: %s\n", LABEL_WIDTH, "call", c.callEvent);
-  Serial.printf("  %-*s: %ld\n", LABEL_WIDTH, "seq", c.lastAckSequence);
+  // One lock, so a block never arrives half-written.
+  Net::serialLock();
+  Serial.printf("[%8lu ms] report :\n", millis());
+
+  // distance: the median of the last five readings, which is what the desk
+  // decides on.
+  if (Sensor::faulted()) {
+    strcpy(value, "no echo");
+    strcpy(note, "the sensor is not answering - check the wiring");
+  } else if (cm < 0) {
+    strcpy(value, "warming up");
+    strcpy(note, "three readings are needed before the median is trusted");
+  } else if (cm >= MAX_CM) {
+    strcpy(value, "nothing in range");
+    strcpy(note, "nothing within 400 cm");
+  } else {
+    snprintf(value, sizeof value, "%.1f cm", cm);
+    strcpy(note, cm < OCCUPIED_CM
+                 ? "under 100 cm, so the counter counts as occupied"
+                 : "over 100 cm, so the counter counts as clear");
+  }
+  Net::logRow("distance", value, note);
+
+  // raw: the last single reading, before the median smooths it out. The two
+  // together show whether the counter is quiet or in motion.
+  float raw = Sensor::rawCm();
+  if (raw < 0) {
+    strcpy(value, "no echo");
+    strcpy(note, "the sensor is not answering");
+  } else if (raw >= MAX_CM) {
+    snprintf(value, sizeof value, "%.1f cm", raw);
+    strcpy(note, "the sensor's own \"nothing in range\" answer");
+  } else if (raw < MIN_CM) {
+    snprintf(value, sizeof value, "%.1f cm", raw);
+    strcpy(note, "too close to trust: the module rings at 2-11 cm");
+  } else {
+    snprintf(value, sizeof value, "%.1f cm", raw);
+    strcpy(note, "the last single reading");
+  }
+  Net::logRow("raw", value, note);
+
+  // occupied: the ultrasonic's own conclusion. Nothing else may claim it.
+  bool occupied = Sensor::occupied();
+  strcpy(value, occupied ? "yes" : "no");
+  strcpy(note, occupied ? "someone is at the counter" : "the counter is clear");
+  Net::logRow("occupied", value, note);
+
+  // pir: the movement sensor. It reports an approach; it never decides.
+  if (!Pir::ready()) {
+    strcpy(value, "warming up");
+    strcpy(note, "the PIR settles for 60 s after power-on");
+  } else if (Pir::motion()) {
+    strcpy(value, "movement");
+    strcpy(note, "the PIR saw someone approach");
+  } else {
+    strcpy(value, "still");
+    strcpy(note, "the PIR sees no movement");
+  }
+  Net::logRow("pir", value, note);
+
+  // led: the colour, and the reason for it.
+  Light light = Indicators::light();
+  strcpy(value, Indicators::lightName(light));
+  switch (light) {
+    case Light::Green:  strcpy(note, "the desk is open and the counter is clear"); break;
+    case Light::Red:    strcpy(note, "someone is at the counter"); break;
+    case Light::Yellow: strcpy(note, "the desk is paused, closed or not known yet"); break;
+    case Light::Blue:   strcpy(note, "a visitor is being called"); break;
+    default:            strcpy(note, "no light is on"); break;
+  }
+  Net::logRow("led", value, note);
+
+  // wifi: the board's own network, not the desk's.
+  strcpy(value, c.wifiUp ? "up" : "down");
+  strcpy(note, c.wifiUp ? "the board is on the network" : "the board is not on the network");
+  Net::logRow("wifi", value, note);
+
+  strcpy(value, c.wifiUp ? c.ip : "none");
+  strcpy(note, c.wifiUp ? "the board's address on the network" : "the board has no address yet");
+  Net::logRow("address", value, note);
+
+  if (c.wifiUp) {
+    snprintf(value, sizeof value, "%d dBm", c.rssi);
+    strcpy(note, "the Wi-Fi strength; near 0 is good");
+  } else {
+    strcpy(value, "none");
+    strcpy(note, "no signal while the board is down");
+  }
+  Net::logRow("signal", value, note);
+
+  // ws: the link to the server.
+  strcpy(value, socket);
+  strcpy(note, wsNote(socket));
+  Net::logRow("ws", value, note);
+
+  // desk: the counter the server assigned to this board.
+  if (c.deskId > 0) {
+    snprintf(value, sizeof value, "%ld", c.deskId);
+    strcpy(note, "the counter the server assigned");
+  } else {
+    strcpy(value, "none");
+    strcpy(note, "the server has not assigned a counter yet");
+  }
+  Net::logRow("desk", value, note);
+
+  // state: what the desk is doing, server-side.
+  strcpy(value, c.serviceState);
+  if (!strcmp(c.serviceState, "active"))       strcpy(note, "the desk is open");
+  else if (!strcmp(c.serviceState, "paused")) strcpy(note, "the desk is paused");
+  else if (!strcmp(c.serviceState, "closed")) strcpy(note, "the desk is closed");
+  else                                          strcpy(note, "the server has not said yet");
+  Net::logRow("state", value, note);
+
+  // call: who is being called to this desk.
+  strcpy(value, c.callEvent);
+  if (!strcmp(c.callEvent, "called"))        strcpy(note, "a visitor is being called");
+  else if (!strcmp(c.callEvent, "recalled")) strcpy(note, "the visitor is being called again");
+  else                                        strcpy(note, "nobody is being called");
+  Net::logRow("call", value, note);
+
+  // seq: the last reading the server stored.
+  snprintf(value, sizeof value, "%ld", c.lastAckSequence);
+  strcpy(note, c.lastAckSequence > 0 ? "the reading number the server stored"
+                                      : "no reading has been stored yet");
+  Net::logRow("seq", value, note);
+
   Net::serialUnlock();
 }
 
 // The connection in full, printed when it changes and every 30 s otherwise.
 // This is the block to read when a board will not connect: it says what the
 // board believes about the network, the socket, the assignment and the last
-// thing that happened, in one place.
+// thing that happened, in one place, and every line says what it means.
 static void logConnection(const Net::Connection &c) {
+  char value[112], note[112];
+
   Net::serialLock();
-  Serial.printf(
-    "=== connection ================================================\n"
-    "  %-*s: %lu ms\n"
-    "  %-*s: %s    ip %s  rssi %d dBm\n"
-    "  %-*s: %s\n"
-    "  %-*s: %s     authenticated %s\n"
-    "  %-*s: desk %ld   state %s   call %s\n"
-    "  %-*s: %s\n"
-    "  %-*s: %d\n"
-    "  %-*s: seq %ld   server time %s\n"
-    "================================================================\n",
-    LABEL_WIDTH, "uptime", millis(),
-    LABEL_WIDTH, "wifi", c.wifiUp ? "up" : "down", c.ip, c.rssi,
-    LABEL_WIDTH, "endpoint", c.endpoint,
-    LABEL_WIDTH, "socket", c.socketUp ? "up" : "down", c.authenticated ? "ok" : "no",
-    LABEL_WIDTH, "assignment", c.deskId, c.serviceState, c.callEvent,
-    LABEL_WIDTH, "last event", c.lastEvent,
-    LABEL_WIDTH, "failures", c.failures,
-    LABEL_WIDTH, "telemetry", c.lastAckSequence, c.lastAckTime);
+  Serial.println("=== connection ================================================");
+
+  snprintf(value, sizeof value, "%lu ms", millis());
+  strcpy(note, "the time since the board was powered");
+  Net::logRow("uptime", value, note);
+
+  strcpy(value, c.wifiUp ? "up" : "down");
+  strcpy(note, c.wifiUp ? "the board is on the network" : "the board is not on the network");
+  Net::logRow("wifi", value, note);
+
+  strcpy(value, c.wifiUp ? c.ip : "none");
+  strcpy(note, c.wifiUp ? "the board's address on the network" : "the board has no address yet");
+  Net::logRow("address", value, note);
+
+  if (c.wifiUp) {
+    snprintf(value, sizeof value, "%d dBm", c.rssi);
+    strcpy(note, "the Wi-Fi strength; near 0 is good");
+  } else {
+    strcpy(value, "none");
+    strcpy(note, "no signal while the board is down");
+  }
+  Net::logRow("signal", value, note);
+
+  strcpy(value, c.endpoint);
+  strcpy(note, "where the board connects");
+  Net::logRow("endpoint", value, note);
+
+  strcpy(value, c.socketUp ? "up" : "down");
+  strcpy(note, c.socketUp ? "the link to the server is open" : "the link to the server is closed");
+  Net::logRow("socket", value, note);
+
+  strcpy(value, c.authenticated ? "ok" : "no");
+  strcpy(note, c.authenticated ? "the server accepted this board" : "the server has not accepted this board");
+  Net::logRow("auth", value, note);
+
+  if (c.deskId > 0) {
+    snprintf(value, sizeof value, "%ld", c.deskId);
+    strcpy(note, "the counter the server assigned");
+  } else {
+    strcpy(value, "none");
+    strcpy(note, "the server has not assigned a counter yet");
+  }
+  Net::logRow("desk", value, note);
+
+  strcpy(value, c.serviceState);
+  if (!strcmp(c.serviceState, "active"))       strcpy(note, "the desk is open");
+  else if (!strcmp(c.serviceState, "paused")) strcpy(note, "the desk is paused");
+  else if (!strcmp(c.serviceState, "closed")) strcpy(note, "the desk is closed");
+  else                                          strcpy(note, "the server has not said yet");
+  Net::logRow("state", value, note);
+
+  strcpy(value, c.callEvent);
+  if (!strcmp(c.callEvent, "called"))        strcpy(note, "a visitor is being called");
+  else if (!strcmp(c.callEvent, "recalled")) strcpy(note, "the visitor is being called again");
+  else                                        strcpy(note, "nobody is being called");
+  Net::logRow("call", value, note);
+
+  strcpy(value, c.lastEvent);
+  strcpy(note, "the last thing that happened");
+  Net::logRow("last event", value, note);
+
+  snprintf(value, sizeof value, "%d", c.failures);
+  strcpy(note, "connection failures since boot");
+  Net::logRow("failures", value, note);
+
+  snprintf(value, sizeof value, "%ld", c.lastAckSequence);
+  strcpy(note, c.lastAckSequence > 0 ? "the reading number the server stored"
+                                      : "no reading has been stored yet");
+  Net::logRow("seq", value, note);
+
+  strcpy(value, c.lastAckTime);
+  strcpy(note, "the server's own clock, so the log and the database can be compared");
+  Net::logRow("server time", value, note);
+
+  Serial.println("================================================================");
   Net::serialUnlock();
 }
 
@@ -138,7 +320,7 @@ static void sendReport() {
   Net::Reading reading{cm, Sensor::occupied(), Pir::near(),
                        Indicators::lightName(Indicators::light())};
   Net::postReading(reading);
-  logStatus(cm);
+  logReport(cm);
 }
 
 void setup() {
@@ -146,27 +328,38 @@ void setup() {
   delay(300);
 
   uint64_t mac = ESP.getEfuseMac();
+  char value[64];
   Net::serialLock();
   Serial.println("\n=== MyTurn service desk board ============================");
-  Serial.printf("  board MAC   : %02X:%02X:%02X:%02X:%02X:%02X\n",
-                (uint8_t)(mac >> 40), (uint8_t)(mac >> 32), (uint8_t)(mac >> 24),
-                (uint8_t)(mac >> 16), (uint8_t)(mac >> 8), (uint8_t)mac);
-  Serial.printf("  chip id     : %08X\n", (uint32_t)(mac >> 32));
-  Serial.printf("  free heap   : %lu bytes\n", (unsigned long)ESP.getFreeHeap());
+  snprintf(value, sizeof value, "%02X:%02X:%02X:%02X:%02X:%02X",
+           (uint8_t)(mac >> 40), (uint8_t)(mac >> 32), (uint8_t)(mac >> 24),
+           (uint8_t)(mac >> 16), (uint8_t)(mac >> 8), (uint8_t)mac);
+  Net::logRow("board MAC", value, "the board's address on the network");
+  snprintf(value, sizeof value, "%08X", (uint32_t)(mac >> 32));
+  Net::logRow("chip id", value, "the chip's own identifier");
+  snprintf(value, sizeof value, "%lu bytes", (unsigned long)ESP.getFreeHeap());
+  Net::logRow("free heap", value, "memory still free");
   Net::serialUnlock();
 
-  // Initialize Watchdog Timer (8s timeout)
+  // The Arduino core already brings the task watchdog up in initArduino(), so
+  // the running watchdog is reconfigured here rather than initialised again:
+  // a second init is refused by the ESP-IDF and is reported as an error at
+  // every boot, and the core's own timeout (5 s, panic) is not the one this
+  // project wants.
   esp_task_wdt_config_t wdt_config = {
     .timeout_ms = WDT_TIMEOUT_MS,
     .idle_core_mask = 0x03,  // Watch both cores (ESP32 is dual-core)
     .trigger_panic = false,
   };
-  esp_task_wdt_init(&wdt_config);
+  esp_err_t wdt = esp_task_wdt_reconfigure(&wdt_config);
+  if (wdt != ESP_OK) wdt = esp_task_wdt_init(&wdt_config);
   esp_task_wdt_add(NULL);
   lastWdtFeed = millis();
   Net::serialLock();
-  Serial.printf("  watchdog    : %lu ms timeout, fed every %lu ms\n",
-                WDT_TIMEOUT_MS, WDT_FEED_INTERVAL_MS);
+  char wdtLine[64];
+  snprintf(wdtLine, sizeof wdtLine, "%lu ms timeout, %s", WDT_TIMEOUT_MS,
+           wdt == ESP_OK ? "armed" : "not armed");
+  Net::logRow("watchdog", wdtLine, "the board is reset if the loop hangs; fed every 2000 ms");
   Net::serialUnlock();
 
   Indicators::begin();

@@ -445,6 +445,13 @@ unchanged, the service is filled in from the old `desk_profile` row, and the
 board of the prototype was attached to Desk 1. The old `desk_profile` table is
 read once, for service A, and is then left alone.
 
+The `counters` table was renamed to `ticket_numbers` after that move. It held
+the next ticket number per service, and the name read as if it described a
+physical counter, which it never did. The rename is a second one-off migration
+in `db._rename_counters_table()`: an old file keeps its numbers, because the
+rows are copied across and the larger value wins where both hold the same name,
+so a number is never given out twice.
+
 After the move, the indexes are the same kind of guard as before, only narrower:
 one called ticket per **desk** rather than one in the whole office, so two desks
 may hold two calls of the same service at once.

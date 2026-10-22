@@ -124,6 +124,8 @@ def _migrate_queue(conn, desk_name, desk_description):
     first_service = _seed_services(conn, desk_name, desk_description)
     first_desk = _seed_desks(conn)
 
+    _rename_counters_table(conn)
+
     if "service_id" not in _column_names(conn, "tickets"):
         _rebuild_tickets(conn, first_service["service_id"])
 
@@ -136,6 +138,12 @@ def _migrate_queue(conn, desk_name, desk_description):
             "update desk_settings set desk_id = ? where desk_id is null",
             (first_desk["desk_id"],),
         )
+
+    # A pause can say why and for how long, so the desk and the person reading
+    # it know when it is coming back. Older databases have nowhere to keep it.
+    for column in ("pause_reason", "paused_until"):
+        if column not in _column_names(conn, "desk_settings"):
+            conn.execute("alter table desk_settings add column %s text" % column)
 
     if "desk_id" not in _column_names(conn, "devices"):
         conn.execute(
@@ -153,7 +161,40 @@ def _migrate_queue(conn, desk_name, desk_description):
         conn.execute("alter table devices add column mac_address text")
 
     _ensure_desk_states(conn)
-    _sync_counters(conn)
+    _sync_ticket_numbers(conn)
+
+
+def _rename_counters_table(conn):
+    """Carry the old `counters` table over to `ticket_numbers`.
+
+    `counters` held the next ticket number per service, which read as if it
+    described a physical counter. The name is wrong, so the table is renamed
+    once, in place, and an existing database keeps its numbers.
+    """
+    if not _table_exists(conn, "counters"):
+        return
+    if not _table_exists(conn, "ticket_numbers"):
+        conn.execute("alter table counters rename to ticket_numbers")
+        return
+
+    # The schema file has already created the new table, so the old rows are
+    # copied across. Where both hold the same name, the larger value wins: a
+    # number is never given out twice.
+    for row in conn.execute("select name, value from counters").fetchall():
+        current = conn.execute(
+            "select value from ticket_numbers where name = ?", (row["name"],)
+        ).fetchone()
+        if current is None:
+            conn.execute(
+                "insert into ticket_numbers (name, value) values (?, ?)",
+                (row["name"], row["value"]),
+            )
+        elif row["value"] > current["value"]:
+            conn.execute(
+                "update ticket_numbers set value = ? where name = ?",
+                (row["value"], row["name"]),
+            )
+    conn.execute("drop table counters")
 
 
 def _seed_services(conn, desk_name, desk_description):
@@ -258,7 +299,7 @@ def _rebuild_tickets(conn, service_id):
 
 
 def _ensure_desk_states(conn):
-    """Every desk has a state; new counters start paused until staff open them."""
+    """Every desk has a state; a new desk starts paused until staff open it."""
     for row in conn.execute("select desk_id from desks order by desk_id"):
         has_state = conn.execute(
             "select 1 from desk_settings where desk_id = ? limit 1", (row["desk_id"],)
@@ -271,34 +312,34 @@ def _ensure_desk_states(conn):
             )
 
 
-def _sync_counters(conn):
-    """One counter per service, never behind a ticket that already exists."""
+def _sync_ticket_numbers(conn):
+    """One number sequence per service, never behind a ticket that already exists."""
     legacy = conn.execute(
-        "select value from counters where name = 'ticket'"
+        "select value from ticket_numbers where name = 'ticket'"
     ).fetchone()
 
     rows = conn.execute("select service_id, letter from services order by letter").fetchall()
     for index, row in enumerate(rows):
         name = "ticket:" + row["letter"]
         if conn.execute(
-            "select 1 from counters where name = ?", (name,)
+            "select 1 from ticket_numbers where name = ?", (name,)
         ).fetchone() is None:
-            conn.execute("insert into counters (name, value) values (?, 0)", (name,))
+            conn.execute("insert into ticket_numbers (name, value) values (?, 0)", (name,))
 
         top = conn.execute(
             "select coalesce(max(ticket_no), 0) as top from tickets where service_id = ?",
             (row["service_id"],),
         ).fetchone()["top"]
-        # The single counter of the one-desk version belonged to the first
+        # The single sequence of the one-desk version belonged to the first
         # service. Keep it from going backwards during the move.
         if index == 0 and legacy is not None:
             top = max(top, legacy["value"])
         conn.execute(
-            "update counters set value = ? where name = ?", (top, name)
+            "update ticket_numbers set value = ? where name = ?", (top, name)
         )
 
     if legacy is not None:
-        conn.execute("delete from counters where name = 'ticket'")
+        conn.execute("delete from ticket_numbers where name = 'ticket'")
 
 
 def get_db():

@@ -160,12 +160,17 @@ def main():
 
             counters = {
                 row["name"]: row["value"]
-                for row in conn.execute("select * from counters")
+                for row in conn.execute("select * from ticket_numbers")
             }
             check("service A kept the old counter", counters.get("ticket:A"), 2)
             check("the other services start at zero",
                   (counters.get("ticket:B"), counters.get("ticket:C")), (0, 0))
             check("the old global counter is gone", "ticket" in counters, False)
+            check("the old counters table is gone",
+                  conn.execute(
+                      "select 1 from sqlite_master where type = 'table' "
+                      "and name = 'counters'"
+                  ).fetchone() is None, True)
 
             broken = conn.execute("pragma foreign_key_check").fetchall()
             check("no broken references", len(broken), 0)

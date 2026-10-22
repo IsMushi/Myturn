@@ -1,4 +1,5 @@
 #include "Sensor.h"
+#include "Api.h"
 #include "config.h"
 
 namespace Sensor {
@@ -63,24 +64,29 @@ void probe() {
   digitalWrite(TRIG_PIN, HIGH); delayMicroseconds(10);
   digitalWrite(TRIG_PIN, LOW);
   us = pulseIn(ECHO_PIN, HIGH, PULSE_TIMEOUT_US);
-  Serial.printf("  probe: TRIG GPIO %u, ECHO GPIO %u -> ", TRIG_PIN, ECHO_PIN);
-  if (us == 0) Serial.println("no pulse at all (ECHO unconnected, unpowered sensor, or TRIG/ECHO swapped)");
-  else Serial.printf("pulse %lu us = %.1f cm%s\n", us, us / US_PER_CM, us < 116 ? " (too short: noise)" : "");
-  Serial.printf("  ECHO pin reads %s\n", digitalRead(ECHO_PIN) ? "HIGH" : "LOW");
+  // One line per fact, in the log's own form, so a fault reads like the rest
+  // of the log and never lands in the middle of a block.
+  char line[144];
+  if (us == 0) {
+    snprintf(line, sizeof line, "probe: TRIG GPIO %u, ECHO GPIO %u -> no pulse at all "
+             "(ECHO unconnected, unpowered sensor, or TRIG/ECHO swapped)", TRIG_PIN, ECHO_PIN);
+  } else {
+    snprintf(line, sizeof line, "probe: TRIG GPIO %u, ECHO GPIO %u -> pulse %lu us = %.1f cm%s",
+             TRIG_PIN, ECHO_PIN, us, us / US_PER_CM, us < 116 ? " (too short: noise)" : "");
+  }
+  Net::logEvent(line);
+  snprintf(line, sizeof line, "probe: ECHO pin reads %s", digitalRead(ECHO_PIN) ? "HIGH" : "LOW");
+  Net::logEvent(line);
 }
 
 void enterFault() {
   fault = true;
   count = nextSlot = 0;          // drop stale/garbage readings
   occ = candidate = false;
-  Serial.println();
-  if (stuck) {
-    Serial.println("!! SENSOR FAULT: ECHO is stuck HIGH (floating, shorted, or wrong header order).");
-  } else {
-    Serial.println("!! SENSOR FAULT: no echo. Check 5V power, GND, TRIG/ECHO wiring.");
-  }
+  Net::logEvent(stuck
+    ? "SENSOR FAULT: ECHO is stuck HIGH (floating, shorted, or wrong header order)."
+    : "SENSOR FAULT: no echo. Check 5V power, GND, TRIG/ECHO wiring.");
   probe();
-  Serial.println();
 }
 
 void updateOccupancy() {
@@ -113,7 +119,7 @@ void update() {
       if (++goods >= RECOVER_AFTER) {
         if (spread() <= RECOVER_SPREAD_CM) {
           fault = false;
-          Serial.println("sensor: readings are back");
+          Net::logEvent("sensor: readings are back");
         }
         goods = 0;
       }

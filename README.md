@@ -80,6 +80,10 @@ the real one is never touched by a test.
 | `POST /api/tickets` | Visitor page | Issues the next number **of the chosen service** with a private token |
 | `GET /api/tickets/<token>` | Visitor page | Number, service, state, the desk serving it, how many tickets are ahead and the next few of them |
 | `GET /api/public/state` | Wall display, visitor page | Every service with its now-serving numbers, the waiting count, the next numbers in that queue and the measured service time |
+| `GET /api/analytics/queue` | Queue analytics | Waiting now, average wait, served today and the busiest hour |
+| `GET /api/analytics/desks` | Queue analytics | Every counter side by side for today: served, no-shows, the queue of its service, recent service time, hours with work and when it last served |
+| `GET /api/analytics/desk/<id>` | Queue analytics | The same figures for one counter |
+| `GET /api/analytics/trends` | Queue analytics | The last seven days, quiet days included |
 | `POST /api/auth/login` | Sign-in page | Checks an account and starts a session |
 | `POST /api/auth/logout` | Dashboards | Ends the session |
 | `GET /api/auth/me` | Every signed-in page | The account behind the session, and the CSRF token |
@@ -87,10 +91,12 @@ the real one is never touched by a test.
 | `GET /api/auth/invitation` | Invitation page | The address an invitation was sent to |
 | `POST /api/auth/forgot-password` | Forgotten password page | Issues a reset link for a known address |
 | `POST /api/auth/reset-password` | Reset page | Changes the password once, from that link |
-| `GET /api/auth/users` | Admin dashboard | Accounts and pending invitations (administrators only) |
+| `GET /api/auth/users` | Team page | Accounts and pending invitations (administrators only) |
 | `POST /api/auth/invitations` | Admin dashboard | Invites a staff member |
-| `POST /api/auth/users/<id>/active` | Admin dashboard | Switches an account off, or back on |
-| `POST /api/auth/users/<id>/role` | Admin dashboard | Makes an account an administrator, or takes the rights back (the last administrator cannot be demoted) |
+| `POST /api/auth/users/<id>/active` | Team page | Switches an account off, or back on |
+| `DELETE /api/auth/users/<id>` | Team page | Permanently deletes another account after email confirmation; keeps activity history, revokes reset links and open sessions (administrators only) |
+| `POST /api/auth/users/batch` | Team page | Atomically switches selected accounts on/off or permanently deletes them after count confirmation; refuses self-selection and stale account data (administrators only) |
+| `POST /api/auth/users/<id>/role` | Team page | Makes an account an administrator, or takes the rights back (the last administrator cannot be demoted) |
 | `POST /api/auth/invitations/<id>/revoke` | Admin dashboard | Withdraws an invitation that has not been used |
 | `POST /api/auth/password` | Account page | Changes the password of the account behind the session |
 | `POST /api/auth/profile` | Account page | Changes the name on the account behind the session; the address is the administrator's to change |
@@ -145,7 +151,10 @@ address.
   desk, so two desks may hold two calls of the same service at once, and a
   third call on either desk is refused. A desk can call only while it is open:
   a paused desk still accepts tickets but waits for the staff member to resume,
-  and a closed desk accepts neither tickets nor calls.
+  and a closed desk accepts neither tickets nor calls. A pause may carry the
+  desk's own short reason and a return time (5 to 240 minutes); the console
+  repeats both, opening or closing clears them, and the return time never opens
+  the desk by itself - a counter nobody is standing at must not call.
 * A called ticket that nobody answers goes back to the queue **at the back**,
   with a fresh number, after `MYTURN_HOLD_SECONDS` (60 seconds by default), so
   an absent visitor cannot block the desk. When the board is fresh and has seen
@@ -217,7 +226,9 @@ npm run dev                          # serves http://localhost:3000
 | Forgotten password | `/auth/forgot-password` | Anyone with an account |
 | Choose a new password | `/auth/reset-password` | The same person, following the link |
 | Desk dashboard | `/staff/dashboard` | The person at the desk: which counter they are working, the queue of its service, the board, walk-ins, recall and undo |
-| Administration | `/admin/dashboard` | The administrator: accounts, roles and invitations |
+| Queue analytics | `/staff/analytics` | The office's numbers: waiting now, every desk side by side for today, and the last seven days |
+| Team & invitations | `/admin/team` | The administrator: accounts, roles and invitations |
+| Administration (existing URL) | `/admin/dashboard` | The same admin-only team page; retained for sign-in redirects and existing links |
 | Activity | `/admin/activity` | The administrator: what the queue, the desk and the accounts recorded |
 | Statistics | `/admin/statistics` | The administrator: counts, service times, busiest hours, target comparison, CSV export |
 | Desk settings | `/admin/settings` | The administrator: the services the office offers and the desks that serve them, changed live |
@@ -231,8 +242,11 @@ so the browser sees one origin and the session cookie works without CORS
 tricks. Set `BACKEND_ORIGIN` in `.env.local` to point somewhere else.
 
 The visitor page remembers the ticket in `localStorage`, so closing the page
-does not lose the place. Nothing about an account is kept there: the session is
-an HTTP-only cookie and the role is only ever read from the server.
+does not lose the place. It also keeps a random per-browser id there, which is
+how the server notices a repeat tap and returns the ticket the visitor already
+has instead of issuing a second number; it is not an account and describes
+nobody. Nothing about an account is kept in `localStorage`: the session is an
+HTTP-only cookie and the role is only ever read from the server.
 
 The homepage hero follows `web/public/images/hero-section-ui.png`: real
 navigation, heading and ticket links beside the full-bleed concept artwork.
@@ -247,23 +261,26 @@ The wall display uses `web/src/components/display-board.css` and the
 components in `web/src/components/display/`: a logo header with the live
 connection and the time of the last successful update. The logo links back to
 the homepage; the board has no other site navigation because it is a television.
-The waiting total comes next, then
-one card per service with its state badge, the number being called (or an
-honest open/paused/closed empty state), the next numbers waiting for that
-service — at most eight, with a count for the rest — and that service's
-waiting count. A new
-call draws a ring once and the number rises into place; reduced-motion users
+The waiting total comes next, then one card per configured service with its
+state badge, the number being called (or an honest open/paused/closed empty
+state), and that service's waiting count. A separate right-hand waiting panel
+groups the next numbers for services with waiting tickets — at most eight for
+each, with a count for the rest — and moves below the cards on narrow screens.
+Each called number
+keeps the counter name returned by the server, including simultaneous calls
+at several counters for one service. On a TV, both regions scroll if there
+are more services or numbers than fit. A new call draws a ring once and the
+number rises into place; reduced-motion users
 get no animation. If the stream and polls both fail, the board keeps the last
 numbers but labels them as old and offers a reconnect. Ticket pages share
 `web/src/components/ticket/ticket-pages.css`, with service selection beside
 the queue summary on desktop and above it on mobile. Their SSE, private tracking
 links, measured estimates and print behaviour are unchanged.
 
-The display matches `web/public/images/MyTurn Queue Dashboard.png`, with a
-scoped mint-wave background and the concept's decorative ticket illustration.
+The display uses the shared home-page palette and the decorative ticket illustration.
 Run `python tools/extract-display-art.py` to regenerate that illustration crop;
 headings, badges and queue values remain accessible live HTML. While connecting,
-`DisplayBoardSkeleton` preserves the three-card layout with mint placeholders,
+`DisplayBoardSkeleton` preserves the two-region layout with mint placeholders,
 an announced busy state and reduced-motion support. Initial failures show a retry
 instead, and a lost connection retains the last-known data with a stale warning.
 Read-only browser checks (no database changes) are available with:
@@ -384,11 +401,14 @@ the safe **paused/yellow** indication. This is a local safety indication, not a
 change to the desk's server-side availability.
 
 The serial log at 115200 baud is where a board that will not connect is
-diagnosed. Every line is stamped with the uptime, every connection transition
-is written as it happens (including the server's close code when it refuses the
-board), and a full connection block is printed when the connection changes and
-every thirty seconds otherwise. `firmware/myturn_desk/WIRING.md` has the format
-and what each line means.
+diagnosed. It is a list in one form throughout: a label, a colon, the value,
+with the labels padded so the values line up. There are four kinds of line and
+nothing else - a `report` block per cycle (the readings and the link together,
+under one timestamp), an `event` line when something changes, a full
+`connection` block when the connection changes and every thirty seconds
+otherwise, and the boot banner. Every connection transition is written as it
+happens (including the server's close code when it refuses the board).
+`firmware/myturn_desk/WIRING.md` has the format and what each line means.
 
 Each report has a sequence number and receives an acknowledgement after storage.
 Duplicate sequence numbers are not stored twice. A missing acknowledgement after

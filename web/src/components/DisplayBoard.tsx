@@ -12,7 +12,7 @@ import { PublicDisplayFooter } from "./display/PublicDisplayFooter";
 import { PublicDisplayHeader } from "./display/PublicDisplayHeader";
 import { connectionLabel } from "./display/ConnectionIndicator";
 import { NowServingHeader } from "./display/NowServingHeader";
-import { ServiceQueueCard } from "./display/ServiceQueueCard";
+import { CombinedServicePanel } from "./display/CombinedServicePanel";
 import { DisplayBoardSkeleton } from "./display/DisplayBoardSkeleton";
 
 import "./display-board.css";
@@ -113,21 +113,14 @@ export function DisplayBoard() {
         </div>
       ) : (
         <>
-          <NowServingHeader waiting={data.waiting} />
-
-          <div className="myturn-display-services">
-            {services.map((service) => {
-              const signature = callSignature(service.now_serving);
-              return (
-                <ServiceQueueCard
-                  /* A changed call remounts the card, so the number arrives and
-                     the ring restarts even when the state itself looks equal. */
-                  key={`${service.id}:${signature}`}
-                  service={service}
-                  fresh={service.now_serving.some((call) => calledJustNow(call, serverNow))}
-                />
-              );
-            })}
+          <div className="myturn-display-board-content">
+            <CombinedServicePanel 
+              services={services} 
+              freshServiceIds={services
+                .filter((service) => service.now_serving.some((call) => calledJustNow(call, serverNow)))
+                .map((service) => service.id)
+              }
+            />
           </div>
         </>
       )}

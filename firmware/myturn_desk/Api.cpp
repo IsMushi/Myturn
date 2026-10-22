@@ -68,9 +68,7 @@ SemaphoreHandle_t serialMutex = nullptr;
 // the hardest kind of fault to chase.
 void note(const char *event) {
   strlcpy(lastEvent, event, sizeof lastEvent);
-  serialLock();
-  Serial.printf("[%8lu ms] ws   : %s\n", millis(), event);
-  serialUnlock();
+  logEvent(event);
 }
 
 void invalidate(Status reason) {
@@ -242,9 +240,13 @@ void networkTask(void *) {
   if (secure) socket.beginSslWithCA(host.c_str(), port, path.c_str(), WS_CA_CERT, "");
   else socket.begin(host.c_str(), port, path.c_str(), "");
   serialLock();
-  Serial.printf("  endpoint    : %s\n", endpoint);
-  Serial.printf("  device key  : %d characters\n", (int)strlen(DEVICE_KEY));
-  Serial.printf("  joining wifi: \"%s\"\n", WIFI_SSID);
+  char keyLen[16];
+  snprintf(keyLen, sizeof keyLen, "%d characters", (int)strlen(DEVICE_KEY));
+  char ssid[64];
+  snprintf(ssid, sizeof ssid, "\"%s\"", WIFI_SSID);
+  logRow("endpoint", endpoint, "where the board connects");
+  logRow("device key", keyLen, "the secret the server checks; only its length is printed");
+  logRow("wifi ssid", ssid, "the network the board joined");
   serialUnlock();
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   unsigned long lastWifiTry = millis();
@@ -328,6 +330,21 @@ void begin() {
 
 void serialLock() { if (serialMutex) xSemaphoreTake(serialMutex, portMAX_DELAY); }
 void serialUnlock() { if (serialMutex) xSemaphoreGive(serialMutex); }
+
+void logEvent(const char *message) {
+  serialLock();
+  Serial.printf("[%8lu ms] event : %s\n", millis(), message);
+  serialUnlock();
+}
+
+// One row of the log: a label, a colon, the value, and a note in parentheses
+// that says what the value means. The label and the value sit in fixed
+// columns, so a block reads straight down and every line explains itself.
+//
+// The caller holds the serial lock, so a whole block is written in one go.
+void logRow(const char *label, const char *value, const char *note) {
+  Serial.printf("  %-*s: %-*s (%s)\n", LOG_LABEL_WIDTH, label, LOG_VALUE_WIDTH, value, note);
+}
 
 bool connected() { return WiFi.status() == WL_CONNECTED; }
 bool ready() { return authenticated.load() && connected() && millis() - lastStateAt.load() <= WS_STATE_TIMEOUT_MS; }

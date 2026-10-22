@@ -11,31 +11,39 @@ export function DisplayBoardSkeleton() {
           <div className="myturn-display-placeholder myturn-display-placeholder-summary" />
         </div>
       </div>
-      <div
-        className="myturn-display-services myturn-display-skeleton"
-        aria-hidden="true"
-        data-testid="display-skeleton"
-      >
-        {[0, 1, 2].map((index) => (
-          <div className="myturn-display-service" key={index}>
-            <div className="myturn-display-service-head">
-              <div className="myturn-display-placeholder myturn-display-placeholder-letter" />
-              <div className="myturn-display-placeholder myturn-display-placeholder-name" />
-              <div className="myturn-display-placeholder myturn-display-placeholder-badge" />
-            </div>
-            <div className="myturn-display-service-body">
-              <div className="myturn-display-idle">
-                <div className="myturn-display-placeholder myturn-display-placeholder-art" />
-                <div className="myturn-display-placeholder myturn-display-placeholder-message" />
-                <div className="myturn-display-placeholder myturn-display-placeholder-description" />
+      <div className="myturn-display-board-content myturn-display-skeleton" aria-hidden="true" data-testid="display-skeleton">
+        <div className="myturn-display-services">
+          {[0, 1].map((index) => (
+            <div className="myturn-display-service" key={index}>
+              <div className="myturn-display-service-head">
+                <div className="myturn-display-placeholder myturn-display-placeholder-letter" />
+                <div className="myturn-display-placeholder myturn-display-placeholder-name" />
+                <div className="myturn-display-placeholder myturn-display-placeholder-badge" />
+              </div>
+              <div className="myturn-display-service-body">
+                <div className="myturn-display-idle">
+                  <div className="myturn-display-placeholder myturn-display-placeholder-art" />
+                  <div className="myturn-display-placeholder myturn-display-placeholder-message" />
+                  <div className="myturn-display-placeholder myturn-display-placeholder-description" />
+                </div>
+              </div>
+              <div className="myturn-display-service-foot">
+                <div className="myturn-display-placeholder myturn-display-placeholder-waiting" />
+                <div className="myturn-display-placeholder myturn-display-placeholder-count" />
               </div>
             </div>
-            <div className="myturn-display-service-foot">
-              <div className="myturn-display-placeholder myturn-display-placeholder-waiting" />
-              <div className="myturn-display-placeholder myturn-display-placeholder-count" />
-            </div>
+          ))}
+        </div>
+        <div className="myturn-display-waiting-panel">
+          <div className="myturn-display-waiting-panel-head">
+            <div className="myturn-display-placeholder myturn-display-placeholder-name" />
           </div>
-        ))}
+          <div className="myturn-display-waiting-panel-content">
+            {[0, 1, 2].map((index) => (
+              <div className="myturn-display-placeholder myturn-display-placeholder-waiting" key={index} />
+            ))}
+          </div>
+        </div>
       </div>
     </>
   );

@@ -50,7 +50,10 @@ export function Toaster(props: ToasterProps) {
             "[&_[data-icon]]:text-medium-green " +
             "data-[type=error]:[&_[data-icon]]:text-rose-600 " +
             "data-[type=warning]:[&_[data-icon]]:text-amber-600 " +
-            "data-[type=info]:[&_[data-icon]]:text-deep-green",
+            "data-[type=info]:[&_[data-icon]]:text-deep-green " +
+            // Room for the close button, which sits inside the card now.
+            // Only the text moves: the action button stays against the edge.
+            "[&_[data-content]]:pr-8!",
           // Sonner writes its own colour for these two, so they are set the
           // hard way rather than losing the argument on specificity.
           title: "text-sm font-semibold text-deep-green!",
@@ -61,8 +64,13 @@ export function Toaster(props: ToasterProps) {
             "rounded-full! bg-primary! px-3! py-1.5! text-sm! font-semibold text-ink! hover:bg-light-lime!",
           cancelButton:
             "rounded-full! border! border-line! bg-white! px-3! py-1.5! text-sm! font-semibold text-deep-green! hover:bg-soft-mint!",
+          // Sonner's own close button straddles the top-left corner, which is
+          // where this design puts the coloured rule, and the card clips it
+          // so it cannot be reached at all. It is moved inside the top-right
+          // corner instead, where the padding above leaves room for it.
           closeButton:
-            "rounded-full! border-line! bg-white! text-medium-green! hover:text-deep-green!",
+            "absolute! right-2! top-2! left-auto! translate-none! rounded-full! " +
+            "border! border-line! bg-white! text-medium-green! hover:text-deep-green!",
         },
       }}
       {...props}

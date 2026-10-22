@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { DeskStateBadge } from "@/components/DeskStateBadge";
 import { Button } from "@/components/ui/Button";
-import { ApiError, api } from "@/lib/api";
+import { ApiError } from "@/lib/api";
 import { formatDuration } from "@/lib/format";
 import { useLiveRefresh } from "@/lib/useLiveRefresh";
 import { usePolling } from "@/lib/usePolling";
@@ -19,15 +19,19 @@ interface QueueAnalytics {
   service_rate_per_hour: number;
 }
 
-interface DeskAnalytics {
+interface DeskComparison {
   desk_id: number;
   desk_name: string;
   service_letter: string;
+  service_name: string;
   state: "active" | "paused" | "closed";
+  waiting: number;
   tickets_served_today: number;
+  no_shows_today: number;
   average_service_time_seconds: number | null;
-  utilization_percent: number;
-  last_ticket_age_seconds: number | null;
+  service_samples: number;
+  active_hours_today: number;
+  last_served_seconds_ago: number | null;
 }
 
 interface TrendDay {
@@ -51,7 +55,7 @@ interface TrendsData {
  * part of the console rather than a page of its own.
  */
 export function AnalyticsDashboard() {
-  const [desks, setDesks] = useState<DeskAnalytics[]>([]);
+  const [desks, setDesks] = useState<DeskComparison[]>([]);
 
   const loadQueue = useCallback(async () => {
     const response = await fetch("/api/analytics/queue");
@@ -63,19 +67,15 @@ export function AnalyticsDashboard() {
   const { data: queue, error: queueError, refresh: refreshQueue } = usePolling(loadQueue, 30000);
 
   const loadDesks = useCallback(async () => {
-    const { desks: list } = await api.desks();
-    const rows: DeskAnalytics[] = [];
-    for (const desk of list) {
-      try {
-        const response = await fetch(`/api/analytics/desk/${desk.desk_id}`);
-        if (!response.ok) continue;
-        const json = await response.json();
-        if (json.ok) rows.push(json.data as DeskAnalytics);
-      } catch {
-        // A desk that will not answer is skipped, not allowed to sink the page.
-      }
+    const response = await fetch("/api/analytics/desks");
+    if (!response.ok) {
+      throw new ApiError(response.status, `Request failed (${response.status})`);
     }
-    setDesks(rows);
+    const rows = (await response.json()).data.desks as DeskComparison[];
+    // The server returns them by service and name; the sheet reads best with
+    // the busiest desk first. It is a sort of a figure already on the page,
+    // not a score: two desks are not being called better or worse.
+    setDesks([...rows].sort((a, b) => b.tickets_served_today - a.tickets_served_today));
     return rows;
   }, []);
   const { error: deskError, refresh: refreshDesks } = usePolling(loadDesks, 30000);
@@ -166,14 +166,20 @@ export function AnalyticsDashboard() {
 
       <section className="rounded-2xl bg-white p-5">
         <h2 className="text-lg font-semibold text-deep-green">Desk performance</h2>
-        <p className="mt-1 text-sm text-medium-green">What each counter has done today.</p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <p className="mt-1 text-sm text-medium-green">
+          Every counter side by side, for today.
+        </p>
+        <div className="mt-4 overflow-x-auto">
           {desks.length > 0 ? (
-            desks.map((desk) => <DeskCard key={desk.desk_id} desk={desk} />)
+            <DeskComparisonTable desks={desks} />
           ) : (
             <p className="text-sm text-medium-green">No desk data available.</p>
           )}
         </div>
+        <p className="mt-3 text-xs text-medium-green">
+          Sorted by tickets served today. Waiting is counted for the whole service, which its
+          desks share, so the same figure can appear at two counters. Nothing here is scored.
+        </p>
       </section>
 
       <section className="rounded-2xl bg-white p-5">
@@ -259,52 +265,83 @@ function Tile({
   );
 }
 
-function DeskCard({ desk }: { desk: DeskAnalytics }) {
+function DeskComparisonTable({ desks }: { desks: DeskComparison[] }) {
   return (
-    <div className="rounded-xl border border-line bg-soft-mint/40 p-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-deep-green text-xs font-bold text-light-lime">
-            {desk.service_letter}
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-deep-green">{desk.desk_name}</p>
-            <p className="text-xs text-medium-green">Desk #{desk.desk_id}</p>
-          </div>
-        </div>
-        <DeskStateBadge state={desk.state} />
-      </div>
-      <dl className="mt-3 grid grid-cols-2 gap-2">
-        <div className="rounded-lg bg-white px-3 py-2">
-          <dt className="text-xs text-medium-green">Served today</dt>
-          <dd className="mt-0.5 text-base font-semibold tabular-nums text-deep-green">
-            {desk.tickets_served_today}
-          </dd>
-        </div>
-        <div className="rounded-lg bg-white px-3 py-2">
-          <dt className="text-xs text-medium-green">Utilization</dt>
-          <dd className="mt-0.5 text-base font-semibold tabular-nums text-deep-green">
-            {desk.utilization_percent.toFixed(0)}%
-          </dd>
-        </div>
-        <div className="rounded-lg bg-white px-3 py-2">
-          <dt className="text-xs text-medium-green">Average service</dt>
-          <dd className="mt-0.5 text-sm font-semibold tabular-nums text-deep-green">
-            {desk.average_service_time_seconds != null
-              ? formatDuration(desk.average_service_time_seconds)
-              : "—"}
-          </dd>
-        </div>
-        <div className="rounded-lg bg-white px-3 py-2">
-          <dt className="text-xs text-medium-green">Last ticket</dt>
-          <dd className="mt-0.5 text-sm font-semibold tabular-nums text-deep-green">
-            {desk.last_ticket_age_seconds != null
-              ? `${formatDuration(desk.last_ticket_age_seconds)} ago`
-              : "Never"}
-          </dd>
-        </div>
-      </dl>
-    </div>
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="border-b border-line bg-soft-mint text-medium-green">
+          <th scope="col" className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">
+            Desk
+          </th>
+          <th scope="col" className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">
+            State
+          </th>
+          <th scope="col" className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide">
+            Served today
+          </th>
+          <th scope="col" className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide">
+            No-shows
+          </th>
+          <th scope="col" className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide">
+            Waiting
+          </th>
+          <th scope="col" className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide">
+            Recent average
+          </th>
+          <th scope="col" className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide">
+            Hours with work
+          </th>
+          <th scope="col" className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide">
+            Last served
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {desks.map((desk) => (
+          <tr key={desk.desk_id} className="border-b border-line last:border-b-0 hover:bg-soft-mint/60">
+            <th scope="row" className="px-4 py-2.5 text-left font-normal">
+              <span className="flex items-center gap-3">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-deep-green text-xs font-bold text-light-lime">
+                  {desk.service_letter}
+                </span>
+                <span className="min-w-0">
+                  <span className="block font-semibold text-deep-green">{desk.desk_name}</span>
+                  <span className="block text-xs text-medium-green">{desk.service_name}</span>
+                </span>
+              </span>
+            </th>
+            <td className="px-4 py-2.5">
+              <DeskStateBadge state={desk.state} />
+            </td>
+            <td className="px-4 py-2.5 text-right tabular-nums text-deep-green">
+              {desk.tickets_served_today}
+            </td>
+            <td className="px-4 py-2.5 text-right tabular-nums text-deep-green">
+              {desk.no_shows_today}
+            </td>
+            <td className="px-4 py-2.5 text-right tabular-nums text-deep-green">{desk.waiting}</td>
+            <td className="px-4 py-2.5 text-right tabular-nums text-deep-green">
+              {desk.average_service_time_seconds != null
+                ? formatDuration(desk.average_service_time_seconds)
+                : "—"}
+              {desk.service_samples > 0 && (
+                <span className="block text-xs font-normal text-medium-green">
+                  {desk.service_samples} {desk.service_samples === 1 ? "visit" : "visits"}
+                </span>
+              )}
+            </td>
+            <td className="px-4 py-2.5 text-right tabular-nums text-deep-green">
+              {desk.active_hours_today > 0 ? `${desk.active_hours_today} h` : "—"}
+            </td>
+            <td className="px-4 py-2.5 text-right tabular-nums text-medium-green">
+              {desk.last_served_seconds_ago != null
+                ? `${formatDuration(desk.last_served_seconds_ago)} ago`
+                : "Never"}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 

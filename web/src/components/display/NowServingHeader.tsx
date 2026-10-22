@@ -1,10 +1,10 @@
-import { WaitingSummary } from "./WaitingSummary";
+import { ChevronRight, Users } from "lucide-react";
 
 /**
- * "Now serving", with the total waiting beside it.
+ * "Now serving" - clean header without waiting count.
  *
- * The heading is the first thing read from across the room; the summary is the
- * second. Both sit on one line on a television and stack on a phone.
+ * The heading is the first thing read from across the room.
+ * Simplified to remove the waiting count as requested.
  */
 export function NowServingHeader({ waiting }: { waiting: number }) {
   return (
@@ -13,7 +13,10 @@ export function NowServingHeader({ waiting }: { waiting: number }) {
         <p className="myturn-display-welcome">Welcome. Please watch for your number.</p>
         <h1 className="myturn-display-title">Now serving</h1>
       </div>
-      <WaitingSummary waiting={waiting} />
+      <div className="myturn-display-total">
+        <Users size={26} aria-hidden="true" />
+        <ChevronRight className="myturn-display-total-chevron" size={24} aria-hidden="true" />
+      </div>
     </div>
   );
 }

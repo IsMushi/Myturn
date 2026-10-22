@@ -612,6 +612,115 @@ def set_active(user_id):
     return jsonify(user_id=user_id, is_active=wanted)
 
 
+@bp.delete("/api/auth/users/<int:user_id>")
+@role_required("admin")
+@csrf_required
+def delete_user(user_id):
+    """Permanently remove another account, not its queue or audit history."""
+    conn = get_db()
+    conn.execute("begin immediate")
+    try:
+        row = conn.execute("select * from users where user_id = ?", (user_id,)).fetchone()
+        if row is None:
+            return jsonify(error="unknown account"), 404
+        actor = current_user()
+        if row["user_id"] == actor["user_id"]:
+            return jsonify(error="you cannot delete your own account"), 400
+        data = request.get_json(silent=True) or {}
+        if not isinstance(data, dict) or str(data.get("confirm_email") or "").strip().casefold() != row["email"].casefold():
+            return jsonify(error="confirm the account email address before deleting"), 400
+        if row["role"] == "admin" and row["is_active"]:
+            remaining = conn.execute(
+                "select count(*) as c from users "
+                "where role = 'admin' and is_active = 1 and user_id <> ?", (user_id,)
+            ).fetchone()["c"]
+            if remaining == 0:
+                return jsonify(error="this is the last administrator, make another one first"), 400
+
+        # Password reset tokens cascade; account and queue event histories use
+        # email/actor text rather than a foreign key, so the audit trail remains.
+        conn.execute("delete from users where user_id = ?", (user_id,))
+        log_account_event(conn, "account deleted", row["email"], actor["email"])
+        conn.commit()
+        return jsonify(deleted=user_id, email=row["email"])
+    finally:
+        if conn.in_transaction:
+            conn.rollback()
+
+
+@bp.post("/api/auth/users/batch")
+@role_required("admin")
+@csrf_required
+def batch_users():
+    """Apply one action to a verified selection, or change nothing at all."""
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify(error="provide the selected accounts and an action"), 400
+    action = data.get("action")
+    selected = data.get("accounts")
+    if action not in ("activate", "deactivate", "delete"):
+        return jsonify(error="choose switch on, switch off or delete"), 400
+    if not isinstance(selected, list) or not 1 <= len(selected) <= 500:
+        return jsonify(error="select between 1 and 500 accounts"), 400
+
+    # The email is part of each selection, so a stale table cannot quietly
+    # operate on a different account if its id has changed in the meantime.
+    ids = []
+    for entry in selected:
+        if (not isinstance(entry, dict) or type(entry.get("user_id")) is not int
+                or not isinstance(entry.get("email"), str)):
+            return jsonify(error="each selected account needs an id and email"), 400
+        ids.append(entry["user_id"])
+    if len(set(ids)) != len(ids):
+        return jsonify(error="an account was selected more than once"), 400
+    if action == "delete" and data.get("confirmation") != "DELETE %d" % len(ids):
+        return jsonify(error="confirm the number of accounts to delete"), 400
+
+    conn = get_db()
+    conn.execute("begin immediate")
+    try:
+        actor = current_user()
+        rows = []
+        for entry in selected:
+            row = conn.execute(
+                "select user_id, email, role, is_active from users where user_id = ?",
+                (entry["user_id"],),
+            ).fetchone()
+            if row is None or row["email"].casefold() != entry["email"].strip().casefold():
+                return jsonify(error="the team has changed; refresh and select accounts again"), 409
+            if row["user_id"] == actor["user_id"]:
+                return jsonify(error="you cannot include your own account"), 400
+            rows.append(row)
+
+        if action in ("deactivate", "delete"):
+            removing_admins = sum(row["role"] == "admin" and row["is_active"] for row in rows)
+            active_admins = conn.execute(
+                "select count(*) as c from users where role = 'admin' and is_active = 1"
+            ).fetchone()["c"]
+            if active_admins - removing_admins < 1:
+                return jsonify(error="the last administrator must stay active"), 400
+
+        changed = 0
+        for row in rows:
+            if action == "delete":
+                conn.execute("delete from users where user_id = ?", (row["user_id"],))
+                event = "account deleted"
+            else:
+                wanted = action == "activate"
+                if bool(row["is_active"]) == wanted:
+                    continue
+                conn.execute("update users set is_active = ? where user_id = ?",
+                             (int(wanted), row["user_id"]))
+                event = "switched on" if wanted else "switched off"
+            log_account_event(conn, event, row["email"], actor["email"])
+            changed += 1
+        conn.commit()
+        return jsonify(action=action, selected=len(rows), changed=changed)
+    finally:
+        if conn.in_transaction:
+            conn.rollback()
+
+
 @bp.post("/api/auth/users/<int:user_id>/role")
 @role_required("admin")
 @csrf_required

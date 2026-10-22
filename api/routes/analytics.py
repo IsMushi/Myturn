@@ -15,6 +15,32 @@ from util import local_date, local_sql, now, parse, seconds_since
 bp = Blueprint("analytics", __name__)
 
 
+def _recent_service(conn, desk_id):
+    """The desk's own service time, measured the way the visitor page measures it.
+
+    Called to closed, over its most recent completed tickets, with implausible
+    durations dropped rather than allowed to drag the mean. Returns the mean and
+    how many visits it rests on, so a caller can withhold it honestly.
+    """
+    durations = []
+    for ticket in conn.execute(
+        "select called_at, closed_at from tickets "
+        "where desk_id = ? and status = 'completed' "
+        "and called_at is not null and closed_at is not null "
+        "order by closed_at desc limit 20",
+        (desk_id,),
+    ):
+        called, closed = parse(ticket["called_at"]), parse(ticket["closed_at"])
+        if called is None or closed is None:
+            continue
+        seconds = (closed - called).total_seconds()
+        if 0 <= seconds <= LONGEST_SERVICE_SECONDS:
+            durations.append(seconds)
+    if not durations:
+        return None, 0
+    return int(sum(durations) / len(durations)), len(durations)
+
+
 @bp.route("/api/analytics/queue", methods=["GET"])
 def queue_analytics():
     """Real-time queue metrics for the whole office.
@@ -147,21 +173,7 @@ def desk_analytics(desk_id):
 
     # This desk's own service time, measured the same way the visitor page
     # measures it: called to closed, over its most recent completed tickets.
-    durations = []
-    for ticket in conn.execute(
-        "select called_at, closed_at from tickets "
-        "where desk_id = ? and status = 'completed' "
-        "and called_at is not null and closed_at is not null "
-        "order by closed_at desc limit 20",
-        (desk_id,),
-    ):
-        called, closed = parse(ticket["called_at"]), parse(ticket["closed_at"])
-        if called is None or closed is None:
-            continue
-        seconds = (closed - called).total_seconds()
-        if 0 <= seconds <= LONGEST_SERVICE_SECONDS:
-            durations.append(seconds)
-    avg_service = int(sum(durations) / len(durations)) if durations else None
+    avg_service, service_samples = _recent_service(conn, desk_id)
 
     active_hours = conn.execute(
         "select count(distinct substr(" + local_sql("closed_at") + ", 12, 2)) as c "
@@ -189,10 +201,87 @@ def desk_analytics(desk_id):
             "state": row["state"] or "paused",
             "tickets_served_today": served_today,
             "average_service_time_seconds": avg_service,
+            "service_samples": service_samples,
             "utilization_percent": utilization,
             "last_ticket_age_seconds": int(last_age) if last_age is not None else None,
         },
     )
+
+
+@bp.route("/api/analytics/desks", methods=["GET"])
+def desks_analytics():
+    """Every counter side by side, so two desks can be compared at a glance.
+
+    Each figure is the same measurement the single-desk endpoint makes, read
+    once per desk: served and marked no-show today (the office's day), the
+    numbers waiting for that desk's service (the queue belongs to the service,
+    which its desks share), the recent service time with its sample count, the
+    hours of the day in which it finished a visit, and how long ago it last did.
+
+    Nothing here is scored. Two desks with different loads are not ranked as
+    better or worse; the page may sort by a number it shows.
+    """
+    conn = get_db()
+    today = local_date().isoformat()
+
+    rows = conn.execute(
+        "select d.desk_id, d.name, d.service_id, s.letter, s.name as service_name, "
+        "  (select ds.service_state from desk_settings ds "
+        "     where ds.desk_id = d.desk_id "
+        "     order by ds.setting_id desc limit 1) as state "
+        "from desks d join services s on d.service_id = s.service_id "
+        "order by s.letter, d.name, d.desk_id"
+    ).fetchall()
+
+    desks = []
+    for row in rows:
+        served = conn.execute(
+            "select count(*) as c from tickets where desk_id = ? "
+            "and status = 'completed' "
+            "and substr(" + local_sql("closed_at") + ", 1, 10) = ?",
+            (row["desk_id"], today),
+        ).fetchone()["c"]
+        no_shows = conn.execute(
+            "select count(*) as c from tickets where desk_id = ? "
+            "and status = 'skipped' "
+            "and substr(" + local_sql("closed_at") + ", 1, 10) = ?",
+            (row["desk_id"], today),
+        ).fetchone()["c"]
+        waiting = conn.execute(
+            "select count(*) as c from tickets where service_id = ? "
+            "and status = 'waiting'",
+            (row["service_id"],),
+        ).fetchone()["c"]
+        active_hours = conn.execute(
+            "select count(distinct substr(" + local_sql("closed_at") + ", 12, 2)) as c "
+            "from tickets where desk_id = ? and status = 'completed' "
+            "and substr(" + local_sql("closed_at") + ", 1, 10) = ?",
+            (row["desk_id"], today),
+        ).fetchone()["c"] or 0
+        last_served = conn.execute(
+            "select max(closed_at) as last from tickets "
+            "where desk_id = ? and status = 'completed'",
+            (row["desk_id"],),
+        ).fetchone()["last"]
+        last_age = seconds_since(last_served) if last_served else None
+        average, samples = _recent_service(conn, row["desk_id"])
+
+        desks.append({
+            "desk_id": row["desk_id"],
+            "desk_name": row["name"],
+            "service_letter": row["letter"],
+            "service_name": row["service_name"],
+            "state": row["state"] or "paused",
+            "waiting": waiting,
+            "tickets_served_today": served,
+            "no_shows_today": no_shows,
+            "average_service_time_seconds": average,
+            "service_samples": samples,
+            "active_hours_today": active_hours,
+            "last_served_seconds_ago": int(last_age) if last_age is not None else None,
+        })
+
+    return jsonify(ok=True, timestamp=now(), data={"as_of": today, "desks": desks})
 
 
 @bp.route("/api/analytics/trends", methods=["GET"])

@@ -41,27 +41,36 @@ and can be read straight down. Every block is stamped with the uptime, and the
 log says what the board believes rather than only what it did, so a fault can
 be read off the screen.
 
+There are four kinds of line, and nothing else:
+
+| Line | Written | What it is |
+| --- | --- | --- |
+| `[ ms] report :` | every report cycle | one cycle of the board: what the sensors saw and what the link was doing |
+| `[ ms] event :` | when something changes | one thing that happened: Wi-Fi, the socket, the assignment, a call, a sensor fault |
+| `=== connection ===` | when the connection changes, and every 30 s | the whole connection in one place, for a board that will not connect |
+| `=== MyTurn service desk board ===` | at boot | the board's own identity and its settings |
+
 At boot:
 
 ```
 === MyTurn service desk board ============================
-  board MAC   : 78:1C:3C:F5:A8:7C
-  chip id     : 7CA8F5A8
-  free heap   : 214368 bytes
-  watchdog    : 8000 ms timeout, fed every 2000 ms
-  endpoint    : ws://192.168.137.1:5000/ws/device
-  device key  : 32 characters
-  joining wifi: "MyTurn hotspot"
+  board MAC  : 78:1C:3C:F5:A8:7C
+  chip id    : 7CA8F5A8
+  free heap  : 214368 bytes
+  watchdog   : 8000 ms timeout, fed every 2000 ms (armed)
+  endpoint   : ws://192.168.137.1:5000/ws/device
+  device key : 32 characters
+  wifi ssid  : "MyTurn hotspot"
 ```
 
 Then the connection events, as they happen. These are the lines to read when
 the board will not connect:
 
 ```
-[    1204 ms] ws   : Wi-Fi up: ip 192.168.137.12, rssi -52 dBm, mac 78:1c:3c:f5:a8:7c
-[    1380 ms] ws   : connected, sending hello
-[    1522 ms] ws   : authenticated: desk 1, state active, call none
-[   91004 ms] ws   : disconnected (code 1008), retrying in 2000 ms
+[    1204 ms] event : Wi-Fi up: ip 192.168.137.12, rssi -52 dBm, mac 78:1c:3c:f5:a8:7c
+[    1380 ms] event : connected, sending hello
+[    1522 ms] event : authenticated: desk 1, state active, call none
+[   91004 ms] event : disconnected (code 1008), retrying in 2000 ms
 ```
 
 The close code is the server's: **1008** means the board was refused (a wrong
@@ -69,16 +78,17 @@ device key), **1001** means the board itself reconnected. The board never
 prints the key, only its length, so a key that was pasted short is visible
 without putting the secret in the log.
 
-Every five seconds the readings and the link, in the same list form:
+Every report cycle, the readings and the link in one block with one stamp. The
+sensors and the link belong to the same cycle, so they are printed together:
+what the board saw at the counter, and what it was doing about it.
 
 ```
-[    4658 ms] data :
+[    4658 ms] report :
   distance   : 25.2 cm
   raw        : 51.1 cm
   occupied   : yes
   pir        : warmup
   led        : red
-[    4658 ms] link :
   wifi       : up    ip 192.168.137.172  rssi -43 dBm
   ws         : acked
   desk       : 1
@@ -86,6 +96,11 @@ Every five seconds the readings and the link, in the same list form:
   call       : none
   seq        : 2
 ```
+
+`distance` is the median of the last five samples and `raw` is the last single
+sample, so the two together show whether the counter is quiet or in motion.
+`distance: no object` is the sensor's own "nothing within 400 cm" answer, and
+`distance: warming up` means there are not enough samples yet.
 
 And the whole connection in one block, printed when it changes and every
 30 seconds otherwise:
@@ -115,6 +130,9 @@ And the whole connection in one block, printed when it changes and every
   database can be compared without trusting the board's clock.
 - `pir: warmup` means the PIR is still settling after power-on and is
   reporting nothing; it says `LOW` or `HIGH` once it is ready.
+- `watchdog: ... (armed)` says the task watchdog really was reconfigured. The
+  Arduino core starts it first, so the sketch reconfigures the running one
+  instead of initialising a second one, which the ESP-IDF refuses.
 
 The sensor loop and the network task both write to the log, so every print
 holds a lock: a line is never split by the other task's output.

@@ -12,7 +12,13 @@ from flask import Blueprint, current_app, jsonify, request, session
 from broadcast import signal
 from db import get_db
 from journal import log_event
-from queue_rules import counter_occupied, hold_limit, requeue, sweep_queue
+from queue_rules import (
+    counter_occupied,
+    hold_limit,
+    is_obstruction,
+    requeue,
+    sweep_queue,
+)
 from routes.visitor import desk_state, service_info, service_time, ticket_label
 from security import (
     check_staff_password,
@@ -22,7 +28,7 @@ from security import (
     rate_limit,
     staff_required,
 )
-from util import local_date, local_midnight, local_sql, now, seconds_since
+from util import local_date, local_midnight, local_sql, now, seconds_since, soon
 from sms import notify_called
 
 bp = Blueprint("staff", __name__)
@@ -98,8 +104,8 @@ def _desk_occupied(conn, desk_id):
 def _setting(conn, desk_id):
     """The most recent state this counter was set to, or paused before one."""
     return conn.execute(
-        "select service_state, updated_at, updated_by from desk_settings "
-        "where desk_id = ? order by setting_id desc limit 1",
+        "select service_state, updated_at, updated_by, pause_reason, paused_until "
+        "from desk_settings where desk_id = ? order by setting_id desc limit 1",
         (desk_id,),
     ).fetchone()
 
@@ -130,6 +136,8 @@ def _desk_payload(conn, row):
         "service_letter": row["service_letter"],
         "service_name": row["service_name"],
         "service_state": setting["service_state"] if setting else "paused",
+        "pause_reason": setting["pause_reason"] if setting else None,
+        "paused_until": setting["paused_until"] if setting else None,
         "waiting": waiting,
         "device_online": _device_online(conn, row["desk_id"]),
     }
@@ -166,6 +174,13 @@ def _device_payload(conn, desk_id):
             and approach_age <= current_app.config["APPROACH_WINDOW_SECONDS"]
         )
 
+    # The desk can be told *why* an occupied counter is still callable. Without
+    # this the person at the counter sees red and cannot explain why the call
+    # went through - or why it did not.
+    obstruction = False
+    if report is not None and report["occupied"]:
+        obstruction = is_obstruction(conn, device["device_id"])
+
     return {
         "label": device["label"],
         "chip_id": device["chip_id"],
@@ -177,6 +192,8 @@ def _device_payload(conn, desk_id):
         "led_state": report["led_state"] if report is not None else None,
         "reported_at": report["reported_at"] if report is not None else None,
         "approach": approach,
+        "obstruction": obstruction,
+        "obstruction_seconds": current_app.config["OBSTRUCTION_SECONDS"],
     }
 
 
@@ -450,6 +467,42 @@ def queue():
 # ---------------------------------------------------------------------------
 # calling and deciding
 # ---------------------------------------------------------------------------
+def _clear_expired_call(conn, desk_id):
+    """Put an expired call back in its queue before this desk calls again.
+
+    The caller owns the transaction. Returns a refusal while the desk is still
+    inside a live call, and None when there was no call or it has been requeued.
+    Shared by calling the next number and calling a chosen one, so the two can
+    never disagree about when a call has run out.
+    """
+    called = conn.execute(
+        "select ticket_id, ticket_no, called_at, desk_id from tickets "
+        "where desk_id = ? and status = 'called'",
+        (desk_id,),
+    ).fetchone()
+    if called is None:
+        return None
+
+    limit, shortened, _ = hold_limit(conn, called)
+    waited = seconds_since(called["called_at"])
+    if waited is None or waited < limit:
+        remaining = max(0, round(limit - waited)) if waited is not None else 0
+        return (
+            jsonify(
+                error="this desk is already calling a number",
+                hold_remaining=remaining,
+            ),
+            409,
+        )
+
+    requeue(
+        conn,
+        called,
+        "counter empty; hold ended early" if shortened else "hold time ended",
+    )
+    return None
+
+
 @bp.post("/api/staff/call-next")
 @staff_required
 @csrf_required
@@ -486,32 +539,26 @@ def call_next():
             409,
         )
 
+    # Service rule: a desk cannot call the next ticket if it doesn't have a
+    # current ticket being served. This ensures every desk is serving someone
+    # before taking the next from the queue.
+    current = conn.execute(
+        "select ticket_id, ticket_no, status from tickets "
+        "where desk_id = ? and status = 'called'",
+        (desk_id,),
+    ).fetchone()
+    if current is None:
+        return (
+            jsonify(error="this desk has no current ticket; call first"),
+            409,
+        )
+
     conn.execute("begin immediate")
     try:
-        called = conn.execute(
-            "select ticket_id, ticket_no, called_at, desk_id from tickets "
-            "where desk_id = ? and status = 'called'",
-            (desk_id,),
-        ).fetchone()
-
-        if called is not None:
-            limit, shortened, _ = hold_limit(conn, called)
-            waited = seconds_since(called["called_at"])
-            if waited is None or waited < limit:
-                remaining = max(0, round(limit - waited)) if waited is not None else 0
-                conn.execute("rollback")
-                return (
-                    jsonify(
-                        error="this desk is already calling a number",
-                        hold_remaining=remaining,
-                    ),
-                    409,
-                )
-            requeue(
-                conn,
-                called,
-                "counter empty; hold ended early" if shortened else "hold time ended",
-            )
+        conflict = _clear_expired_call(conn, desk_id)
+        if conflict is not None:
+            conn.execute("rollback")
+            return conflict
 
         nxt = conn.execute(
             "select ticket_id, ticket_no, contact from tickets "
@@ -541,6 +588,178 @@ def call_next():
         ticket_no=nxt["ticket_no"],
         label=label,
         ticket_id=nxt["ticket_id"],
+    )
+
+
+@bp.get("/api/staff/tickets/search")
+@staff_required
+def search_tickets():
+    """Find one of this service's tickets by the number on the visitor's phone.
+
+    A number is only unique inside its service, so the search never crosses
+    into another queue: the desk's own letter is accepted as typed and a number
+    belonging to a different letter returns nothing. The window is today (the
+    office's day) plus anything still waiting from an earlier day, because a
+    ticket nobody has served is still findable. A bare number is read as a
+    prefix, so "12" finds 12, 120 and 121.
+    """
+    conn = get_db()
+    desk_id = _desk_id(conn)
+    if desk_id is None:
+        return jsonify(error="unknown desk"), 404
+    row = _desk_row(conn, desk_id)
+    if row is None:
+        return jsonify(error="unknown desk"), 404
+
+    query = str(request.args.get("q") or "").strip().upper()
+    today = local_date().isoformat()
+    answer = {
+        "query": query,
+        "service": {"id": row["service_letter"], "name": row["service_name"]},
+        "today": today,
+        "tickets": [],
+    }
+
+    letter = ""
+    digits = query
+    if query[:1].isalpha():
+        letter, digits = query[:1], query[1:]
+    if not digits.isdigit() or len(digits) > 6:
+        return jsonify(ok=True, data=answer)
+    if letter and letter != row["service_letter"]:
+        return jsonify(ok=True, data=answer)
+
+    found = conn.execute(
+        "select t.ticket_id, t.ticket_no, t.status, t.created_at, t.called_at, "
+        "       t.closed_at, d.name as desk_name "
+        "from tickets t left join desks d on d.desk_id = t.desk_id "
+        "where t.service_id = ? "
+        "  and (substr(" + local_sql("t.created_at") + ", 1, 10) = ? "
+        "       or t.status = 'waiting') "
+        "  and cast(t.ticket_no as text) like ? "
+        "order by t.ticket_no limit 20",
+        (row["service_id"], today, str(int(digits)) + "%"),
+    ).fetchall()
+
+    answer["tickets"] = [
+        {
+            "ticket_id": ticket["ticket_id"],
+            "ticket_no": ticket["ticket_no"],
+            "label": ticket_label(row["service_letter"], ticket["ticket_no"]),
+            "status": ticket["status"],
+            "created_at": ticket["created_at"],
+            "called_at": ticket["called_at"],
+            "closed_at": ticket["closed_at"],
+            "desk_name": ticket["desk_name"],
+        }
+        for ticket in found
+    ]
+    return jsonify(ok=True, server_time=now(), data=answer)
+
+
+@bp.post("/api/staff/call")
+@staff_required
+@csrf_required
+def call_chosen():
+    """Call a chosen waiting ticket instead of the next one.
+
+    The guards are the same as call-next, because the rules do not depend on
+    how the number was picked: the desk must be open, the counter free, and a
+    desk holds one call at a time. The ticket must be waiting for this desk's
+    service; a number from another queue is refused rather than pulled across.
+    """
+    data = request.get_json(silent=True) or {}
+    try:
+        ticket_id = int(data.get("ticket_id"))
+    except (TypeError, ValueError):
+        return jsonify(error="choose a ticket to call"), 400
+
+    conn = get_db()
+    desk_id = _desk_id(conn)
+    if desk_id is None:
+        return jsonify(error="unknown desk"), 404
+    row = _desk_row(conn, desk_id)
+    if row is None:
+        return jsonify(error="unknown desk"), 404
+
+    state = desk_state(conn, desk_id)
+    if state != "active":
+        return jsonify(error="that desk is %s" % state), 409
+
+    if _desk_occupied(conn, desk_id) is True:
+        return (
+            jsonify(error="the counter is occupied; wait for it to clear"),
+            409,
+        )
+
+    # Service rule: a desk cannot call a ticket if it doesn't have a
+    # current ticket being served. This ensures every desk is serving someone
+    # before taking the next from the queue.
+    current = conn.execute(
+        "select ticket_id, ticket_no, status from tickets "
+        "where desk_id = ? and status = 'called'",
+        (desk_id,),
+    ).fetchone()
+    if current is None:
+        return (
+            jsonify(error="this desk has no current ticket; call first"),
+            409,
+        )
+
+    conn.execute("begin immediate")
+    try:
+        conflict = _clear_expired_call(conn, desk_id)
+        if conflict is not None:
+            conn.execute("rollback")
+            return conflict
+
+        ticket = conn.execute(
+            "select ticket_id, ticket_no, service_id, status, contact from tickets "
+            "where ticket_id = ?",
+            (ticket_id,),
+        ).fetchone()
+        if ticket is None:
+            conn.execute("rollback")
+            return jsonify(error="unknown ticket"), 404
+        if ticket["service_id"] != row["service_id"]:
+            conn.execute("rollback")
+            return jsonify(error="that ticket is for another service"), 409
+
+        words = {
+            "called": "already being called",
+            "completed": "already served",
+            "skipped": "already marked as a no-show",
+            "cancelled": "cancelled",
+        }
+        if ticket["status"] != "waiting":
+            conn.execute("rollback")
+            return (
+                jsonify(
+                    error="that ticket is %s"
+                    % words.get(ticket["status"], ticket["status"]),
+                    status=ticket["status"],
+                ),
+                409,
+            )
+
+        conn.execute(
+            "update tickets set status = 'called', desk_id = ?, called_at = ? "
+            "where ticket_id = ?",
+            (desk_id, now(), ticket_id),
+        )
+        log_event(conn, ticket_id, "called", current_actor())
+        conn.execute("commit")
+    except Exception:
+        conn.execute("rollback")
+        raise
+
+    signal()
+    label = ticket_label(row["service_letter"], ticket["ticket_no"])
+    notify_called(label, row["name"], ticket["contact"])
+    return jsonify(
+        ticket_no=ticket["ticket_no"],
+        label=label,
+        ticket_id=ticket["ticket_id"],
     )
 
 
@@ -721,14 +940,14 @@ def walk_in():
     conn.execute("begin immediate")
     try:
         found = conn.execute(
-            "select value from counters where name = ?", (counter,)
+            "select value from ticket_numbers where name = ?", (counter,)
         ).fetchone()
         if found is None:
-            conn.execute("insert into counters (name, value) values (?, 0)", (counter,))
+            conn.execute("insert into ticket_numbers (name, value) values (?, 0)", (counter,))
             seq = 1
         else:
             seq = found["value"] + 1
-        conn.execute("update counters set value = ? where name = ?", (seq, counter))
+        conn.execute("update ticket_numbers set value = ? where name = ?", (seq, counter))
 
         token = secrets.token_urlsafe(16)
         created = now()
@@ -774,6 +993,27 @@ def set_service():
     if state not in SERVICE_STATES:
         return jsonify(error="unknown desk state"), 400
 
+    # A pause may say why and for how long. Both are the desk's own words: no
+    # reason is guessed from the time of day, and no return time is invented.
+    reason = str(data.get("pause_reason") or "").strip()
+    if len(reason) > 80:
+        return jsonify(error="the reason is longer than 80 characters"), 400
+    minutes = data.get("pause_minutes")
+    if minutes in (None, ""):
+        minutes = None
+    else:
+        try:
+            minutes = int(minutes)
+        except (TypeError, ValueError):
+            return jsonify(error="pause_minutes must be a whole number"), 400
+        if not 5 <= minutes <= 240:
+            return jsonify(error="a pause can last between 5 and 240 minutes"), 400
+    if state != "paused":
+        # Opening or closing clears the note: a return time on an open desk
+        # would be read as an estimate nobody made.
+        reason, minutes = "", None
+    until = soon(minutes * 60) if minutes else None
+
     conn = get_db()
     desk_id = _desk_id(conn)
     if desk_id is None:
@@ -786,8 +1026,9 @@ def set_service():
     try:
         conn.execute(
             "insert into desk_settings "
-            "(desk_id, service_state, updated_at, updated_by) values (?, ?, ?, ?)",
-            (desk_id, state, stamped, actor),
+            "(desk_id, service_state, updated_at, updated_by, pause_reason, "
+            "paused_until) values (?, ?, ?, ?, ?, ?)",
+            (desk_id, state, stamped, actor, reason or None, until),
         )
         conn.execute("commit")
     except Exception:
@@ -799,4 +1040,6 @@ def set_service():
         service_state=state,
         updated_at=stamped,
         updated_by=actor,
+        pause_reason=reason or None,
+        paused_until=until,
     )

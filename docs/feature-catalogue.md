@@ -154,6 +154,11 @@ The rules that make the queue trustworthy. This is the part the report defends.
   New sections join that list as their pages are built.
 * DSK-04 uses the terms the desk actually says: Served, No-show, Cancelled. The
   API keeps the status names `completed`, `skipped`, `cancelled`.
+* DSK-05 lets the person pausing say why and when they expect to be back, in
+  their own words and within 5 to 240 minutes. Both live on the `desk_settings`
+  row, the console repeats them, and opening or closing clears them. Nothing is
+  inferred from the time of day, and a return time that has passed leaves the
+  desk paused: an empty counter must not start calling by itself.
 * DSK-10 shows how long the visitor has been at the counter, next to the same
   measured average the visitor page uses, and marks a call that runs past it. The
   page shows the measurement; it does not decide that anything is wrong.
@@ -241,6 +246,10 @@ The rules that make the queue trustworthy. This is the part the report defends.
   window is treated as an obstruction and does not block the desk. A visitor
   who walked up and then stood still brought an approach with them, so they
   are never written off as a bag, and the hold rule is not relaxed at all.
+  The desk is told when this happens: the queue payload carries `obstruction`
+  and `obstruction_seconds`, and the board panel says that calling is not
+  blocked and for how long the object has been still. A rule that silently
+  overrides a red light is a rule nobody can check.
 * IOT-11 matters because the board is the one component that cannot be restarted
   by refreshing a page: a Wi-Fi drop should lose readings, not the service.
 * IOT-05 and IOT-15 are built in software: the board applies the colour and
@@ -304,6 +313,12 @@ The rules that make the queue trustworthy. This is the part the report defends.
   measurements to the service durations, so the report can say whether the desk
   really takes longer when the counter is busy. That is a defensible use of the
   IoT data that never looks at a person.
+* The Queue analytics page sets the desks side by side in one sheet
+  (`GET /api/analytics/desks`): a row per counter with its served and no-show
+  counts for the day, the queue of the service it shares, its recent measured
+  service time with the sample count, the hours in which it did work and when it
+  last served. It sorts by tickets served but computes no score, and waiting is
+  the service's number, so the same figure can appear at two counters.
 
 ## 9. Accessibility and language (ACC)
 
@@ -359,7 +374,7 @@ The rules that make the queue trustworthy. This is the part the report defends.
 | OPS-03 | Reset script that clears the queue but not the accounts | Built | - |
 | OPS-04 | One-command development launcher | Built | - |
 | OPS-05 | Schema applied automatically on every start | Built | - |
-| OPS-06 | API test suite (215 checks) | Built | - |
+| OPS-06 | API test suite (234 checks) | Built | - |
 | OPS-07 | Browser test suite (71 checks) | Built | - |
 | OPS-08 | Report figure capture | Built | - |
 | OPS-09 | The single-worker limit is documented, not discovered | Built | - |

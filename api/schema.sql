@@ -10,7 +10,9 @@
 -- yet. Keeping them out of this file is what lets `create table if not exists`
 -- run first on both a fresh and an existing file.
 
-create table if not exists counters (
+-- The next ticket number for each service, one row per service letter
+-- (ticket:A, ticket:B, ...). Nothing else belongs here.
+create table if not exists ticket_numbers (
     name  text primary key,
     value integer not null default 0
 );
@@ -74,7 +76,11 @@ create table if not exists desk_settings (
     desk_id       integer not null references desks (desk_id),
     service_state text    not null,
     updated_at    text    not null,
-    updated_by    text
+    updated_by    text,
+    -- A pause may say why and until when. Both are written by the person at the
+    -- desk, never inferred; a desk that does not say leaves them empty.
+    pause_reason  text,
+    paused_until  text
 );
 
 create table if not exists devices (

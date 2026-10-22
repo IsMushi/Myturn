@@ -195,7 +195,7 @@ def verify(app, origin, database, key, key2, password):
         assert sql("select distance_cm from device_reports order by report_id desc limit 1")[0][0] == 160
         passed("Duplicate sequence numbers are acknowledged without replaying stale measurements")
 
-        assert http("/api/tickets", {"service": "A"})[0] == 201
+        assert http("/api/tickets", {"service": "A", "contact": "visitor@example.test"})[0] == 201
         status, called = http("/api/staff/call-next", {"desk": 1})
         assert status == 200
         call = receive(ws, lambda frame: frame.get("call_event") == "called")

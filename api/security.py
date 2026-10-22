@@ -55,9 +55,24 @@ def token_digest(token):
 # who is asking
 # ---------------------------------------------------------------------------
 def current_user():
-    """The account behind this session, or None."""
+    """The still-active account behind this session, or None.
+
+    A session cookie holds the sign-in snapshot. Always check the database so
+    deleting, disabling or demoting an account also takes effect for sessions
+    that were already open in other browsers.
+    """
     user = session.get("user")
-    return user if isinstance(user, dict) else None
+    if not isinstance(user, dict) or not isinstance(user.get("user_id"), int):
+        return None
+    row = get_db().execute(
+        "select user_id, full_name, email, role, is_active, created_at, last_login_at "
+        "from users where user_id = ? and is_active = 1", (user["user_id"],)
+    ).fetchone()
+    if row is None:
+        return None
+    fresh = dict(row)
+    fresh["is_active"] = True
+    return fresh
 
 
 def current_actor():

@@ -1,4 +1,4 @@
-"""Non-destructive Playwright checks for the screenshot-matched wall display.
+"""Non-destructive Playwright checks for the office wall display.
 
 Synthetic queue states are intercepted in the browser only. No tickets, desk
 settings or accounts are created/modified. Requires Python Playwright/Chromium.
@@ -82,12 +82,15 @@ def main():
               "server waiting total")
         check(page.locator(".myturn-display-service-count").all_inner_texts() == ["5", "0", "0"],
               "per-service waiting counts")
-        check(page.locator(".myturn-display-waiting-list").count() == 1,
-              "only the service with a queue lists its numbers")
-        check(page.locator(".myturn-display-waiting-chip").all_inner_texts()
+        check(page.locator(".myturn-display-waiting-panel").count() == 1,
+              "one separate waiting panel")
+        check(page.locator(".myturn-display-waiting-group").count() == 1,
+              "waiting panel omits services with no waiting tickets")
+        check(page.locator(".myturn-display-waiting-group").first
+              .locator(".myturn-display-waiting-rows strong").all_inner_texts()
               == ["A001", "A002", "A003", "A004", "A005"],
               "waiting numbers listed in queue order")
-        check(re.fullmatch(r"\d{1,2}:\d{2}", page.locator(".myturn-display-updated").inner_text()) is not None,
+        check(re.fullmatch(r"\d{1,2}:\d{2}:\d{2}", page.locator(".myturn-display-updated").inner_text()) is not None,
               "real clock renders a time")
         check(page.locator(".myturn-display-connection").inner_text() == "Up to date",
               "polling connection label")
@@ -129,7 +132,9 @@ def main():
             page.wait_for_timeout(50)
         check(bool(pending), "loading request remains pending")
         check(page.locator("main").get_attribute("aria-busy") == "true", "skeleton busy state")
-        check(page.locator(".myturn-display-service").count() == 3, "three skeleton cards")
+        check(page.locator(".myturn-display-service").count() == 2, "generic loading cards")
+        check(page.locator(".myturn-display-waiting-panel").count() == 1,
+              "waiting panel has a loading placeholder")
         check(page.get_by_test_id("display-skeleton").get_attribute("aria-hidden") == "true",
               "decorative placeholders hidden from screen readers")
         check(page.locator(".myturn-display-placeholder").first.evaluate(
@@ -162,8 +167,8 @@ def main():
 
         state = deepcopy(REFERENCE_STATE)
         state["services"][0]["now_serving"] = [
-            {"label": "A003", "desk": "Desk 1", "called_at": None},
-            {"label": "A004", "desk": "Desk 4", "called_at": None},
+            {"label": "A003", "desk": "Counter 1", "called_at": None},
+            {"label": "A004", "desk": "Counter 4", "called_at": None},
         ]
         state["services"][2]["service_state"] = "closed"
         # A queue longer than the list is counted, not printed in full.
@@ -174,15 +179,38 @@ def main():
         expect(page.locator(".myturn-display-number")).to_have_count(2)
         check(page.locator(".myturn-display-number").all_inner_texts() == ["A003", "A004"],
               "multiple calls preserve their ticket numbers")
-        check(page.locator(".myturn-display-desk").all_inner_texts() == ["Desk 1", "Desk 4"],
-              "multiple calls preserve their destinations")
-        check(page.locator(".myturn-display-service").nth(1)
-              .locator(".myturn-display-waiting-chip").all_inner_texts()
-              == [f"B{n:03d}" for n in range(1, 9)] + ["+4 more"],
-              "a queue longer than the list is counted, not printed in full")
+        check(page.locator(".myturn-display-desk").all_inner_texts() == ["Counter 1", "Counter 4"],
+               "multiple calls preserve their destinations")
+        check(page.locator(".myturn-display-waiting-group").nth(1)
+              .locator(".myturn-display-waiting-rows strong").all_inner_texts()
+              == [f"B{n:03d}" for n in range(1, 9)]
+              and page.locator(".myturn-display-waiting-group").nth(1)
+              .locator(".myturn-display-waiting-overflow").inner_text() == "+4 more waiting",
+               "a queue longer than the list is counted, not printed in full")
         check(page.get_by_text("This service is closed. Please ask at the counter.").is_visible(),
               "closed-service empty state")
         page.screenshot(path=str(args.output_dir / "display-active.png"), full_page=True)
+        page.close()
+
+        # The seed has three services, but the board must not assume three.
+        state = deepcopy(REFERENCE_STATE)
+        state["services"].extend([
+            {"id": "D", "letter": "D", "name": "Permits", "service_state": "active",
+             "waiting": 1, "waiting_labels": ["D001"], "now_serving": []},
+            {"id": "E", "letter": "E", "name": "Records", "service_state": "active",
+             "waiting": 0, "waiting_labels": [], "now_serving": []},
+        ])
+        state["waiting"] = 6
+        page = mock_page(state)
+        page.goto(f"{args.base_url}/display")
+        expect(page.locator(".myturn-display-service")).to_have_count(5)
+        check(page.locator(".myturn-display-waiting-group").count() == 2,
+              "additional waiting services appear in the panel")
+        check(page.locator(".myturn-display-waiting-group").nth(1)
+              .locator(".myturn-display-waiting-rows strong").inner_text() == "D001",
+              "additional service's next number appears")
+        check(page.evaluate("document.documentElement.scrollWidth <= innerWidth"),
+              "five-service board does not overflow horizontally")
         page.close()
 
         page = mock_page({**REFERENCE_STATE, "services": []})

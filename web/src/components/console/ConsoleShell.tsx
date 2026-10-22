@@ -63,7 +63,7 @@ const GROUPS: NavGroup[] = [
     title: "Administration",
     adminOnly: true,
     items: [
-      { href: "/admin/dashboard", label: "Team & invitations", icon: Users },
+      { href: "/admin/team", label: "Team & invitations", icon: Users },
       { href: "/admin/activity", label: "Activity", icon: ScrollText },
       { href: "/admin/statistics", label: "Statistics", icon: ChartColumn },
       { href: "/admin/settings", label: "Desk settings", icon: Settings2 },
@@ -118,7 +118,7 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
   }
 
   function renderLink(item: NavItem, onNavigate?: () => void) {
-    const active = pathname === item.href;
+    const active = pathname === item.href || (item.href === "/admin/team" && pathname === "/admin/dashboard");
     const Icon = item.icon;
     return (
       <li key={item.href}>

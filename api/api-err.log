@@ -1,0 +1,53 @@
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.30.50.32:5000
+Press CTRL+C to quit
+127.0.0.1 - - [22/Oct/2026 15:04:26] "GET /api/public/state HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:28] "GET /api/staff/queue?desk=1&days=7 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:28] "GET /api/staff/desks HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:31] "GET /api/events HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:31] "GET /api/events HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:31] "GET /api/events HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:31] "GET /api/staff/desks HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:31] "GET /api/staff/queue?desk=1&days=7 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:32] "GET /api/staff/desks HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:32] "GET /api/staff/queue?desk=1&days=7 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:38] "GET /api/staff/desks HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:38] "GET /api/staff/queue?desk=1&days=7 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:39] "POST /api/staff/login HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:39] "GET /api/staff/queue HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:39] "POST /api/staff/service HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:39] "POST /api/staff/call-next HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:39] "GET /api/staff/desks HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:39] "GET /api/staff/queue?desk=1&days=7 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:39] "GET /api/staff/queue?desk=1&days=7 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:39] "GET /api/staff/desks HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:40] "GET /api/staff/desks HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:40] "GET /api/staff/queue?desk=1&days=7 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:40] "GET /api/staff/desks HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:40] "GET /api/staff/queue?desk=1&days=7 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:42] "GET /api/staff/desks HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:42] "GET /api/staff/queue?desk=1&days=7 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:45] "GET /api/staff/queue?desk=1&days=7 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:45] "GET /api/staff/desks HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:50] "GET /api/staff/queue?desk=1&days=7 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:50] "GET /api/staff/desks HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:51] "GET /api/health HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:55] "GET /api/staff/desks HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:55] "GET /api/staff/queue?desk=1&days=7 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:04:59] "GET /api/health HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:05:00] "GET /api/staff/desks HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:05:00] "GET /api/staff/queue?desk=1&days=7 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:05:05] "GET /api/staff/desks HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:05:05] "GET /api/staff/queue?desk=1&days=7 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:05:10] "GET /api/staff/desks HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:05:10] "GET /api/staff/queue?desk=1&days=7 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:05:15] "GET /api/staff/desks HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:05:15] "GET /api/staff/queue?desk=1&days=7 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:05:19] "GET /api/staff/desks HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:05:19] "GET /api/staff/queue?desk=1&days=7 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:05:20] "GET /api/staff/desks HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:05:20] "GET /api/staff/queue?desk=1&days=7 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:05:25] "GET /api/staff/desks HTTP/1.1" 200 -
+127.0.0.1 - - [22/Oct/2026 15:05:25] "GET /api/staff/queue?desk=1&days=7 HTTP/1.1" 200 -

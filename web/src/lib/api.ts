@@ -19,8 +19,16 @@ import type {
   StaffQueue,
   Stats,
   TicketCreated,
+  TicketSearch,
   TicketState,
 } from "./types";
+
+/**
+ * Where the browser keeps its own random visitor id. It is not an account and
+ * carries nothing about the person: it only lets the server recognise that the
+ * same browser has already taken a ticket.
+ */
+const VISITOR_ID_KEY = "myturn.visitor.id";
 
 export class ApiError extends Error {
   status: number;
@@ -46,7 +54,7 @@ export function setCsrfToken(token: string | null) {
   csrfToken = token;
 }
 
-type Method = "GET" | "POST";
+type Method = "GET" | "POST" | "DELETE";
 
 async function request<T>(
   path: string,
@@ -86,9 +94,30 @@ export const api = {
   /** The services this office offers, each with its own queue. */
   services: () => request<ServicesListing>("/api/services"),
 
-  /** Generate a simple browser fingerprint for duplicate detection (VIS-10, QUE-19). */
+  /**
+   * A per-browser visitor id, used only to recognise a repeat tap (VIS-10,
+   * QUE-19).
+   *
+   * It is random and kept on the device rather than derived from the hardware.
+   * A user-agent hash is shared by two people holding the same phone model,
+   * which would hand one visitor the other's ticket; a random id cannot. A
+   * browser that refuses storage falls back to the hash, which only groups a
+   * repeat tap and is never worse than not asking at all.
+   */
   _getBrowserFingerprint(): string {
     if (typeof window === "undefined") return "";
+    try {
+      const saved = window.localStorage.getItem(VISITOR_ID_KEY);
+      if (saved) return saved;
+      const id =
+        typeof window.crypto?.randomUUID === "function"
+          ? window.crypto.randomUUID().replace(/-/g, "").slice(0, 24)
+          : Math.random().toString(36).slice(2) + Date.now().toString(36);
+      window.localStorage.setItem(VISITOR_ID_KEY, id);
+      return id;
+    } catch {
+      // Storage refused: fall through to the hash below.
+    }
     const parts = [
       navigator.userAgent || "",
       navigator.language || "",
@@ -232,6 +261,21 @@ export const api = {
       body: { is_active: isActive },
     }),
 
+  deleteAccount: (userId: number, confirmEmail: string) =>
+    request<{ deleted: number; email: string }>(`/api/auth/users/${userId}`, {
+      method: "DELETE",
+      body: { confirm_email: confirmEmail },
+    }),
+
+  batchAccounts: (
+    action: "activate" | "deactivate" | "delete",
+    accounts: Pick<Account, "user_id" | "email">[],
+    confirmation?: string,
+  ) => request<{ action: string; selected: number; changed: number }>("/api/auth/users/batch", {
+    method: "POST",
+    body: { action, accounts, ...(confirmation ? { confirmation } : {}) },
+  }),
+
   /**
    * Hands administrator rights out, or takes them back.
    *
@@ -343,6 +387,24 @@ export const api = {
       body: { desk: deskId },
     }),
 
+  /**
+   * Find one of this service's tickets by number. A bare number matches as a
+   * prefix; the letter is accepted and must be the desk's own.
+   */
+  searchTickets: (deskId: number, query: string) => {
+    const params = new URLSearchParams({ desk: String(deskId), q: query });
+    // The route wraps its answer in `data`; the caller wants the answer itself.
+    return request<{ data: TicketSearch }>(`/api/staff/tickets/search?${params.toString()}`)
+      .then((result) => result.data);
+  },
+
+  /** Call a chosen waiting ticket, under the same rules as call-next. */
+  callTicket: (deskId: number, ticketId: number) =>
+    request<{ ticket_no: number; label: string; ticket_id: number }>("/api/staff/call", {
+      method: "POST",
+      body: { desk: deskId, ticket_id: ticketId },
+    }),
+
   ticketAction: (ticketId: number, action: StaffAction) =>
     request<{ ticket_no: number; status: string }>(`/api/staff/tickets/${ticketId}/action`, {
       method: "POST",
@@ -368,10 +430,29 @@ export const api = {
       { method: "POST", body: { desk: deskId } },
     ),
 
-  /** Opens, pauses or closes one counter. */
-  setService: (deskId: number, serviceState: ServiceState) =>
-    request<{ service_state: ServiceState }>("/api/staff/service", {
+  /**
+   * Opens, pauses or closes one counter.
+   *
+   * A pause may carry the desk's own note and how long it expects to be away.
+   * Nothing is filled in on the desk's behalf: an empty note and no return
+   * time are both valid, and neither is replaced by a guess.
+   */
+  setService: (
+    deskId: number,
+    serviceState: ServiceState,
+    options: { pauseReason?: string; pauseMinutes?: number } = {},
+  ) =>
+    request<{
+      service_state: ServiceState;
+      pause_reason: string | null;
+      paused_until: string | null;
+    }>("/api/staff/service", {
       method: "POST",
-      body: { service_state: serviceState, desk: deskId },
+      body: {
+        service_state: serviceState,
+        desk: deskId,
+        pause_reason: serviceState === "paused" ? (options.pauseReason ?? "") : "",
+        pause_minutes: serviceState === "paused" ? (options.pauseMinutes ?? null) : null,
+      },
     }),
 };

@@ -1,4 +1,5 @@
 #include "Indicators.h"
+#include "Api.h"
 #include "config.h"
 
 namespace Indicators {
@@ -90,8 +91,8 @@ void announceCall(long id, const String &type, long age) {
   if (id <= 0 || id == lastCallId) return;
   lastCallId = id;
   if (age < 0 || age > BEEP_MAX_AGE_S) return;   // stale news after a reconnect
-  if (type == "recalled") { beep(2); Serial.println("recall: two beeps"); }
-  else if (type == "called") { beep(1); Serial.println("call: one beep"); }
+  if (type == "recalled") { beep(2); Net::logEvent("recall: two beeps"); }
+  else if (type == "called") { beep(1); Net::logEvent("call: one beep"); }
 }
 
 void runStartupSequence() {

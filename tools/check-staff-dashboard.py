@@ -300,7 +300,7 @@ def verify(args, origin, password, device_key):
             expect(connection_toast).to_contain_text("Queue updates are interrupted")
             expect(connection_toast).to_have_count(1)
             expect(page.locator(".staff-workspace > .staff-connection-notice")).to_have_count(0)
-            expect(page.locator(".staff-freshness").get_by_role("status")).to_have_text("Offline")
+            expect(page.get_by_test_id("staff-connection-state")).to_have_text("Offline")
             passed("A single connection toast replaces the banner while the compact Offline indicator remains")
             expect(page.get_by_role("button", name="Served", exact=True)).to_be_disabled()
             expect(page.get_by_role("button", name="Give a walk-in a ticket", exact=True)).to_be_disabled()
@@ -336,7 +336,7 @@ def verify(args, origin, password, device_key):
             page.get_by_role("button", name="Refresh queue", exact=True).click()
             expect(page.get_by_role("button", name="Served", exact=True)).to_be_enabled()
             expect(connection_toast).to_have_count(0)
-            expect(page.locator(".staff-freshness").get_by_role("status")).not_to_have_text("Offline")
+            expect(page.get_by_test_id("staff-connection-state")).to_have_count(0)
             passed("A successful reconnect restores queue actions")
 
             mode["hold_queue"] = True
@@ -376,8 +376,16 @@ def verify(args, origin, password, device_key):
             expect(page.get_by_role("button", name="Call next", exact=True)).to_be_enabled()
             passed("An in-flight mutation locks repeated shortcuts and desk switching")
             page.get_by_role("button", name="Pause", exact=True).click()
+            # Pausing asks why and for how long, so the dialog is confirmed
+            # rather than dismissed by a stray click.
+            pause_dialog = page.get_by_role("dialog", name="Pause this desk")
+            expect(pause_dialog).to_be_visible()
+            pause_dialog.get_by_label("Reason (optional)").fill("On a break")
+            pause_dialog.get_by_role("button", name="Pause desk").click()
+            expect(pause_dialog).to_have_count(0)
             expect(page.get_by_role("button", name="Call next", exact=True)).to_be_disabled()
             expect(page.get_by_role("button", name="Give a walk-in a ticket", exact=True)).to_be_enabled()
+            expect(page.get_by_text("On a break.", exact=False)).to_be_visible()
             page.get_by_role("button", name="Close", exact=True).click()
             expect(page.get_by_role("button", name="Give a walk-in a ticket", exact=True)).to_be_disabled()
             page.get_by_role("button", name="Open", exact=True).click()

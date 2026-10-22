@@ -35,8 +35,8 @@ def show(path, title):
         ):
             print("  desk %d: %s -> %s (active %s)"
                   % (row["desk_id"], row["name"], row["letter"], row["is_active"]))
-        for row in conn.execute("select * from counters order by name"):
-            print("  counter %s = %s" % (row["name"], row["value"]))
+        for row in conn.execute("select * from ticket_numbers order by name"):
+            print("  number %s = %s" % (row["name"], row["value"]))
         for row in conn.execute(
             "select t.ticket_no, t.status, s.letter, t.desk_id from tickets t "
             "join services s on s.service_id = t.service_id order by t.ticket_no"

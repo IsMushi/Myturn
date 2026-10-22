@@ -15,12 +15,22 @@ export function DeviceStatus({ device, serverNow, stale }: {
   const current = Boolean(device?.online && !stale && reportAge <= READING_FRESH_MS);
   const online = device?.online && !stale;
   const state = stale ? "Unconfirmed" : !device ? "Not connected" : device.online ? "Online" : "Offline";
+  // The obstruction is the one rule where the board and the server disagree on
+  // purpose: the counter reads occupied, but a still object with no approach is
+  // not a visitor and must not stop the desk. Saying so is what makes the rule
+  // checkable instead of mysterious.
+  const obstruction = device?.obstruction
+    ? device.obstruction_seconds && device.obstruction_seconds > 0
+      ? `Yes, after ${Math.round(device.obstruction_seconds / 60)} min still`
+      : "Yes"
+    : "No";
   // The panel says what the board measured, not who it thinks the person is.
   // The PIR cannot tell a visitor from anyone else who happens to walk past,
   // and nothing here is allowed to claim otherwise.
   const message = !device ? "No board is assigned to this desk."
     : !current ? "Current occupancy is unknown. Sensor readings are not fresh."
-      : device.occupied ? "Counter occupied" : device.approach ? "Movement detected" : "Counter free";
+      : device.obstruction ? "Counter occupied by a still object, so calling is not blocked"
+        : device.occupied ? "Counter occupied" : device.approach ? "Movement detected" : "Counter free";
 
   return (
     <section className="staff-device">
@@ -36,6 +46,7 @@ export function DeviceStatus({ device, serverNow, stale }: {
             <Reading label={current ? "Occupancy" : "Last reported occupancy"} value={device.reported_at ? device.occupied ? "Occupied" : "Free" : "Not available"} />
             <Reading label={current ? "Distance" : "Last reported distance"} value={device.distance_cm !== null ? `${device.distance_cm} cm` : "Not available"} />
             <Reading label="Approach" value={current ? device.approach ? "Movement detected" : "None detected" : "Unknown"} />
+            <Reading label="Obstruction" value={current ? obstruction : "Unknown"} />
             <Reading label="Last reported LED" value={device.led_state ?? "Not available"} />
             <Reading label="Last connection" value={device.last_seen ? fullTimestamp(device.last_seen) : "Never"} />
             <Reading label="Board" value={device.label} />

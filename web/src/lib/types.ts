@@ -132,8 +132,8 @@ export interface TicketCreated {
   token: string;
   service_state: ServiceState;
   service: Service;
-  /** The contact the visitor left, if they left one. */
-  contact: string | null;
+  /** The contact the visitor left (required: email OR phone, not both). */
+  contact: string;
   created_at: string;
   /**
    * True when this browser already had a ticket waiting and the server
@@ -156,8 +156,8 @@ export interface TicketState {
   closed_at: string | null;
   /** The counter serving this ticket, when it has been called. */
   desk: string | null;
-  /** The contact the visitor left, if they left one. */
-  contact: string | null;
+  /** The contact the visitor left (required: email OR phone, not both). */
+  contact: string;
   /**
    * The last time the hold rule moved this ticket to the back of the queue.
    * The number above is the new one; this says it changed.
@@ -201,7 +201,27 @@ export interface QueueTicket {
    * A phone number or email the visitor left, so the desk can reach them.
    * Only the desk sees it; the wall display never carries it.
    */
-  contact: string | null;
+  contact: string;
+}
+
+/** One ticket as the desk's search finds it, today or still waiting. */
+export interface TicketSearchResult {
+  ticket_id: number;
+  ticket_no: number;
+  label: string;
+  status: TicketStatus;
+  created_at: string;
+  called_at: string | null;
+  closed_at: string | null;
+  /** The counter holding or serving it; null while it waits. */
+  desk_name: string | null;
+}
+
+export interface TicketSearch {
+  query: string;
+  service: { id: string; name: string };
+  today: string;
+  tickets: TicketSearchResult[];
 }
 
 export interface DeviceInfo {
@@ -215,6 +235,13 @@ export interface DeviceInfo {
   led_state: string | null;
   reported_at: string | null;
   approach: boolean;
+  /**
+   * True when the board reads the counter as occupied but the server is treating
+   * what is there as a still object rather than a visitor, so calling is allowed.
+   */
+  obstruction: boolean;
+  /** How long an object must sit still before the server writes it off. */
+  obstruction_seconds: number | null;
 }
 
 /** One counter, as GET /api/staff/desks reports it. */
@@ -226,6 +253,13 @@ export interface DeskSummary {
   service_letter: string;
   service_name: string;
   service_state: ServiceState;
+  /**
+   * The desk's own words while it is paused: why, and when it expects to be
+   * back. Both are written by the person at the desk, never inferred, and
+   * either may be null.
+   */
+  pause_reason: string | null;
+  paused_until: string | null;
   waiting: number;
   device_online: boolean;
 }

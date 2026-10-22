@@ -34,28 +34,41 @@ def ticket_label(letter, ticket_no):
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
-def clean_contact(value):
+def clean_contact(value, force_required=False):
     """A phone number or an email address the visitor left, or `None`.
 
-    The prototype never sends anything: the desk rings or writes from the
-    dashboard. So the value is optional, and this check only makes sure that
-    what the desk is shown is something the desk can actually use.
+    If `force_required` is True, the contact is mandatory (one method only).
+    Otherwise it's optional (VIS-10, QUE-19).
     """
     text = " ".join(str(value or "").split())
-    if not text:
+    
+    # If contact is not provided and it's not forced, return None (VIS-10, QUE-19)
+    if not text and not force_required:
         return None, None
+        
+    if not text and force_required:
+        return None, "a contact method (email or phone) is required"
     if len(text) > 120:
         return None, "that contact is too long"
 
-    if "@" in text:
+    # Check if both email and phone indicators are present (only one method allowed)
+    has_email = "@" in text
+    digits = re.sub(r"[^0-9]", "", text)
+    has_phone = 7 <= len(digits) <= 15
+    
+    if has_email and has_phone:
+        return None, "enter either an email address or a phone number, not both"
+    
+    if has_email:
         if EMAIL_PATTERN.match(text):
             return text, None
-        return None, "enter a complete email address, or a phone number"
-
-    digits = re.sub(r"[^0-9]", "", text)
-    if 7 <= len(digits) <= 15:
+        return None, "enter a complete email address"
+    elif has_phone:
         return text, None
-    return None, "enter a phone number or an email address"
+    else:
+        if force_required:
+            return None, "enter a valid email address or phone number"
+        return None, "enter a phone number or an email address"
 
 
 def desk_state(conn, desk_id=None):
@@ -255,8 +268,9 @@ def create_ticket():
     # Browser fingerprint for duplicate detection (VIS-10, QUE-19)
     browser_fingerprint = str(data.get("browser_fingerprint") or "")[:64]
 
-    # Optional, and only for the desk: a number or address to reach them on.
-    contact, contact_error = clean_contact(data.get("contact"))
+    # Mandatory: a phone number or email address the visitor must leave (VIS-10, QUE-19)
+    # Only one method allowed: email OR phone, not both
+    contact, contact_error = clean_contact(data.get("contact"), force_required=True)
     if contact_error:
         return jsonify(error=contact_error), 400
 
@@ -304,14 +318,14 @@ def create_ticket():
     conn.execute("begin immediate")
     try:
         found = conn.execute(
-            "select value from counters where name = ?", (counter,)
+            "select value from ticket_numbers where name = ?", (counter,)
         ).fetchone()
         if found is None:
-            conn.execute("insert into counters (name, value) values (?, 0)", (counter,))
+            conn.execute("insert into ticket_numbers (name, value) values (?, 0)", (counter,))
             seq = 1
         else:
             seq = found["value"] + 1
-        conn.execute("update counters set value = ? where name = ?", (seq, counter))
+        conn.execute("update ticket_numbers set value = ? where name = ?", (seq, counter))
         token = secrets.token_urlsafe(16)
         created = now()
         cur = conn.execute(
