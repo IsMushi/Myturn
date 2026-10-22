@@ -96,7 +96,7 @@ export function TicketRequestForm({
                 label="Phone or email (required)"
                 id="ticket-contact"
                 hint="Enter either your phone number or email address, but not both. So the desk can reach you when your number is called."
-                error={!contact && "This is required"}
+                error={!contact ? "This is required" : undefined}
               >
                 <TextInput
                   id="ticket-contact"

@@ -342,7 +342,7 @@ function Administration({ session }: { session: Extract<SessionState, { status: 
           Switch an account off to block access without deleting it. Deleting an account is permanent;
           its activity history remains. You cannot delete yourself or remove the last administrator.
         </p>
-        {error && <p className="mt-2 text-sm text-rose-700">{error.message}</p>}
+        {error && <p className="mt-2 text-sm text-danger">{error.message}</p>}
         {!data && !error && <p className="mt-2 text-sm text-medium-green">Loading accounts…</p>}
 
         {data && (
@@ -353,7 +353,7 @@ function Administration({ session }: { session: Extract<SessionState, { status: 
               <Button type="button" variant="quiet" disabled={bulkBusy} onClick={() => void applyBulk("activate")}>Switch on</Button>
               <Button type="button" variant="quiet" disabled={bulkBusy} onClick={() => void applyBulk("deactivate")}>Switch off</Button>
               <button type="button" disabled={bulkBusy} onClick={() => { setBulkConfirm(""); setBulkError(null); setBulkOpen(true); }}
-                className="rounded-full border border-rose-200 bg-white px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50">
+                className="rounded-full border border-danger-line bg-white px-4 py-2.5 text-sm font-semibold text-danger hover:bg-danger-soft disabled:opacity-50">
                 Delete selected
               </button>
               <Button type="button" variant="ghost" disabled={bulkBusy} onClick={() => setSelectedIds([])}>Clear</Button>
@@ -396,7 +396,7 @@ function Administration({ session }: { session: Extract<SessionState, { status: 
                     </td>
                     <td className="py-3 pr-4 text-medium-green">{relative(user.last_login_at)}</td>
                     <td className="py-3 pr-4">
-                      <span className={user.is_active ? "text-medium-green" : "text-rose-700"}>
+                      <span className={user.is_active ? "text-medium-green" : "text-danger"}>
                         {user.is_active ? "in use" : "switched off"}
                       </span>
                     </td>
@@ -422,7 +422,7 @@ function Administration({ session }: { session: Extract<SessionState, { status: 
                             </button>
                             <div className="my-1 border-t border-line" />
                             <button type="button" onClick={() => { setOpenMenu(null); setDeleting(user); setConfirmEmail(""); setDeleteError(null); }}
-                              className="block w-full rounded-lg px-3 py-2 text-left text-sm text-rose-700 hover:bg-rose-50">
+                              className="block w-full rounded-lg px-3 py-2 text-left text-sm text-danger hover:bg-danger-soft">
                               Delete account
                             </button>
                           </PopoverContent>
@@ -488,7 +488,7 @@ function Administration({ session }: { session: Extract<SessionState, { status: 
               <Button type="button" variant="quiet" disabled={deletingBusy}
                 onClick={() => { setDeleting(null); setConfirmEmail(""); setDeleteError(null); }}>Cancel</Button>
               <button type="submit" disabled={deletingBusy || confirmEmail.trim().toLowerCase() !== deleting?.email.toLowerCase()}
-                className="inline-flex items-center justify-center rounded-full bg-rose-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700">
+                className="inline-flex items-center justify-center rounded-full bg-danger px-4 py-2.5 text-sm font-semibold text-white hover:bg-danger-strong disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger">
                 {deletingBusy ? "Deleting…" : "Delete account"}
               </button>
             </DialogFooter>
@@ -521,7 +521,7 @@ function Administration({ session }: { session: Extract<SessionState, { status: 
             <DialogFooter>
               <Button type="button" variant="quiet" disabled={bulkBusy} onClick={() => { setBulkOpen(false); setBulkConfirm(""); setBulkError(null); }}>Cancel</Button>
               <button type="submit" disabled={bulkBusy || selected.length === 0 || bulkConfirm !== `DELETE ${selected.length}`}
-                className="inline-flex items-center justify-center rounded-full bg-rose-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700">
+                className="inline-flex items-center justify-center rounded-full bg-danger px-4 py-2.5 text-sm font-semibold text-white hover:bg-danger-strong disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger">
                 {bulkBusy ? "Deleting…" : `Delete ${selected.length} ${selected.length === 1 ? "account" : "accounts"}`}
               </button>
             </DialogFooter>

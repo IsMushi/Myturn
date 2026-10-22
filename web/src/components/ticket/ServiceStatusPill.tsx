@@ -58,7 +58,7 @@ function status(service: Service | null, error: PollError | null, loading: boole
     return {
       label: "This service is closed",
       icon: DoorClosed,
-      className: "border-rose-300 bg-rose-50 text-rose-900",
+      className: "border-danger-line bg-danger-soft text-danger",
       spin: false,
     };
   }

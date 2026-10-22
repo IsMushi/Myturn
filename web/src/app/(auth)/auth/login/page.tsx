@@ -4,12 +4,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { LoaderCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 
 import { AuthShell } from "@/components/AuthShell";
 import { Button } from "@/components/ui/Button";
-import { Alert, Field, TextInput } from "@/components/ui/Field";
+import { Field, TextInput } from "@/components/ui/Field";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { api } from "@/lib/api";
 import { focusFirstError } from "@/lib/forms";
@@ -20,7 +20,6 @@ import { loginSchema, type LoginValues } from "@/lib/validation";
 export default function LoginPage() {
   const router = useRouter();
   const next = useQueryParam("next");
-  const [failure, setFailure] = useState<string | null>(null);
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -28,14 +27,15 @@ export default function LoginPage() {
   });
 
   async function submit(values: LoginValues) {
-    setFailure(null);
     try {
       const result = await api.login(values.email, values.password);
       // The server decides where an account belongs: the desk for a staff
       // member, the administration page for an administrator.
       router.replace(safePath(next, result.redirect));
     } catch (e) {
-      setFailure(e instanceof Error ? e.message : "Could not sign in");
+      toast.error(e instanceof Error ? e.message : "Could not sign in", {
+        id: "login-error",
+      });
     }
   }
 
@@ -81,8 +81,6 @@ export default function LoginPage() {
         <Link href="/auth/forgot-password" className="myturn-auth-forgot">
           Forgot password?
         </Link>
-
-        {failure && <Alert tone="error" focus>{failure}</Alert>}
 
         <Button type="submit" size="lg" className="myturn-login-submit w-full" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting && <LoaderCircle size={18} className="motion-safe:animate-spin" aria-hidden="true" />}

@@ -206,14 +206,19 @@ export function DailyAreaChart({
     (RANGES.find((r) => r.days !== null && r.days === range.days && !range.from)
       ?.key as RangeKey) ?? "custom";
 
+  const singleDay = range.days === 1 || (range.from && range.to && range.from === range.to);
+
   const heading = range.from && range.to
-    ? `Tickets for ${range.from} → ${range.to}`
+    ? range.from === range.to
+      ? `Tickets for ${range.from} by hour`
+      : `Tickets for ${range.from} �+' ${range.to}`
     : range.days === 1
-      ? "Tickets for 1 day"
+      ? "Tickets for 1 day by hour"
       : `Tickets for ${range.days} days`;
 
-  // Short labels: with 30 days on a narrower card the full date collides.
+  // Short labels: hours stay as they are, days collapse to day/month.
   const shortDay = (day: string) => {
+    if (singleDay || /^\d{2}:\d{2}$/.test(day)) return day;
     const [, month, date] = day.split("-");
     return `${date}/${month}`;
   };

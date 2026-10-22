@@ -60,6 +60,12 @@
   /* Short names for the two variables that read badly as utilities. */
   --color-ink: #073d35;
   --color-line: #b8d8c7;
+
+  /* The danger colour, and the tints the interface needs from it. */
+  --color-danger: #bc0202;
+  --color-danger-strong: #930101;
+  --color-danger-soft: #fdf1f1;
+  --color-danger-line: #efc4c4;
 }
 
 /* shadcn/ui semantic tokens (Tailwind v4).
@@ -87,7 +93,7 @@
   --accent: #b9f477;
   --accent-foreground: #00594f;
 
-  --destructive: #dc2626;
+  --destructive: #bc0202;
   --destructive-foreground: #ffffff;
 
   --border: #b8d8c7;
@@ -119,7 +125,7 @@
   --accent: #29835d;
   --accent-foreground: #eaf7ef;
 
-  --destructive: #ef4444;
+  --destructive: #bc0202;
   --destructive-foreground: #ffffff;
 
   --border: #29835d;
@@ -166,6 +172,90 @@ body {
   background-color: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-sans);
+}
+
+input, textarea, select, button {
+  font-family: var(--font-sans);
+}
+
+/* A thin line at the top of the window while a page is on its way. It starts
+   on the click, so a slow navigation is acknowledged before the new page can
+   paint, and it is invisible for a navigation that resolves at once. */
+.nav-progress {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 60;
+  height: 3px;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.nav-progress[data-phase="loading"],
+.nav-progress[data-phase="done"] {
+  opacity: 1;
+}
+
+.nav-progress[data-phase="done"] {
+  animation: nav-progress-out 260ms ease 140ms forwards;
+}
+
+.nav-progress-bar {
+  height: 100%;
+  width: 100%;
+  border-radius: 0 999px 999px 0;
+  background: var(--color-primary);
+  box-shadow: 0 0 12px var(--color-primary);
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+.nav-progress[data-phase="loading"] .nav-progress-bar {
+  animation: nav-progress-fill 8s cubic-bezier(0.08, 0.62, 0.2, 1) forwards;
+}
+
+.nav-progress[data-phase="done"] .nav-progress-bar {
+  animation: nav-progress-finish 200ms ease-out forwards;
+}
+
+@keyframes nav-progress-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(0.82);
+  }
+}
+
+@keyframes nav-progress-finish {
+  from {
+    transform: scaleX(0.82);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes nav-progress-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-progress[data-phase="done"] {
+    animation-duration: 1ms;
+  }
+
+  .nav-progress[data-phase="loading"] .nav-progress-bar {
+    animation-duration: 1ms;
+    transform: scaleX(0.82);
+  }
+
+  .nav-progress[data-phase="done"] .nav-progress-bar {
+    animation-duration: 1ms;
+  }
 }
 
 /* Field controls take their radius from `inputClass` / `selectTriggerClass`

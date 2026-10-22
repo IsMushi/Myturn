@@ -15,9 +15,8 @@ type ToasterProps = React.ComponentProps<typeof SonnerToaster>;
  * nor the green of the brand, so they are off and the card is drawn from the
  * page's own tokens instead.
  *
- * What says what kind of message a toast is, then, is the rule down its left
- * edge and the icon beside it — the same device the connection notice on the
- * desk page uses.
+ * What says what kind of message a toast is, then, is the icon and the title
+ * beside it — the same device the connection notice on the desk page uses.
  */
 export function Toaster(props: ToasterProps) {
   return (
@@ -32,7 +31,7 @@ export function Toaster(props: ToasterProps) {
           "--normal-bg": "var(--color-white)",
           "--normal-border": "var(--color-line)",
           "--normal-text": "var(--color-ink)",
-          "--border-radius": "16px",
+          "--border-radius": "12px",
           "--width": "380px",
         } as React.CSSProperties
       }
@@ -41,14 +40,8 @@ export function Toaster(props: ToasterProps) {
           toast:
             "group toast overflow-hidden rounded-2xl border-line bg-white text-ink font-sans " +
             "shadow-[0_10px_28px_-18px_rgba(7,61,53,0.55)]! " +
-            // The rule that says what kind of message this is.
-            "before:absolute before:inset-y-0 before:left-0 before:w-1.5 before:bg-medium-green " +
-            "data-[type=success]:before:bg-medium-green " +
-            "data-[type=error]:before:bg-rose-500 " +
-            "data-[type=warning]:before:bg-amber-500 " +
-            "data-[type=info]:before:bg-deep-green " +
             "[&_[data-icon]]:text-medium-green " +
-            "data-[type=error]:[&_[data-icon]]:text-rose-600 " +
+            "data-[type=error]:[&_[data-icon]]:text-danger " +
             "data-[type=warning]:[&_[data-icon]]:text-amber-600 " +
             "data-[type=info]:[&_[data-icon]]:text-deep-green " +
             // Room for the close button, which sits inside the card now.
@@ -64,13 +57,12 @@ export function Toaster(props: ToasterProps) {
             "rounded-full! bg-primary! px-3! py-1.5! text-sm! font-semibold text-ink! hover:bg-light-lime!",
           cancelButton:
             "rounded-full! border! border-line! bg-white! px-3! py-1.5! text-sm! font-semibold text-deep-green! hover:bg-soft-mint!",
-          // Sonner's own close button straddles the top-left corner, which is
-          // where this design puts the coloured rule, and the card clips it
-          // so it cannot be reached at all. It is moved inside the top-right
-          // corner instead, where the padding above leaves room for it.
+          // Sonner's own close button straddles the top-left corner, and the
+          // card clips it so it cannot be reached at all. It is moved inside
+          // the top-right corner instead, where the padding leaves room for it.
           closeButton:
             "absolute! right-2! top-2! left-auto! translate-none! rounded-full! " +
-            "border! border-line! bg-white! text-medium-green! hover:text-deep-green!",
+            "border-0! bg-white! p-1! text-medium-green! hover:bg-soft-mint! hover:text-deep-green!",
         },
       }}
       {...props}

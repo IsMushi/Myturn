@@ -106,7 +106,7 @@ export function AdminActivity() {
 
       <section className="rounded-2xl bg-white p-5">
         {error && (
-          <p className="text-sm text-rose-700">
+          <p className="text-sm text-danger">
             The history could not be read: {error.message}
           </p>
         )}

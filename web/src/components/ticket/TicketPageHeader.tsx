@@ -29,7 +29,7 @@ const LINK =
  * above, the two ways out below — rather than squeezing four things onto one
  * line and wrapping the words themselves.
  */
-export function TicketPageHeader({ showLanguage = true }: { showLanguage?: boolean }) {
+export function TicketPageHeader({ showLanguage = false }: { showLanguage?: boolean }) {
   const [token] = useTicketToken();
 
   return (

@@ -8,14 +8,14 @@
  * input sitting next to it.
  */
 export const inputClass =
-  "w-full rounded-full border border-line bg-white px-3.5 py-2.5 font-[inherit] text-base text-ink " +
+  "w-full rounded-full border border-line bg-white px-3.5 py-2.5 font-sans text-base text-ink " +
   "placeholder:text-medium-green/60 outline-none transition " +
   "focus:border-medium-green focus:ring-2 focus:ring-primary/40 " +
   // A field that is already marked as wrong does not get the lime accent as
   // well: the red border and the red ring say the same thing, and the two
   // colours together look like a mistake made twice.
-  "aria-[invalid=true]:border-rose-400 " +
-  "aria-[invalid=true]:focus:border-rose-500 aria-[invalid=true]:focus:ring-rose-200";
+  "aria-[invalid=true]:border-danger " +
+  "aria-[invalid=true]:focus:border-danger aria-[invalid=true]:focus:ring-danger/20";
 
 /**
  * The same box, arranged for a button: the value on the left, the chevron on

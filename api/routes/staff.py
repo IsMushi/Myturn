@@ -251,32 +251,64 @@ def _charts(conn, service_id):
 
     described, start, end = _chart_range()
 
-    counted = {
-        row["day"]: row
-        for row in conn.execute(
-            "select substr(" + local_sql("created_at") + ", 1, 10) as day, "
-            "count(*) as issued, "
-            "  sum(case when status = 'completed' then 1 else 0 end) as served "
-            "from tickets where service_id = ? "
-            "  and substr(" + local_sql("created_at") + ", 1, 10) between ? and ? "
-            "group by day",
-            (service_id, start.isoformat(), end.isoformat()),
-        )
-    }
+    single_day = start == end
 
-    per_day = []
-    day = start
-    while day <= end:
-        key = day.isoformat()
-        row = counted.get(key)
-        per_day.append(
-            {
-                "day": key,
-                "issued": row["issued"] if row is not None else 0,
-                "served": (row["served"] or 0) if row is not None else 0,
-            }
-        )
-        day += timedelta(days=1)
+    if single_day:
+        # A single day is shown by the hour, so the person at the desk can see
+        # when the queue was busy instead of one flat bar for the whole day.
+        counted = {
+            row["hour"]: row
+            for row in conn.execute(
+                "select substr(" + local_sql("created_at") + ", 1, 13) as hour, "
+                "count(*) as issued, "
+                "  sum(case when status = 'completed' then 1 else 0 end) as served "
+                "from tickets where service_id = ? "
+                "  and substr(" + local_sql("created_at") + ", 1, 10) = ? "
+                "group by hour",
+                (service_id, start.isoformat()),
+            )
+        }
+        per_day = []
+        for hour in range(24):
+            key = "%s %02d:00" % (start.isoformat(), hour)
+            short = "%02d:00" % hour
+            row = counted.get("%s %02d" % (start.isoformat(), hour))
+            per_day.append(
+                {
+                    "day": short,
+                    "issued": row["issued"] if row is not None else 0,
+                    "served": (row["served"] or 0) if row is not None else 0,
+                }
+            )
+    else:
+        counted = {
+            row["day"]: row
+            for row in conn.execute(
+                "select substr(" + local_sql("created_at") + ", 1, 10) as day, "
+                "count(*) as issued, "
+                "  sum(case when status = 'completed' then 1 else 0 end) as served "
+                "from tickets where service_id = ? "
+                "  and substr(" + local_sql("created_at") + ", 1, 10) between ? and ? "
+                "group by day",
+                (service_id, start.isoformat(), end.isoformat()),
+            )
+        }
+
+        per_day = []
+        day = start
+        while day <= end:
+            key = day.isoformat()
+            row = counted.get(key)
+            per_day.append(
+                {
+                    "day": key,
+                    "issued": row["issued"] if row is not None else 0,
+                    "served": (row["served"] or 0) if row is not None else 0,
+                }
+            )
+            day += timedelta(days=1)
+
+    described["granularity"] = "hour" if single_day else "day"
 
     return {
         "outcomes": {
@@ -539,17 +571,17 @@ def call_next():
             409,
         )
 
-    # Service rule: a desk cannot call the next ticket if it doesn't have a
-    # current ticket being served. This ensures every desk is serving someone
-    # before taking the next from the queue.
+    # A desk may only hold one call at a time, so calling the next is only
+    # possible once the current one has been closed. When nothing is being
+    # called yet, the first waiting ticket becomes the call.
     current = conn.execute(
         "select ticket_id, ticket_no, status from tickets "
         "where desk_id = ? and status = 'called'",
         (desk_id,),
     ).fetchone()
-    if current is None:
+    if current is not None:
         return (
-            jsonify(error="this desk has no current ticket; call first"),
+            jsonify(error="finish the current ticket before calling the next"),
             409,
         )
 

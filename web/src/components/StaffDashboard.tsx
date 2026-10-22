@@ -664,8 +664,7 @@ function DeskBoard({ deskId, desks, onPick }: {
                 <ListOrdered size={22} />
               </div>
               <strong>The queue is empty</strong>
-              <p>Tickets for {data.service.name} will appear here in order as visitors join.</p>
-              <p className="staff-queue-empty-hint">Call the next visitor when one arrives, or give a walk-in a ticket below.</p>
+              <p>No one is waiting for {data.service.name}.</p>
             </div>
           )}
           <div className="staff-walk-in">

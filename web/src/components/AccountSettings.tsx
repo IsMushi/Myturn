@@ -262,7 +262,7 @@ export function AccountSettings() {
         </p>
 
         {work.error ? (
-          <p className="mt-3 text-sm text-rose-700">Your record could not be read: {work.error.message}</p>
+          <p className="mt-3 text-sm text-danger">Your record could not be read: {work.error.message}</p>
         ) : !work.data ? (
           <p className="mt-3 text-sm text-medium-green">Reading your record…</p>
         ) : work.data.entries.length === 0 ? (
@@ -293,7 +293,7 @@ export function AccountSettings() {
         </p>
 
         {history.error ? (
-          <p className="mt-3 text-sm text-rose-700">
+          <p className="mt-3 text-sm text-danger">
             The history could not be read: {history.error.message}
           </p>
         ) : !history.data ? (

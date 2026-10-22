@@ -187,7 +187,7 @@ function bannerTone(status: TicketState["status"]): string {
     case "skipped":
       return "border-amber-300 bg-amber-50 text-amber-900";
     case "cancelled":
-      return "border-rose-300 bg-rose-50 text-rose-900";
+      return "border-danger-line bg-danger-soft text-danger";
     case "completed":
       return "border-line bg-white text-deep-green";
   }
@@ -211,18 +211,18 @@ function TicketUnavailable({
   onForget: () => void;
 }) {
   return (
-    <div className="rounded-3xl border border-rose-200 bg-rose-50 p-6 text-center">
-      <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-white text-rose-700">
+    <div className="rounded-3xl border border-danger-line bg-danger-soft p-6 text-center">
+      <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-white text-danger">
         {missing ? (
           <TicketX className="size-6" aria-hidden="true" />
         ) : (
           <UserRoundX className="size-6" aria-hidden="true" />
         )}
       </span>
-      <h1 className="mt-4 text-xl font-semibold text-rose-900">
+      <h1 className="mt-4 text-xl font-semibold text-danger">
         {missing ? "This ticket is no longer available" : "We could not reach the queue"}
       </h1>
-      <p className="mx-auto mt-2 max-w-md text-sm text-rose-900">
+      <p className="mx-auto mt-2 max-w-md text-sm text-danger">
         {missing
           ? "The ticket has been cleared from the server, or the link is not complete. Please take a fresh ticket at the desk."
           : message}

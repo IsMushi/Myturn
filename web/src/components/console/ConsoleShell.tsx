@@ -112,6 +112,26 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [drawer]);
 
+  const hasAccount = Boolean(signedIn?.user);
+
+  // Bring the sections the person can open up to date ahead of the click, so a
+  // slow connection spends the wait on the first page rather than on every one.
+  useEffect(() => {
+    if (session.status !== "in") return;
+    const hrefs = [
+      DASHBOARD.href,
+      ...GROUPS.filter(
+        (group) => (!group.adminOnly || isAdmin) && (!group.accountsOnly || hasAccount),
+      ).flatMap((group) => group.items.map((item) => item.href)),
+    ];
+    const timer = window.setTimeout(() => {
+      for (const href of hrefs) {
+        if (href !== pathname) router.prefetch(href);
+      }
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [session.status, isAdmin, hasAccount, pathname, router]);
+
   async function signOut() {
     await api.logout();
     router.replace("/auth/login");

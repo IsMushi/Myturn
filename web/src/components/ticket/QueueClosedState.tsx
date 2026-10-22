@@ -25,12 +25,12 @@ export function QueueClosedState({
   checking?: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center">
-      <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-white text-rose-700">
+    <div className="rounded-2xl border border-danger-line bg-danger-soft p-6 text-center">
+      <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-white text-danger">
         <DoorClosed className="size-6" aria-hidden="true" />
       </span>
-      <h2 className="mt-4 text-xl font-semibold text-rose-900">The desk is closed</h2>
-      <p className="mx-auto mt-2 max-w-md text-sm text-rose-900">
+      <h2 className="mt-4 text-xl font-semibold text-danger">The desk is closed</h2>
+      <p className="mx-auto mt-2 max-w-md text-sm text-danger">
         {serviceName ? (
           <>
             {serviceName} is not taking tickets at the moment. Please come back when the desk

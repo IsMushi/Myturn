@@ -34,7 +34,7 @@ export function Field({
       {children}
       {hint && !error && <p className="text-xs text-medium-green">{hint}</p>}
       {error && (
-        <p id={`${id}-error`} role="alert" className="text-xs font-medium text-rose-700">
+        <p id={`${id}-error`} role="alert" className="text-xs font-medium text-danger">
           {error}
         </p>
       )}
@@ -126,7 +126,7 @@ export function Alert({
   }, [focus]);
 
   const tones = {
-    error: "border-rose-200 bg-rose-50 text-rose-800",
+    error: "border-danger-line bg-danger-soft text-danger",
     success: "border-line bg-soft-mint text-deep-green",
     info: "border-line bg-white text-medium-green",
   } as const;

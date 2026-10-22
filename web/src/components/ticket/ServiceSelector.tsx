@@ -72,7 +72,7 @@ export function ServiceSelector({
                       : `${plural(service.waiting, "person", "people")} waiting`}
                   </span>
                   {!service.available && (
-                    <span className="mt-1 block text-sm font-medium text-rose-700">
+                    <span className="mt-1 block text-sm font-medium text-danger">
                       Not taking tickets at the moment
                     </span>
                   )}
