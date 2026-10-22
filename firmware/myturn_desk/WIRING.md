@@ -190,3 +190,8 @@ untriggered and drives the ESP32 output into the sensor's ECHO output.
 - Server (Flask): `app.run(host="0.0.0.0", port=5000)` and allow port 5000 through
   Windows Firewall on the hotspot network. Test from a phone on the hotspot:
   `http://192.168.137.1:5000`.
+- The board joins the PC's **mobile hotspot**, not the office Wi-Fi. If the
+  hotspot is off, the log shows `wifi down` and `retrying Wi-Fi` every ten
+  seconds, with `desk -1` and `seq 0`, and the board cannot reach the API.
+  Bring the hotspot back with `tools\start-hotspot.ps1` from the repository
+  root; it reads the SSID and the passphrase out of `secrets.h`.

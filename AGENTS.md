@@ -33,6 +33,18 @@ The venv's `python.exe` launches the real interpreter as a **child**, and killin
 
 For the web app, kill only Next's node processes - filter `Get-CimInstance Win32_Process -Filter "Name='node.exe'"` on `CommandLine -like '*next*'`. Never kill all `node.exe`.
 
+### The board cannot reach the API: is the hotspot on?
+
+The board joins the **PC's mobile hotspot**, not the office Wi-Fi, and reaches the API at `192.168.137.1` (`API_BASE` in `firmware/myturn_desk/secrets.h`). If the hotspot is switched off the board cannot associate, and the symptom is unmistakable:
+
+- the serial log shows `wifi down`, `ws Wi-Fi disconnected`, `retrying Wi-Fi` every ten seconds, and `desk -1` with `seq 0`, because the board has never been authenticated;
+- the server shows `devices.online: 0` and a `last_seen` from hours ago;
+- **the board is fine and the API is fine** - only the network between them is gone.
+
+Run `powershell -ExecutionPolicy Bypass -File tools\start-hotspot.ps1`; it reads the SSID and passphrase out of `secrets.h` and brings the hotspot up. The board retries every ten seconds and is back within half a minute.
+
+This adapter does **not** support the legacy hosted network (`netsh wlan show drivers` says so), so `netsh wlan start hostednetwork` cannot work - only the Mobile Hotspot API can, and that is what the script calls. If the hotspot comes back on a different subnet, the board will connect to the Wi-Fi and then fail to reach the API, so check the `gateway the board uses` line the script prints against `API_BASE`.
+
 ## Backend (`myturn/api`)
 
 - Flask 3.1 + `python-dotenv`, no ORM and no pytest. Raw `sqlite3` with `Row`; `db.apply_schema()` runs `schema.sql` on every start and every statement is `create ... if not exists`, so new tables need no migration. **The move to several desks needed the one real migration**: the `tickets` table is rebuilt once, because SQLite cannot drop the old global `ticket_no unique` and the number is now unique per service; `desk_settings` and `devices` each gained a `desk_id` column by a guarded `alter table` after a `pragma table_info` check. `devices` also gained `chip_id` / `mac_address` (the board's own identity, reported by the firmware) the same way - `create table if not exists` cannot add a column to a table that already exists, so every one of them needs that guarded `alter table`.
