@@ -106,7 +106,7 @@ readings at all.
 
 | Setting | Where | Value | What it does |
 |---|---|---|---|
-| `MYTURN_APPROACH_WINDOW_SECONDS` | `api/.env` | 10 | How long an approach report still counts as "a visitor is at the counter now" on the dashboard. The stored flag is old news after this |
+| `MYTURN_APPROACH_WINDOW_SECONDS` | `api/.env` | 10 | How long an approach report still counts as "movement at the counter now" on the dashboard. The stored flag is old news after this. It says movement, not a person: the PIR cannot tell a visitor from anyone else who walks past |
 | `MYTURN_HOLD_SECONDS` | `api/.env` | 60 | How long a called number keeps its place. An approach seen since the call keeps the **full** hold, never the shortened one |
 | `MYTURN_MIN_CALL_SECONDS` | `api/config.py` | 25 | The floor the hold may be shortened to. Only reached when the counter is verifiably empty **and** no approach was seen |
 

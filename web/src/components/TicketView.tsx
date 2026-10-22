@@ -115,6 +115,7 @@ export function TicketView({ initialToken }: { initialToken?: string }) {
         service_state: justIssued.service_state,
         service: justIssued.service,
         contact: justIssued.contact,
+        last_requeue: null,
         server_time: justIssued.created_at,
       }
     : null;

@@ -35,6 +35,11 @@
 .staff-workspace .staff-refresh:hover { background: var(--color-soft-mint); }
 .staff-workspace .staff-refresh:active { transform: scale(0.96); }
 .staff-workspace .staff-refresh:focus-visible { outline: 2px solid var(--color-medium-green); outline-offset: 2px; }
+/* The compact connection state. The outage itself is reported by the toast;
+   this chip only says, at a glance, that what is on screen is the last known
+   queue and not the queue as it is now. */
+.staff-connection-state { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; background: #fff6e9; color: #92400e; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.staff-connection-state svg { flex-shrink: 0; }
 .staff-connection-notice { display: flex; align-items: flex-start; gap: 12px; border: 1px solid var(--color-line); border-left: 3px solid var(--color-deep-green); padding: 16px; background: var(--color-white); border-radius: 8px; font-size: 14px; }
 .staff-connection-notice > svg { flex-shrink: 0; margin-top: 2px; }
 .staff-connection-notice > div { flex: 1; }

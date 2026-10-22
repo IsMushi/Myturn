@@ -346,6 +346,30 @@ def create_ticket():
     ), 201
 
 
+def last_requeue(conn, ticket_id):
+    """The most recent time this ticket was sent back to the queue, if ever.
+
+    A repeat visitor keeps the same tracking link, and the number printed on the
+    page changes underneath them when the hold rule fires. This is what the page
+    reads to explain that, instead of silently showing a different number.
+
+    `previous_label` is null for a requeue recorded before the event carried it.
+    """
+    row = conn.execute(
+        "select detail, event_time from ticket_events "
+        "where ticket_id = ? and event_type = 'requeued' "
+        "order by event_id desc limit 1",
+        (ticket_id,),
+    ).fetchone()
+    if row is None:
+        return None
+    found = re.search(r"\(was ([A-Z]+[0-9]+)\)\s*$", row["detail"] or "")
+    return dict(
+        at=row["event_time"],
+        previous_label=found.group(1) if found else None,
+    )
+
+
 def ticket_payload(conn, token):
     """One ticket as a plain dict, or None when the token is not on file.
 
@@ -382,6 +406,7 @@ def ticket_payload(conn, token):
         closed_at=row["closed_at"],
         desk=row["desk_name"],
         contact=row["contact"],
+        last_requeue=last_requeue(conn, row["ticket_id"]),
         service_state=service_state(conn, row["service_id"]),
         service=service_info(conn, service_row),
         server_time=now(),

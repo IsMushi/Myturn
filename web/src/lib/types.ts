@@ -158,9 +158,22 @@ export interface TicketState {
   desk: string | null;
   /** The contact the visitor left, if they left one. */
   contact: string | null;
+  /**
+   * The last time the hold rule moved this ticket to the back of the queue.
+   * The number above is the new one; this says it changed.
+   */
+  last_requeue: TicketRequeue | null;
   service_state: ServiceState;
   service: Service;
   server_time: string;
+}
+
+/** A ticket that missed its call and was given a fresh number. */
+export interface TicketRequeue {
+  /** When the requeue happened. */
+  at: string;
+  /** The number that was given up, when the event recorded it. */
+  previous_label: string | null;
 }
 
 /** What GET /api/public/state returns. */

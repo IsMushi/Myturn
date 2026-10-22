@@ -140,13 +140,14 @@ function LoadError({ error, retry }: { error: PollError; retry: () => Promise<vo
   );
 }
 
-function DeskHeader({ deskId, desks, onPick, refresh, pending, disabled = false }: {
+function DeskHeader({ deskId, desks, onPick, refresh, pending, disabled = false, stale = false }: {
   deskId: number;
   desks: DeskSummary[];
   onPick: (id: number) => void;
   refresh: () => Promise<void>;
   pending: string | null;
   disabled?: boolean;
+  stale?: boolean;
 }) {
   const desk = desks.find((item) => item.desk_id === deskId);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -161,6 +162,14 @@ function DeskHeader({ deskId, desks, onPick, refresh, pending, disabled = false 
       </div>
 
       <div className="staff-header-actions">
+        {/* What is on screen is the last confirmed queue while this is shown. */}
+        {stale && (
+          <span className="staff-connection-state" data-testid="staff-connection-state" role="status">
+            <WifiOff size={13} aria-hidden="true" />
+            Offline
+          </span>
+        )}
+
         <Button variant="ghost" aria-label="Refresh queue" className="staff-refresh" onClick={() => void refresh()}>
           <RotateCw size={18} aria-hidden="true" className={pending ? "animate-spin" : "transition-transform group-hover:rotate-180"} />
         </Button>
@@ -368,7 +377,7 @@ function DeskBoard({ deskId, desks, onPick }: {
 
   return (
     <div className="staff-workspace">
-      <DeskHeader deskId={deskId} desks={desks} onPick={pickDesk} refresh={refresh} pending={pending} disabled={pending !== null} />
+      <DeskHeader deskId={deskId} desks={desks} onPick={pickDesk} refresh={refresh} pending={pending} disabled={pending !== null} stale={stale} />
 
       <div className="staff-desk-toolbar">
         <div className="staff-availability">

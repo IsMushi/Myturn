@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCw, TicketX, UserRoundX } from "lucide-react";
+import { Clock, RefreshCw, TicketX, UserRoundX } from "lucide-react";
 
 import { QueueStatusCard } from "@/components/ticket/QueueStatusCard";
 import { TicketStatusBadge } from "@/components/ticket/TicketStatusBadge";
@@ -108,6 +108,26 @@ export function TicketTrackingStatus({
           <p className="mt-3 text-sm font-semibold">You are next in line.</p>
         )}
       </section>
+
+      {/* A missed call gives the ticket a new number on the same link. Saying
+          so is the difference between an explained queue and a mystery. */}
+      {ticket.last_requeue && !finished && (
+        <section
+          role="status"
+          className="rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-sm text-amber-900"
+        >
+          <h2 className="flex items-center gap-2 font-semibold">
+            <Clock className="size-4" aria-hidden="true" />
+            This ticket was called and missed
+          </h2>
+          <p className="mt-1">
+            {ticket.last_requeue.previous_label
+              ? `We called ${ticket.last_requeue.previous_label} at ${clockTime(ticket.last_requeue.at)} and the turn was not taken in time, so it went to the back of the queue. `
+              : `The turn at ${clockTime(ticket.last_requeue.at)} was not taken in time, so the ticket went to the back of the queue. `}
+            You now hold <strong>{ticket.label}</strong>.
+          </p>
+        </section>
+      )}
 
       <section aria-labelledby="queue-heading">
         <h2 id="queue-heading" className="sr-only">

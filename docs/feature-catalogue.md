@@ -52,7 +52,15 @@ rule, the occupancy-assisted requeue, the waiting estimate - are specified in
 | VIS-20 | Ask the desk a short question from the phone | Designed | M2 |
 | VIS-21 | Clear feedback when a visitor is rate-limited | Partial | M1 |
 | VIS-22 | Give up your place, from the phone | Designed | M1 |
+| VIS-23 | A missed call explains the new number on the same link | Built | - |
 
+* VIS-23 is the visitor's side of the hold rule. The hold rule gives a called
+  ticket a fresh number at the back of its own queue, on the *same* tracking
+  link, so without this the number changes under a visitor who is still looking
+  at the page. The `requeued` event now records the number that was given up,
+  and `GET /api/tickets/<token>` returns it as `last_requeue`; the ticket page
+  shows an amber notice with the old number, the time and the new number, and
+  stops showing it once the desk has finished with the ticket.
 * VIS-22 closes a real gap: a visitor who leaves currently has no way to say so,
   and the desk calls a number that is already at home. Cancelling with the token
   turns a guessed no-show into a stated one.
@@ -351,7 +359,7 @@ The rules that make the queue trustworthy. This is the part the report defends.
 | OPS-03 | Reset script that clears the queue but not the accounts | Built | - |
 | OPS-04 | One-command development launcher | Built | - |
 | OPS-05 | Schema applied automatically on every start | Built | - |
-| OPS-06 | API test suite (91 checks) | Built | - |
+| OPS-06 | API test suite (215 checks) | Built | - |
 | OPS-07 | Browser test suite (71 checks) | Built | - |
 | OPS-08 | Report figure capture | Built | - |
 | OPS-09 | The single-worker limit is documented, not discovered | Built | - |

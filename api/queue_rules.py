@@ -186,12 +186,22 @@ def requeue(conn, called, detail):
     else:
         seq = found["value"] + 1
     conn.execute("update counters set value = ? where name = ?", (seq, counter))
+    # The visitor is looking at the old number while this happens, so the event
+    # says which number was given up as well as which one was issued. The page
+    # reads that back to explain a number that changed under the visitor.
+    previous = "%s%03d" % (row["letter"], called["ticket_no"])
     conn.execute(
         "update tickets set ticket_no = ?, status = 'waiting', called_at = null, "
         "desk_id = null where ticket_id = ?",
         (seq, called["ticket_id"]),
     )
-    log_event(conn, called["ticket_id"], "requeued", "system", detail)
+    log_event(
+        conn,
+        called["ticket_id"],
+        "requeued",
+        "system",
+        "%s (was %s)" % (detail, previous),
+    )
     return seq
 
 

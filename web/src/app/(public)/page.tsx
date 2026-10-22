@@ -29,9 +29,9 @@ const FEATURES = [
 
 const DEVICES = [
   { icon: Ruler, title: "Distance", name: "HC-SR04", body: "Measures the counter distance. Only this sensor determines occupancy." },
-  { icon: Radar, title: "Approach", name: "HC-SR501", body: "Detects movement towards the desk. It does not decide whether the counter is occupied." },
+  { icon: Radar, title: "Approach", name: "HC-SR501", body: "Detects movement near the desk. It does not decide whether the counter is occupied, and it cannot tell a visitor from anyone else who passes by." },
   { icon: Cpu, title: "Connection", name: "ESP32", body: "Sends sensor readings to the API over Wi-Fi and applies the desk's light setting." },
-  { icon: Lightbulb, title: "Desk light", name: "RGB LED", body: "Green when open and free, red when occupied, yellow when paused or closed." },
+  { icon: Lightbulb, title: "Desk light", name: "RGB LED", body: "Green when open and free, red when occupied, yellow when paused or closed, and blue while a number is being called." },
 ];
 
 /**

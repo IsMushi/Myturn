@@ -26,7 +26,9 @@ HOLD_SECONDS = int(os.environ.get("MYTURN_HOLD_SECONDS", "60"))
 # evidence, not authority: both fall back to HOLD_SECONDS without a fresh report.
 MIN_CALL_SECONDS = int(os.environ.get("MYTURN_MIN_CALL_SECONDS", "25"))
 MIN_GRACE_SECONDS = int(os.environ.get("MYTURN_MIN_GRACE_SECONDS", "10"))
-# How long an approach report counts as "a visitor is at the counter now".
+# How long an approach report counts as "movement at the counter now". It
+# says movement, not a person: the PIR cannot tell a visitor from anyone
+# else who walks past.
 APPROACH_WINDOW_SECONDS = int(os.environ.get("MYTURN_APPROACH_WINDOW_SECONDS", "10"))
 # How long an object must sit still at the counter before it is treated as an
 # obstruction rather than a visitor, and how far the distance may drift in

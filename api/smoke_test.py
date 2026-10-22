@@ -251,7 +251,7 @@ def main():
     conn.row_factory = sqlite3.Row
     events = [row["event_type"] for row in conn.execute("select event_type from ticket_events order by event_id")]
     reissued = conn.execute(
-        "select ticket_no, status from tickets where ticket_no = 4"
+        "select ticket_no, status, access_token from tickets where ticket_no = 4"
     ).fetchone()
     tickets = conn.execute("select count(*) as c from tickets").fetchone()["c"]
     conn.close()
@@ -262,6 +262,16 @@ def main():
         (4, "waiting"),
     )
     check("no ticket was lost", tickets, 3)
+
+    # The visitor is still holding the old link, so that link has to say the
+    # number changed - and say which number was given up.
+    status, followed = call("GET", "/api/tickets/" + reissued["access_token"])
+    explained = (followed.get("last_requeue") or {}) if status == 200 else {}
+    check("the visitor's own link still opens", status, 200)
+    check("the visitor is told which number was given up",
+          explained.get("previous_label"), "A002")
+    check("the explanation carries when it happened",
+          bool(explained.get("at")), True)
 
     print("Occupancy-assisted requeue")
     # A fresh board that reports somebody at the counter keeps the full hold,
