@@ -54,7 +54,7 @@ export function TicketRequestForm({
     <div className="myturn-ticket-request-grid">
       <div className="myturn-ticket-selection">
       <TicketStep number={1} title="Select your service">
-        <p className="mb-5 text-sm leading-relaxed text-deep-green">Choose what you came for. Each service has its own queue.</p>
+        <p className="mb-5 text-sm leading-relaxed text-deep-green">Choose what you came for. Each service has its own waiting list.</p>
         {services.length === 0 ? (
           <Alert tone="info">
             This office has not published a service yet. Please ask at the service point.
@@ -73,7 +73,7 @@ export function TicketRequestForm({
       </div>
 
       <div className="myturn-ticket-summary">
-      <TicketStep number={2} title="Queue information">
+      <TicketStep number={2} title="Waiting information">
         <QueueStatusCard service={service} loading={stateLoading} />
         {paused && (
           <p className="mt-3 text-sm text-medium-green">

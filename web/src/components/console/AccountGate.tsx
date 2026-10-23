@@ -78,7 +78,7 @@ export function AccountGate({
         title="This section belongs to an account"
         body="It is signed in with the shared classroom password, which has no account behind it. Sign in with your own address to use this page."
         href="/staff/dashboard"
-        link="Back to the queue"
+        link="Back to the waiting list"
       />
     );
   }
@@ -87,7 +87,7 @@ export function AccountGate({
     return (
       <Notice
         title="Administrators only"
-        body="This page reads the team's accounts and history. Your account works the queue from the staff dashboard instead."
+        body="This page reads the team's accounts and history. Your account manages the waiting list from the staff dashboard instead."
         href="/staff/dashboard"
         link="Go to the staff dashboard"
       />

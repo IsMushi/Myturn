@@ -65,7 +65,7 @@ function contactHref(contact: string) {
 function searchStatus(ticket: TicketSearchResult) {
   switch (ticket.status) {
     case "waiting":
-      return "Waiting in this queue";
+      return "Waiting in this line";
     case "called":
       return ticket.desk_name ? `Called at ${ticket.desk_name}` : "Being called";
     case "completed":
@@ -197,7 +197,7 @@ function DeskHeader({ deskId, desks, onPick, refresh, pending, disabled = false,
           </span>
         )}
 
-        <Button variant="ghost" aria-label="Refresh queue" className="staff-refresh" onClick={() => void refresh()}>
+        <Button variant="ghost" aria-label="Refresh waiting list" className="staff-refresh" onClick={() => void refresh()}>
           <RotateCw size={18} aria-hidden="true" className={pending ? "animate-spin" : "transition-transform group-hover:rotate-180"} />
         </Button>
 
@@ -331,7 +331,7 @@ function DeskBoard({ deskId, desks, onPick }: {
       return true;
     } catch (failure) {
       const message = failure instanceof ApiError ? failure.message
-        : "The action could not be confirmed. Check the refreshed queue before trying again.";
+        : "The action could not be confirmed. Check the refreshed waiting list before trying again.";
       setNotice({ tone: "error", text: message });
       if (failure instanceof ApiError && (failure.status === 401 || failure.status === 403)) {
         setAccessError({ status: failure.status, message });
@@ -542,7 +542,7 @@ function DeskBoard({ deskId, desks, onPick }: {
       <QueueConnectionToast interrupted={stale || Boolean(accessError)} accessDenied={expiredAccess}
         lastConfirmedAt={snapshot!.receivedAt} reconnect={refresh} />
 
-      <dl className="staff-summary" aria-label="Queue and personal activity">
+      <dl className="staff-summary" aria-label="Waiting list and personal activity">
         <Metric label="Waiting now" value={String(data.waiting)} hint={data.service.name} />
         <Metric label="Your served today" value={String(data.tally.served)} hint="All desks, since 00:00 Kigali" />
         <Metric label="Your no-shows today" value={String(data.tally.no_shows)} hint="All desks, since 00:00 Kigali" />
@@ -568,12 +568,12 @@ function DeskBoard({ deskId, desks, onPick }: {
               <div className="staff-call-timers">
                 <div><span><Clock3 size={15} aria-hidden="true" />Since called</span>
                   <strong className="tabular-nums">{elapsed === null ? "—" : formatDuration(elapsed)}</strong></div>
-                <div><span>Returns to queue in</span>
+                <div><span>Returns to waiting list in</span>
                   <strong className={`tabular-nums ${remaining !== null && remaining <= 10 ? "staff-time-warning" : ""}`}>
                     {stale ? "Unconfirmed" : remaining === null ? "—" : remaining === 0 ? "Checking…" : `${Math.ceil(remaining)} s`}
                   </strong></div>
               </div>
-              <p className="staff-call-explanation">Unanswered calls return to the back of this service&apos;s queue.
+              <p className="staff-call-explanation">Unanswered calls return to the back of this service&apos;s line.
                 {data.hold_shortened && ` The hold is shorter because ${data.hold_reason ?? "the service point was empty"}.`}</p>
               <div className="staff-ticket-actions">
                 <Button className="staff-serve" size="lg" disabled={disabled} onClick={() => void decide("complete")}>
@@ -606,7 +606,7 @@ function DeskBoard({ deskId, desks, onPick }: {
                 disabled={disabled || data.waiting === 0 || data.service_state !== "active"}>
                 Call next<ArrowRight size={18} aria-hidden="true" /><Shortcut>N</Shortcut>
               </Button>
-              <span className="staff-idle-note">{data.waiting > 0 ? `${plural(data.waiting, "ticket")} in this service's queue` : "No ticket is being called"}</span>
+              <span className="staff-idle-note">{data.waiting > 0 ? `${plural(data.waiting, "ticket")} in this service's waiting list` : "No ticket is being called"}</span>
             </div>
           )}
 
@@ -623,7 +623,7 @@ function DeskBoard({ deskId, desks, onPick }: {
 
         <section className="staff-waiting-panel" aria-labelledby="waiting-queue-title">
           <div className="staff-panel-heading">
-            <h2 id="waiting-queue-title">Waiting queue</h2>
+            <h2 id="waiting-queue-title">Waiting list</h2>
             <div className="flex items-center gap-2">
               <span className="staff-waiting-count text-xs" aria-live="polite" aria-atomic="true">{data.waiting} waiting</span>
               <Button variant="ghost" onClick={() => setFindOpen(true)}>
@@ -635,9 +635,9 @@ function DeskBoard({ deskId, desks, onPick }: {
 
           {data.queue.length > 0 ? (
             <>
-              <div className="staff-queue-scroll" tabIndex={0} role="region" aria-label="Waiting tickets, in queue order">
+              <div className="staff-queue-scroll" tabIndex={0} role="region" aria-label="Waiting tickets, in line order">
                 <table className="staff-queue-table">
-                  <caption className="sr-only">{data.service.name} tickets in server queue order</caption>
+                  <caption className="sr-only">{data.service.name} tickets in waiting-list order</caption>
                   <thead><tr><th scope="col">Ticket</th><th scope="col">Joined</th><th scope="col">Waiting</th></tr></thead>
                   <tbody>{data.queue.map((ticket, index) => {
                     const waitSeconds = Math.max(0, Math.floor((serverNow - Date.parse(ticket.created_at)) / 1000));
@@ -655,7 +655,7 @@ function DeskBoard({ deskId, desks, onPick }: {
               </div>
               <p className="staff-queue-footnote">
                 {data.waiting > data.queue.length && `Showing the first ${data.queue.length} of ${data.waiting} tickets. `}
-                Other desks serving {data.service.name} share this queue.
+                Other desks serving {data.service.name} share this waiting list.
               </p>
             </>
           ) : (
@@ -663,7 +663,7 @@ function DeskBoard({ deskId, desks, onPick }: {
               <div className="staff-queue-empty-icon" aria-hidden="true">
                 <ListOrdered size={22} />
               </div>
-              <strong>The queue is empty</strong>
+              <strong>Nobody is waiting</strong>
               <p>No one is waiting for {data.service.name}.</p>
             </div>
           )}
@@ -761,7 +761,7 @@ function DeskBoard({ deskId, desks, onPick }: {
             <DialogTitle>Cancel {cancelTicket?.label}?</DialogTitle>
             <DialogDescription>This ends the ticket without marking it as served. Use No-show instead if the visitor has not arrived.</DialogDescription>
           </DialogHeader>
-          {cancelTicket && called?.ticket_id !== cancelTicket.ticket_id && <p role="alert" className="text-sm text-rose-700">This ticket is no longer the current call. Close this dialog to review the queue.</p>}
+          {cancelTicket && called?.ticket_id !== cancelTicket.ticket_id && <p role="alert" className="text-sm text-rose-700">This ticket is no longer the current call. Close this dialog to review the waiting list.</p>}
           {notice?.tone === "error" && <p role="alert" className="text-sm text-rose-700">{notice.text}</p>}
           <DialogFooter>
             <Button ref={keepTicketRef} variant="quiet" onClick={() => setCancelTicket(null)}>Keep ticket</Button>

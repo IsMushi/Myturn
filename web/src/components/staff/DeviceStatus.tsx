@@ -58,7 +58,7 @@ export function DeviceStatus({ device, serverNow, stale }: {
               <Cpu size={22} />
             </div>
             <strong>No board attached</strong>
-            <p>Queue controls work without a board. An administrator can configure the device separately.</p>
+            <p>Ticket controls work without a board. An administrator can configure the device separately.</p>
           </div>
         )}
       </div>

@@ -131,11 +131,11 @@ on the fast rate. That is what filled the log with a reading every 25 ms.
 | **Motion is not detected at all for the first minute after a flash** | The PIR is in its warm-up. `PIR_WARMUP_MS` is 60 s, and until it passes the module reports nothing, so the board reports nothing | Wait a minute. The log says `pir: warmup` while it is happening, and `pir: LOW` or `pir: HIGH` afterwards |
 | **Motion is not detected, long after the warm-up** | `Sx` is not sensitive enough, or the module faces away from the service point | Turn `Sx` counter-clockwise a little at a time. Check the module faces the service point and not down the room |
 | **Motion is detected but feels late** | The module's own `Tx` is not the cause - the firmware answers in about 40 ms - so the delay is in the module or the wiring | Check the module is powered from `VIN` and not `3V3`, and that the output reaches GPIO 19 |
-| **The approach stays "on" long after the person has gone** | `APPROACH_MS` is 10 s, and the ten seconds only run out if the person stops moving | Lower `APPROACH_MS` if the queue should recover faster |
+| **The approach stays "on" long after the person has gone** | `APPROACH_MS` is 10 s, and the ten seconds only run out if the person stops moving | Lower `APPROACH_MS` if the waiting line should recover faster |
 | A reading every 25 ms, `pir` alternating HIGH and LOW | The PIR output is chattering and the raw pin was believed as it arrived | **Turn `Tx` clockwise to 3-5 s** - the module then holds the output high and the chatter cannot get through |
 | `pir: HIGH` that never comes back to `LOW` | The pin is stuck high, so the approach never clears and the board stays on the one-second rate | Turn `Tx` up. If it persists, the output is being held high by the module, not by noise |
 | The PIR fires for people walking past | `Sx` is too sensitive | Turn `Sx` clockwise until the range is about 1-1.5 m, and face the module at the service point |
-| The approach is reported, but the queue still moves on | The approach only ever *keeps* the full hold; it never calls anyone | This is by design. The approach is evidence, not authority |
+| The approach is reported, but the waiting line still moves on | The approach only ever *keeps* the full hold; it never calls anyone | This is by design. The approach is evidence, not authority |
 
 ---
 

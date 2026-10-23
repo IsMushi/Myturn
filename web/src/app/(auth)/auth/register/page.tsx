@@ -95,7 +95,7 @@ export default function RegisterPage() {
   return (
     <AuthShell
       title="Join the team"
-      subtitle="Set up your account. You will work the queue from the staff dashboard."
+      subtitle="Set up your account. You will manage the waiting list from the staff dashboard."
       footer={
         <>
           Already have an account?{" "}
@@ -181,7 +181,7 @@ export default function RegisterPage() {
           </Button>
 
           <p className="text-xs text-medium-green">
-            Staff accounts work the queue. Administrator rights are granted inside the system,
+            Staff accounts manage the waiting list. Administrator rights are granted inside the system,
             never from an invitation link.
           </p>
         </form>

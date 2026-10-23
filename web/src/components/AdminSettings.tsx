@@ -92,7 +92,7 @@ export function AdminSettings() {
               The services on offer
             </h2>
             <p className="mt-1 text-sm text-medium-green">
-              Every queue the office runs, with the letter its tickets carry.
+              Every waiting list the office runs, with the letter its tickets carry.
             </p>
           </div>
           <Button onClick={() => setAddingService(true)}>
@@ -108,7 +108,7 @@ export function AdminSettings() {
         </ul>
         {list.length === 0 && (
           <p className="mt-4 text-sm text-medium-green">
-            No services are offered yet. Add the first one to open a queue.
+            No services are offered yet. Add the first one to open a waiting list.
           </p>
         )}
       </section>
@@ -460,7 +460,7 @@ function AddServiceForm({
       <DialogHeader>
         <DialogTitle>Add a service</DialogTitle>
         <DialogDescription>
-          A new queue with its own letter. Leave the letter empty and the next free one is used.
+          A new waiting list with its own letter. Leave the letter empty and the next free one is used.
         </DialogDescription>
       </DialogHeader>
 

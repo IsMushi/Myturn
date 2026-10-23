@@ -13,7 +13,7 @@ device routes remain compatible, but the updated firmware never polls them.
 2. The server sends `type: state`, `initial: true`, the assigned desk, its current
    availability and the current call event. This is a quiet baseline on boot or
    reconnect. A changed desk assignment is also treated as a baseline.
-3. Committed queue, desk and settings changes wake the socket through the same
+3. Committed waiting line, desk and settings changes wake the socket through the same
    broadcast used by SSE. Only changed state is pushed, plus a full state heartbeat
    every five seconds. The handler owns its own writes; staff transactions do not
    wait on a board's socket. A replacement connection supersedes the old one
@@ -30,14 +30,14 @@ device routes remain compatible, but the updated firmware never polls them.
 ## Recovery and safety
 
 - Wi-Fi/socket work runs on its own FreeRTOS task with fixed-size latest-value
-  queues. The main loop does not wait for TCP/TLS connections or acknowledgements.
+  waiting lines. The main loop does not wait for TCP/TLS connections or acknowledgements.
 - Socket reconnection backs off with jitter, up to about thirty seconds. Protocol
   heartbeat and application ping/pong detect dead connections. The firmware also
   expires desk state independently after twelve seconds without a snapshot.
 - A lost connection or expired state shows yellow locally. It does not write
-  "paused" into the server or change its queue. Fresh state restores normal lighting.
+  "paused" into the server or change its waiting line. Fresh state restores normal lighting.
 - A missing telemetry acknowledgement after four seconds reconnects the socket.
-  Queues never accumulate an offline history. Measurements taken before the new
+  Waiting Lines never accumulate an offline history. Measurements taken before the new
   baseline, or older than six seconds, are discarded.
 - Call event IDs suppress duplicate announcements; events older than twenty seconds
   are ignored. One beep announces a call, two a recall. Buzzer timing is nonblocking.

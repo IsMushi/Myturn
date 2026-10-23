@@ -226,7 +226,7 @@ def main():
             json={"error": "Unavailable"} if response["offline"] else REFERENCE_STATE,
         ))
         page.goto(f"{args.base_url}/display")
-        expect(page.get_by_role("heading", name="The queue cannot be reached")).to_be_visible()
+        expect(page.get_by_role("heading", name="The waiting list cannot be reached")).to_be_visible()
         check(page.locator("main").get_attribute("aria-busy") == "false",
               "failed loading clears busy state")
         response["offline"] = False

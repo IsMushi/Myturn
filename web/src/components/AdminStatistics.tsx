@@ -65,7 +65,7 @@ export function AdminStatistics() {
       </div>
 
       <section className="rounded-2xl bg-white p-4">
-        <h2 className="text-sm font-semibold text-deep-green">Which queue</h2>
+        <h2 className="text-sm font-semibold text-deep-green">Which waiting list</h2>
         <div className="mt-2 flex flex-wrap gap-2">
           <button
             type="button"
@@ -196,7 +196,7 @@ export function AdminStatistics() {
       </section>
 
       <section className="rounded-2xl bg-white p-5">
-        <h2 className="text-lg font-semibold text-deep-green">Each queue</h2>
+        <h2 className="text-lg font-semibold text-deep-green">Each waiting list</h2>
         <p className="mt-1 text-sm text-medium-green">
           What every service the office offers has done, counted from its own tickets.
         </p>

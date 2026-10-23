@@ -23,7 +23,7 @@ export function QueueConnectionToast({ interrupted, accessDenied, lastConfirmedA
   useEffect(() => {
     if (!interrupted) return;
 
-    toast.error(accessDenied ? "Your access needs attention" : "Queue updates are interrupted", {
+    toast.error(accessDenied ? "Your access needs attention" : "Live updates are interrupted", {
       id,
       testId: "queue-connection-toast",
       position: "bottom-right",
@@ -32,7 +32,7 @@ export function QueueConnectionToast({ interrupted, accessDenied, lastConfirmedA
       closeButton: false,
       description: accessDenied
         ? "Sign in again. Your session may have expired or your permissions may have changed."
-        : `Last confirmed queue: ${clockTime(new Date(confirmedAt).toISOString())}. Actions are paused until updates recover.`,
+        : `Last confirmed waiting list: ${clockTime(new Date(confirmedAt).toISOString())}. Actions are paused until updates recover.`,
       action: {
         label: accessDenied ? "Sign in" : "Reconnect",
         onClick: (event) => {

@@ -46,7 +46,7 @@ export function DisplayBookingPanel({ loading = false }: { loading?: boolean }) 
           <Ticket size={18} aria-hidden="true" />
           <span>Take a ticket</span>
         </p>
-        <h2 id={loading ? undefined : "display-booking-title"}><span>Scan to join the queue</span></h2>
+        <h2 id={loading ? undefined : "display-booking-title"}><span>Scan to join the line</span></h2>
         <p><span>Open your phone camera, scan the code, and choose the service you need.</span></p>
       </div>
 

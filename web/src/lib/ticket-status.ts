@@ -33,7 +33,7 @@ export interface StatusStyle {
 export const TICKET_STATUS: Record<TicketStatus, StatusStyle> = {
   waiting: {
     label: "Waiting",
-    headline: "You are in the queue",
+    headline: "You are in the line",
     detail: "Stay nearby, or keep this page open. It updates on its own.",
     tone: "waiting",
     icon: Clock,

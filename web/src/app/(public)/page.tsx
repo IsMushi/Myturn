@@ -10,7 +10,7 @@ import { ButtonLink } from "@/components/ui/Button";
 
 export const metadata: Metadata = {
   title: "MyTurn — Your Turn, Made Simple.",
-  description: "Take a ticket, follow your place and come to the desk when called. MyTurn connects visitors, staff and the service point in one queue.",
+  description: "Take a ticket, follow your place and come to the desk when called. MyTurn connects visitors, staff and the service point in one waiting line.",
 };
 
 const STEPS = [
@@ -21,8 +21,8 @@ const STEPS = [
 ];
 
 const FEATURES = [
-  { icon: Activity, title: "Know where you stand", body: "See how many tickets are ahead and follow your place as the queue moves." },
-  { icon: MonitorSmartphone, title: "One view of the queue", body: "The ticket page and waiting-room display show updates from the same server." },
+  { icon: Activity, title: "Know where you stand", body: "See how many tickets are ahead and follow your place as the line moves." },
+  { icon: MonitorSmartphone, title: "One view of the waiting list", body: "The ticket page and waiting-room display show updates from the same server." },
   { icon: Hand, title: "Staff stay in charge", body: "Call, recall, complete or requeue a ticket. Pause the service when you need a break." },
   { icon: ShieldCheck, title: "A ticket, not a profile", body: "Visitors stay anonymous. Their private ticket link is all they need to follow their turn." },
 ];
@@ -111,7 +111,7 @@ export default function HomePage() {
         <div className="myturn-home-container">
           <div className="myturn-home-section-heading">
             <div><p className="myturn-home-kicker">The small things behind the service</p><h2 id="hardware-heading">Connected to the service point.</h2></div>
-            <p>The board measures. The server manages the queue.<br />Staff decide who is served.</p>
+            <p>The board measures. The server manages the waiting list.<br />Staff decide who is served.</p>
           </div>
           <div className="myturn-home-device-list">
             {DEVICES.map(({ icon: Icon, title, name, body }) => (
@@ -133,8 +133,8 @@ export default function HomePage() {
               <h2 id="about-heading">A practical project.<br />An everyday problem.</h2>
             </div>
             <div>
-              <p className="myturn-home-about-text">MyTurn began with a familiar question: &ldquo;Who is next?&rdquo; Our Internet of Things project brings the queue, the service desk and the service point sensors into one system.</p>
-              <p className="myturn-home-about-text">The application runs on our own Flask API, rather than a third-party IoT dashboard. Visitors take a number, staff work the queue, and the ESP32 reports what happens at the service point.</p>
+              <p className="myturn-home-about-text">MyTurn began with a familiar question: &ldquo;Who is next?&rdquo; Our Internet of Things project brings the waiting list, the service desk and the service point sensors into one system.</p>
+              <p className="myturn-home-about-text">The application runs on our own Flask API, rather than a third-party IoT dashboard. Visitors take a number, staff manage the waiting list, and the ESP32 reports what happens at the service point.</p>
             </div>
           </div>
           <section className="myturn-home-team-section" aria-labelledby="team-heading">
@@ -167,7 +167,7 @@ export default function HomePage() {
                 </article>
               ))}
             </div>
-            <p className="myturn-home-team-description">Design and implementation of an IoT-based queue management and service desk status system.</p>
+            <p className="myturn-home-team-description">Design and implementation of an IoT-based waiting line management and service desk status system.</p>
           </section>
         </div>
       </section>

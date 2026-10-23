@@ -52,7 +52,7 @@ const POWERS: Record<"admin" | "staff", string[]> = {
     "Work any desk: call the next visitor and record what happened.",
     "Invite staff members, change what they may do, and switch an account off.",
     "Edit the services the office offers and the desks that serve them.",
-    "Read the activity log and the statistics for every queue.",
+    "Read the activity log and the statistics for every waiting list.",
   ],
   staff: [
     "Work any desk: call the next visitor and record what happened.",
@@ -89,7 +89,7 @@ const WORK_EVENTS: Record<string, string> = {
   completed: "Served",
   skipped: "No-show",
   cancelled: "Cancelled",
-  requeued: "Went back to the queue",
+  requeued: "Went back to the waiting list",
 };
 
 /** A word the log does not know, said as a sentence rather than as a key. */

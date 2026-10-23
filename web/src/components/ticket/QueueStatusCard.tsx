@@ -67,7 +67,7 @@ export function QueueStatusCard({
           icon={Users}
           label="Tickets waiting"
           value={String(service.waiting)}
-          note={service.waiting === 0 ? "The queue is empty" : `${plural(service.waiting, "ticket")} in this queue`}
+          note={service.waiting === 0 ? "Nobody is waiting" : `${plural(service.waiting, "ticket")} in this waiting list`}
         />
         <Stat
           icon={Hourglass}
@@ -93,11 +93,11 @@ export function QueueStatusCard({
       {listed.length > 0 && (
         <div className="myturn-ticket-ahead">
           <p className="text-xs font-medium text-deep-green">
-            {aheadLabels ? "Numbers ahead of you" : "Waiting in this queue"}
+            {aheadLabels ? "Numbers ahead of you" : "Waiting in this line"}
           </p>
           <ul
             className="mt-2 flex flex-wrap gap-2"
-            aria-label={aheadLabels ? "Numbers ahead of you" : "Waiting in this queue"}
+            aria-label={aheadLabels ? "Numbers ahead of you" : "Waiting in this line"}
           >
             {listed.map((label) => (
               <li key={label} className="myturn-ticket-ahead-chip">
@@ -142,7 +142,7 @@ function Stat({
 /** Same four rows, label widths and value positions as the loaded list. */
 export function QueueStatusSkeleton() {
   return (
-    <dl className="myturn-ticket-queue-stats" aria-busy="true" aria-label="Loading queue information">
+    <dl className="myturn-ticket-queue-stats" aria-busy="true" aria-label="Loading waiting information">
       {["Now serving", "Tickets waiting", "Estimated wait", "Service point status"].map((label, index) => (
         <div className="myturn-ticket-stat" key={label} aria-hidden="true">
           <dt><Skeleton className="size-4 shrink-0" /><span>{label}</span></dt>

@@ -42,7 +42,7 @@ export default function LoginPage() {
   return (
     <AuthShell
       title="Sign in"
-      subtitle="Welcome back. Sign in to manage your queue and service desk."
+      subtitle="Welcome back. Sign in to manage your waiting list and service desk."
       footer={
         <>
           New to the team? Ask your administrator for an invitation link to create your account.

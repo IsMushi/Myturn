@@ -5,7 +5,7 @@ import { TicketView } from "@/components/TicketView";
 
 export const metadata: Metadata = {
   title: "Your ticket — MyTurn",
-  description: "Follow your number in the queue from any phone.",
+  description: "Follow your number in the waiting line from any phone.",
 };
 
 /**

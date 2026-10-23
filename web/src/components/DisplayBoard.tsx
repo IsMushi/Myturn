@@ -66,7 +66,7 @@ export function DisplayBoard() {
         {calls.length > 0
           ? `Now serving ${calls.join(". ")}.`
           : "No number is currently being called."}{" "}
-        {data ? `${plural(data.waiting, "visitor")} waiting.` : "Loading the queue."}
+        {data ? `${plural(data.waiting, "visitor")} waiting.` : "Loading the waiting list."}
         {updatedAt ? ` Last updated ${updatedAt}.` : ""}
       </p>
 
@@ -91,7 +91,7 @@ export function DisplayBoard() {
             <div className="myturn-display-state-icon" aria-hidden="true">
               <WifiOff size={28} />
             </div>
-            <h2>The queue cannot be reached</h2>
+            <h2>The waiting list cannot be reached</h2>
             <p>Please check the connection or ask at the service desk.</p>
             <Button variant="quiet" onClick={reload}>
               Try again

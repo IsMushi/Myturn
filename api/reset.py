@@ -42,7 +42,7 @@ def main():
     finally:
         conn.close()
 
-    print("Queue cleared, every ticket number back to zero, all desks set to paused.")
+    print("Waiting list cleared, every ticket number back to zero, all desks set to paused.")
 
 
 if __name__ == "__main__":

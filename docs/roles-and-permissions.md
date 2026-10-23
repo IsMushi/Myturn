@@ -49,23 +49,23 @@ browser suite. Everything under "Backlog" is **not** implemented.
 * `POST /api/tickets` - takes a number from the server counter and returns an opaque `access_token`. Rate-limited (`MYTURN_TICKET_ATTEMPTS`, default 20 per 60 s).
 * `GET /api/tickets/<token>` - the visitor's own view: number, status, people ahead, the desk state, the last update.
 * `GET /api/public/state` and `GET /api/events` - what the wall display and the ticket page watch. The waiting estimate is measured from served tickets and withheld below `MYTURN_ETA_MIN_SAMPLES`.
-* A ticket nobody answers goes to the back of the queue with a fresh number after `MYTURN_HOLD_SECONDS`, so an absent visitor cannot block the desk. When the board is fresh and has seen nobody at the service point since the call, the hold shortens to `MYTURN_MIN_CALL_SECONDS` (25 s); an occupied service point, an approach, a missing reading or an offline board keeps the full hold.
+* A ticket nobody answers goes to the back of the waiting line with a fresh number after `MYTURN_HOLD_SECONDS`, so an absent visitor cannot block the desk. When the board is fresh and has seen nobody at the service point since the call, the hold shortens to `MYTURN_MIN_CALL_SECONDS` (25 s); an occupied service point, an approach, a missing reading or an offline board keeps the full hold.
 
 ### Staff - the desk
 
 Page `/staff/dashboard` (`StaffDashboard.tsx`), polled every 2 s, every write carrying a CSRF token.
 
 * Sign in as a person (`POST /api/auth/login`), or with the shared classroom password (`POST /api/staff/login`). Sign out (`/api/auth/logout` or `/api/staff/logout`).
-* **The queue at a glance** - waiting count, the waiting numbers, and the ticket being called, with the hold countdown. `GET /api/staff/queue`.
+* **The waiting line at a glance** - waiting count, the waiting numbers, and the ticket being called, with the hold countdown. `GET /api/staff/queue`.
 * **Call next** - `POST /api/staff/call-next`, inside one transaction. If the current call is older than its hold, the missed number is re-issued at the back with a fresh number and the next visitor is called. The hold is `MYTURN_HOLD_SECONDS` unless the board's own readings justify the shorter `MYTURN_MIN_CALL_SECONDS`; the dashboard shows which, and why.
 * **Close a ticket** - `POST /api/staff/tickets/<id>/action` with `complete` ("Served"), `skip` ("No-show") or `cancel` ("Cancelled"). Re-closing a closed ticket is a 409.
 * **Take it back** - `POST /api/staff/tickets/<id>/undo` reverses the last decision for `UNDO_SECONDS` (10 s), and only while no other number has been called. It writes an `undone` event rather than deleting the log row.
 * **Announce the number again** - `POST /api/staff/tickets/<id>/recall` rewrites `called_at`, which restarts the hold timer and restarts the measured service time from the last announcement.
 * **Give a walk-in a ticket** - `POST /api/staff/tickets` takes a number from the same counter and writes `source = 'desk'`, so a visitor without a phone joins the same line.
-* **Serving timer** - the call shows how long the visitor has been at the service point and how much of the hold time is left, next to the average the visitor page uses (`average_service_seconds`, `service_samples` in the queue payload).
+* **Serving timer** - the call shows how long the visitor has been at the service point and how much of the hold time is left, next to the average the visitor page uses (`average_service_seconds`, `service_samples` in the waiting line payload).
 * **Keyboard** - **N** calls the next visitor, **S** serves, **M** logs a no-show, **C** cancels, **R** recalls and **U** takes the last decision back.
 * **Shift tally** - `served` and `no_shows` for the signed-in actor since midnight, counted from the latest event of each ticket so an undone decision stops counting.
-* **Queue alert** - a new visitor raises a one-line notice and puts the waiting count in the window title.
+* **Waiting Line alert** - a new visitor raises a one-line notice and puts the waiting count in the window title.
 * **Desk state** - `POST /api/staff/service` with `active`, `paused` or `closed`; the dashboard shows who last changed it and when (`desk_settings.updated_by`).
 * **The board panel** - online/offline from `last_seen`, the last distance, occupancy, approach, and the LED colour. The approach flag only counts while the reading is fresh (`APPROACH_WINDOW_SECONDS`).
 
@@ -77,15 +77,15 @@ Pages `/admin/dashboard` (`AdminDashboard.tsx`), `/admin/activity`, `/admin/stat
 * **Withdraw an invitation** - `POST /api/auth/invitations/<id>/revoke`, for an address that was typed wrong or no longer needs access.
 * **See the team** - `GET /api/auth/users` returns every account and every pending invitation, with the invitation id the revoke route needs. Passwords are never in the payload (`public_user`).
 * **Switch an account on or off** - `POST /api/auth/users/<id>/active`, which is how a departing staff member loses access and how the login route answers 403 for a disabled account. An administrator cannot switch off their own account.
-* **Delete another account** - `DELETE /api/auth/users/<id>` requires administrator rights, CSRF and the account email for confirmation. It refuses self-deletion; deleting a user revokes their active session and reset links while preserving queue and account event history. The invitation form is in a modal on `/admin/team`.
+* **Delete another account** - `DELETE /api/auth/users/<id>` requires administrator rights, CSRF and the account email for confirmation. It refuses self-deletion; deleting a user revokes their active session and reset links while preserving waiting line and account event history. The invitation form is in a modal on `/admin/team`.
 * **Act on selected accounts** - `POST /api/auth/users/batch` checks each id and email, applies switch on/off or a confirmed delete inside one transaction, and never includes the signed-in administrator. The table uses checkboxes and a batch toolbar; each other row's actions live behind a three-dot menu. For deletion the confirmation is `DELETE N`, where N is the exact selected count.
 * **Promote or demote** - `POST /api/auth/users/<id>/role`. The route refuses to demote the last active administrator, which is what keeps at least one person able to open the page.
 * **Activity** - `GET /api/auth/activity` merges `ticket_events`, `desk_settings` and `account_events` into one newest-first list, filterable by kind on the page. A requeue now carries the reason it happened (`ticket_events.detail`), including whether the service point was empty.
 * **Statistics** - `GET /api/auth/stats`: counts, the service-time distribution, tickets per hour and per day. The average is withheld until `MYTURN_ETA_MIN_SAMPLES`, exactly as on the visitor page. If the desk has set a target time, the page reports the share of served tickets that met it.
 * **Describe the office** - `GET` and `POST /api/auth/services`, `GET` and `POST /api/auth/desks`, all administrators only. A change is written to the `services` or `desks` table and read by `service_info()`, so the ticket page and the display pick it up without a restart. `GET` and `POST /api/auth/desk` still work and edit the first service.
 * **Export** - `GET /api/auth/tickets.csv`, every ticket the prototype holds, as a file the statistics page links to.
-* **A live summary** - waiting now, desk state, board online, from the staff queue (5 s).
-* **Work the desk too** - an administrator can open `/staff/dashboard` and run the queue.
+* **A live summary** - waiting now, desk state, board online, from the staff waiting line (5 s).
+* **Work the desk too** - an administrator can open `/staff/dashboard` and run the waiting line.
 
 ### Any signed-in account
 
@@ -139,5 +139,5 @@ Marked by what it would touch, so nothing here is mistaken for something that wo
 ### Cross-cutting
 
 * Kinyarwanda for the console and the dashboards, not just the ticket page (the ticket page's language selector currently offers Kinyarwanda marked "not yet available").
-* A notification when a new ticket joins the queue, delivered to whoever is on shift.
-* A ticket cannot be moved between services: it belongs to the service it was taken for until it is closed, and a desk may only work the queue of the service it serves.
+* A notification when a new ticket joins the waiting line, delivered to whoever is on shift.
+* A ticket cannot be moved between services: it belongs to the service it was taken for until it is closed, and a desk may only work the waiting line of the service it serves.

@@ -122,8 +122,8 @@ export function TicketTrackingStatus({
           </h2>
           <p className="mt-1">
             {ticket.last_requeue.previous_label
-              ? `We called ${ticket.last_requeue.previous_label} at ${clockTime(ticket.last_requeue.at)} and the turn was not taken in time, so it went to the back of the queue. `
-              : `The turn at ${clockTime(ticket.last_requeue.at)} was not taken in time, so the ticket went to the back of the queue. `}
+              ? `We called ${ticket.last_requeue.previous_label} at ${clockTime(ticket.last_requeue.at)} and the turn was not taken in time, so it went to the back of the line. `
+              : `The turn at ${clockTime(ticket.last_requeue.at)} was not taken in time, so the ticket went to the back of the line. `}
             You now hold <strong>{ticket.label}</strong>.
           </p>
         </section>
@@ -131,7 +131,7 @@ export function TicketTrackingStatus({
 
       <section aria-labelledby="queue-heading">
         <h2 id="queue-heading" className="sr-only">
-          The queue right now
+          The waiting list right now
         </h2>
         <QueueStatusCard
           service={
@@ -220,7 +220,7 @@ function TicketUnavailable({
         )}
       </span>
       <h1 className="mt-4 text-xl font-semibold text-danger">
-        {missing ? "This ticket is no longer available" : "We could not reach the queue"}
+        {missing ? "This ticket is no longer available" : "We could not reach the ticket service"}
       </h1>
       <p className="mx-auto mt-2 max-w-md text-sm text-danger">
         {missing

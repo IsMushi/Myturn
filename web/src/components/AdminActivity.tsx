@@ -43,7 +43,7 @@ const LABELS: Record<string, string> = {
 
 const KINDS = [
   { key: "all", label: "Everything" },
-  { key: "ticket", label: "Queue" },
+  { key: "ticket", label: "Tickets" },
   { key: "desk", label: "Desk" },
   { key: "account", label: "Accounts" },
 ] as const;

@@ -89,7 +89,7 @@ export function TicketConfirmation({
             </li>
             <li className="flex gap-2">
               <span className="font-semibold">3.</span>
-              If you miss your call, your ticket returns to the back of the queue with a new number. Keep this page open for the update.
+              If you miss your call, your ticket returns to the back of the line with a new number. Keep this page open for the update.
             </li>
           </ol>
         </div>

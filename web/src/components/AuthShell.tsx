@@ -6,7 +6,7 @@ import { Logo } from "./Logo";
 import "./auth-shell.css";
 
 const TOOLS = [
-  { icon: ListOrdered, title: "A queue you can follow", text: "See who is waiting and call the next visitor." },
+  { icon: ListOrdered, title: "A line you can follow", text: "See who is waiting and call the next visitor." },
   { icon: SlidersHorizontal, title: "Your desk, under control", text: "Pause service, recall a number or finish a visit." },
   { icon: ShieldCheck, title: "The right access", text: "Staff work the desk. Administrators manage the team." },
 ];
@@ -31,7 +31,7 @@ export function AuthShell({
         </Link>
         <div className="myturn-auth-story-content">
           <p className="myturn-auth-audience">Your service workspace</p>
-          <h2>A calmer queue.<br />A clearer day.</h2>
+          <h2>A calmer waiting line.<br />A clearer day.</h2>
           <p className="myturn-auth-intro">
             Welcome to the other side of the service point. Everything you need to keep service moving,
             in one place.
@@ -63,7 +63,7 @@ export function AuthShell({
             {footer && <div className="myturn-auth-help">{footer}</div>}
             <div className="myturn-auth-visitor">
               <Ticket size={21} aria-hidden="true" />
-              <div><p>Just here for a ticket?</p><Link href="/ticket">Join the queue. No account needed.</Link></div>
+              <div><p>Just here for a ticket?</p><Link href="/ticket">Join the line. No account needed.</Link></div>
             </div>
           </div>
         </div>

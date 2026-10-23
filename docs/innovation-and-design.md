@@ -1,6 +1,6 @@
 # Innovation and design
 
-The design behind the parts of MyTurn that are not just screens: the queue rules,
+The design behind the parts of MyTurn that are not just screens: the waiting line rules,
 the estimate, and the two places where the IoT board earns its place in the
 system rather than sitting beside it. Written so each piece can be implemented and
 then tested, and so the report can describe them without inventing anything.
@@ -12,7 +12,7 @@ Every "Built" claim here matches the code: `api/routes/visitor.py`,
 
 ---
 
-## 1. The queue state machine
+## 1. The waiting line state machine
 
 A ticket is a row in `tickets` with one of five statuses. Everything the desk
 does is one transition, and every transition is also written to `ticket_events`.
@@ -31,7 +31,7 @@ does is one transition, and every transition is also written to `ticket_events`.
                    |                       |                   +-----------+
                    +-----------------------+
                      requeued: hold expired,
-                     back of the queue,
+                     back of the line,
                      with a fresh number
 ```
 
@@ -93,7 +93,7 @@ puzzle over: the dashboard shows the remaining seconds.
 something the server does not: whether anybody is standing at the service point. If a
 number has been called, nobody is at the service point, and the visitor's approach
 sensor has been quiet, then calling it again in 60 seconds is 60 seconds of the
-whole queue standing still to prove what the sensor already said.
+whole waiting line standing still to prove what the sensor already said.
 
 **The rule.** Shorten the hold to `MIN_CALL_SECONDS` (proposed 25) when, and only
 when, the board is healthy and says the service point has been empty the whole time.
@@ -127,8 +127,8 @@ def hold_limit(called):
 **Where it runs, as built.** On the server, not on the board, in
 `api/queue_rules.py`. `hold_limit()` returns `(seconds, shortened, reason)`;
 `staff.queue` shows the effective hold and the reason. `sweep_queue(conn)` is
-called at the top of the staff queue, the public state (which the event stream
-also uses) and `call-next` itself, so the queue recovers even if nobody presses
+called at the top of the staff waiting line, the public state (which the event stream
+also uses) and `call-next` itself, so the waiting line recovers even if nobody presses
 anything. The board keeps its single job: it measures and reports.
 
 ```
@@ -152,10 +152,10 @@ together.
 hardware, by posting synthetic `/api/device/readings` with the device key and
 back-dating `called_at`:
 
-1. Fresh board, occupied reading, past the grace -> full hold; the queue reports
+1. Fresh board, occupied reading, past the grace -> full hold; the waiting line reports
    `hold_shortened = false` and "the service point is occupied".
 2. Fresh board, empty reading, past the grace but under the floor -> effective
-   hold 25 s; the queue read alone (no button) requeues it, with a higher number
+   hold 25 s; the waiting line read alone (no button) requeues it, with a higher number
    and a detail of "service point empty".
 3. Same, but the board has not reported for `DEVICE_ONLINE_SECONDS` -> full hold;
    "the board is not reporting".
@@ -167,7 +167,7 @@ back-dating `called_at`:
 **What the report can measure.** "With the desk empty, an unanswered call was
 recovered in 25 seconds instead of 60 in N of M trials." That is a real number
 the team can run, and it is the clearest evidence that the IoT part improves the
-queue rather than decorating it.
+waiting line rather than decorating it.
 
 **The limitation to write down honestly.** Occupancy says *somebody* is at the
 service point, not *the right somebody*. A bystander keeps the call alive longer. The
@@ -237,7 +237,7 @@ Show a range instead of a single figure when it is genuinely wide
 | 3-4 | about N minutes |
 | 5+ | about N minutes, or N1-N2 minutes when the spread is wide |
 
-**(d) Keep the honest floor.** Never a negative number, never zero while a queue
+**(d) Keep the honest floor.** Never a negative number, never zero while a waiting line
 exists, and "Not available" rather than a guess.
 
 **Tests.** Zero-second services count; a 4-hour ticket is excluded; below the gate
@@ -286,7 +286,7 @@ one-row `notices` record.
 
 ## 7. Priority without classifying anybody
 
-A queue that cannot give a wheelchair user a fair turn is not usable in a
+A waiting line that cannot give a wheelchair user a fair turn is not usable in a
 Rwandan public office. The design that fits this project:
 
 * The visitor **declares** priority on the ticket form (a checkbox, not a guess).
@@ -294,7 +294,7 @@ Rwandan public office. The design that fits this project:
 * Ordering becomes `order by priority desc, ticket_no` for the call.
 * The number is still a single sequence, so a priority ticket cannot be
   identified from its number alone, and the log records nothing about the person.
-* A cap (for example 1 in 4 calls) stops the lane from starving the normal queue,
+* A cap (for example 1 in 4 calls) stops the lane from starving the normal waiting line,
   and the desk can always see why a number was called early.
 
 The system never decides who deserves priority. It only honours what the visitor
@@ -392,7 +392,7 @@ sensor that is quietly failing, which is why it already requires a fresh reading
 
 ## 9. Innovation: join the sensor data to the service times
 
-The one analysis this project can do that a queue app cannot. `device_reports`
+The one analysis this project can do that a waiting line app cannot. `device_reports`
 records occupancy; `tickets` records how long each service took. Joining them by
 time answers a question the report can actually pose:
 
@@ -469,7 +469,7 @@ still design.
 4. VIS-22 give up your place.
 5. QUE-09 / DSK-11 undo the last desk action. **(built)**
 6. DSK-10 serving timer, DSK-13 keyboard shortcuts, DSK-12 recall. **(built)**
-7. DSK-14 alert when the queue grows, DSK-15 my tally, DSK-17 walk-in. **(built)**
+7. DSK-14 alert when the waiting line grows, DSK-15 my tally, DSK-17 walk-in. **(built)**
 8. IOT-09 sensor fault flag, IOT-13 heartbeat with firmware version.
 9. QUE-16 occupancy-assisted requeue. **(built)**
 10. DIS-05 next-up list, DIS-06 spoken number, DIS-07 notice ticker.
@@ -481,7 +481,7 @@ still design.
 
 **M2 - the things that change the model**
 
-Multi-desk queues and transfers, appointments, remote tickets with
+Multi-desk waiting lines and transfers, appointments, remote tickets with
 notifications, a real mail path, two-factor for administrators, retention with a
 purge job, backup and restore, continuous integration that runs both suites, and
 full Kinyarwanda.
@@ -497,7 +497,7 @@ accounts.
 | Criterion | What to point at |
 |---|---|
 | Introduction (3) | The problem is a numbered-line desk; the contribution is a measured estimate and a sensor-assisted hold |
-| Literature review (3) | Queue theory (FCFS, waiting time), embedded sensing, and how existing queue apps stop at ticketing |
+| Literature review (3) | Waiting Line theory (FCFS, waiting time), embedded sensing, and how existing waiting line apps stop at ticketing |
 | Methodology (4) | The state machine (section 1), the rules with their constants (sections 2, 8), and the tests that check them |
 | Results and discussion (3) | The measured service time, the occupancy to service-time join (section 9), and the before/after of the recovery time (section 3) |
 | Conclusion and references (2) | What was actually built and verified, and what the milestones leave open |

@@ -1,6 +1,6 @@
 # MyTurn
 
-Queue management and service desk status for one office.
+Waiting line management and service desk status for one office.
 
 A visitor scans the QR code at the door, picks the service they need, takes a
 numbered ticket and follows their turn on their own phone. The person at the
@@ -9,7 +9,7 @@ members, and the ESP32 board measures whether the service point is occupied and 
 the desk state on an RGB light. No names, no telephone numbers, no camera.
 
 The office may run several services (A General Service, B Admissions, C
-Finance) and several desks. A visitor joins the queue of a *service*; each desk
+Finance) and several desks. A visitor joins the waiting line of a *service*; each desk
 serves one service and calls that service's next ticket, so two desks may work
 the same service at the same time. Numbers carry the letter of their service:
 A001, B001.
@@ -58,7 +58,7 @@ Check the whole API while the server is up:
 ```
 
 The test follows one real session from end to end and prints one line per check.
-It covers the queue, the device, the hold rule, and the account system: signing
+It covers the waiting line, the device, the hold rule, and the account system: signing
 in, roles, invitations, registration, password reset, CSRF and rate limiting.
 
 Two more checks cover the move from one desk to one office:
@@ -76,14 +76,14 @@ the real one is never touched by a test.
 
 | Route | Called by | What it does |
 |---|---|---|
-| `GET /api/services` | Visitor page | The services the office offers, each with its own queue, state and waiting count |
+| `GET /api/services` | Visitor page | The services the office offers, each with its own waiting line, state and waiting count |
 | `POST /api/tickets` | Visitor page | Issues the next number **of the chosen service** with a private token |
 | `GET /api/tickets/<token>` | Visitor page | Number, service, state, the desk serving it, how many tickets are ahead and the next few of them |
-| `GET /api/public/state` | Wall display, visitor page | Every service with its now-serving numbers, the waiting count, the next numbers in that queue and the measured service time |
-| `GET /api/analytics/queue` | Queue analytics | Waiting now, average wait, served today and the busiest hour |
-| `GET /api/analytics/desks` | Queue analytics | Every service point side by side for today: served, no-shows, the queue of its service, recent service time, hours with work and when it last served |
-| `GET /api/analytics/desk/<id>` | Queue analytics | The same figures for one service point |
-| `GET /api/analytics/trends` | Queue analytics | The last seven days, quiet days included |
+| `GET /api/public/state` | Wall display, visitor page | Every service with its now-serving numbers, the waiting count, the next numbers in that waiting line and the measured service time |
+| `GET /api/analytics/queue` | Visitor statistics | Waiting now, average wait, served today and the busiest hour |
+| `GET /api/analytics/desks` | Visitor statistics | Every service point side by side for today: served, no-shows, the waiting line of its service, recent service time, hours with work and when it last served |
+| `GET /api/analytics/desk/<id>` | Visitor statistics | The same figures for one service point |
+| `GET /api/analytics/trends` | Visitor statistics | The last seven days, quiet days included |
 | `POST /api/auth/login` | Sign-in page | Checks an account and starts a session |
 | `POST /api/auth/logout` | Dashboards | Ends the session |
 | `GET /api/auth/me` | Every signed-in page | The account behind the session, and the CSRF token |
@@ -155,7 +155,7 @@ address.
   desk's own short reason and a return time (5 to 240 minutes); the console
   repeats both, opening or closing clears them, and the return time never opens
   the desk by itself - a service point nobody is standing at must not call.
-* A called ticket that nobody answers goes back to the queue **at the back**,
+* A called ticket that nobody answers goes back to the waiting line **at the back**,
   with a fresh number, after `MYTURN_HOLD_SECONDS` (60 seconds by default), so
   an absent visitor cannot block the desk. When the board is fresh and has seen
   nobody at the service point since the call, the server shortens that hold to
@@ -168,11 +168,11 @@ address.
   obstruction and does not block the desk from calling. A visitor who walked up
   and then stood still brought an approach with them, so they are never written
   off as a bag. The hold rule is not relaxed at all; only the call is.
-* The queue recovers without a button: `sweep_queue()` runs when the desk page,
-  the public state or the event stream reads the queue, and the requeue records
+* The waiting line recovers without a button: `sweep_queue()` runs when the desk page,
+  the public state or the event stream reads the waiting line, and the requeue records
   whether the service point was empty in `ticket_events.detail`. Every desk that has
   left a call hanging is swept, and a requeued ticket goes to the back of **its
-  own** service's queue with a fresh number from that service's counter.
+  own** service's waiting line with a fresh number from that service's counter.
 * The sensor only measures. Every decision about a ticket or the desk state is
   made in the staff routes. The ultrasonic alone decides occupancy and the PIR
   alone reports an approach; the one place the server reads both together is
@@ -190,7 +190,7 @@ address.
   would be returning to a service point somebody else is standing at, so the route
   refuses. Another desk serving the same service does not block the undo.
 * One address may take `MYTURN_TICKET_ATTEMPTS` tickets a minute (20 by
-  default), which stops a reload loop or a script from filling the queue. The
+  default), which stops a reload loop or a script from filling the waiting line. The
   page also refuses to send a second request while the first is in the air.
 * The estimated wait is measured, never guessed: it is the number of tickets
   ahead multiplied by how long the desk has actually taken, worked out from the
@@ -218,17 +218,17 @@ npm run dev                          # serves http://localhost:3000
 | Page | Address | Who uses it |
 |---|---|---|
 | Home page | `/` | Anyone: what MyTurn is and how it works |
-| Visitor ticket | `/ticket` | The visitor, from the QR code on their phone: the service to pick, the queue of that service, and the button that joins it |
+| Visitor ticket | `/ticket` | The visitor, from the QR code on their phone: the service to pick, the waiting line of that service, and the button that joins it |
 | A held ticket | `/ticket/<token>` | The same visitor, opening their ticket from a link, and following it |
 | Wall display | `/display` | A tablet or monitor in the waiting area: every service, the number being served at its desks and who is waiting |
 | Sign in | `/auth/login` | Staff and administrators |
 | Join from an invitation | `/auth/register` | A new staff member, following their invitation link |
 | Forgotten password | `/auth/forgot-password` | Anyone with an account |
 | Choose a new password | `/auth/reset-password` | The same person, following the link |
-| Desk dashboard | `/staff/dashboard` | The person at the desk: which service point they are working, the queue of its service, the board, walk-ins, recall and undo. An administrator reaches it from the sidebar's **Staff page** |
-| Queue analytics | `/staff/analytics` | The office's numbers: waiting now, every desk side by side for today, and the last seven days |
+| Desk dashboard | `/staff/dashboard` | The person at the desk: which service point they are working, the waiting line of its service, the board, walk-ins, recall and undo. An administrator reaches it from the sidebar's **Staff page** |
+| Visitor statistics | `/staff/analytics` | The office's numbers: waiting now, every desk side by side for today, and the last seven days |
 | Administration | `/admin/dashboard` | The administrator's Dashboard: the office summary, accounts, roles and invitations. The old `/admin/team` address still opens the same page |
-| Activity | `/admin/activity` | The administrator: what the queue, the desk and the accounts recorded |
+| Activity | `/admin/activity` | The administrator: what the waiting line, the desk and the accounts recorded |
 | Statistics | `/admin/statistics` | The administrator: counts, service times, busiest hours, target comparison, CSV export |
 | Desk settings | `/admin/settings` | The administrator: the services the office offers and the desks that serve them, changed live |
 | Your account | `/account` | Any signed-in account: its details, what its role may do, its own account history, its work at the service point, and its password |
@@ -250,7 +250,7 @@ HTTP-only cookie and the role is only ever read from the server.
 The homepage hero follows `web/public/images/hero-section-ui.png`: real
 navigation, heading and ticket links beside the full-bleed concept artwork.
 The illustration's example numbers are not live; its accessible description
-identifies them without a visible caption. Only the separate **Live queue**
+identifies them without a visible caption. Only the separate **Live waiting list**
 panel reads `/api/public/state` (every 15 seconds), with
 explicit empty, connecting and unavailable states. To regenerate the artwork
 crop, run `python tools/extract-hero-art.py` with Pillow installed. Landing-page
@@ -267,12 +267,12 @@ groups the next numbers for services with waiting tickets — at most eight for
 each, with a count for the rest — and moves below the cards on narrow screens.
 Each called number
 keeps the service point name returned by the server, including simultaneous calls
-at several service points for one service. The queue area has two borderless
+at several service points for one service. The waiting line area has two borderless
 parts: **Now calling** on the left and an ordered **Waiting list** on the right,
 with the booking QR alongside. Each called ticket has a 60-second arrival
 countdown derived from `called_at` and `server_time`, advanced locally without
 trusting the device's wall clock. Refreshing does not restart it. At zero it
-shows "Arrival window ended"; only server queue rules can requeue a ticket,
+shows "Arrival window ended"; only server waiting line rules can requeue a ticket,
 including a sensor-assisted shortened hold. A connection failure hides the
 countdown rather than presenting stale timing as live. On a TV, both regions scroll if there
 are more services or numbers than fit. A new call draws a ring once and the
@@ -280,12 +280,12 @@ number rises into place; reduced-motion users
 get no animation. If the stream and polls both fail, the board keeps the last
 numbers but labels them as old and offers a reconnect. Ticket pages share
 `web/src/components/ticket/ticket-pages.css`, with service selection beside
-the queue summary on desktop and above it on mobile. Their SSE, private tracking
+the waiting line summary on desktop and above it on mobile. Their SSE, private tracking
 links, measured estimates and print behaviour are unchanged.
 
 The display uses the shared home-page palette and the decorative ticket illustration.
 Run `python tools/extract-display-art.py` to regenerate that illustration crop;
-headings, badges and queue values remain accessible live HTML. While connecting,
+headings, badges and waiting line values remain accessible live HTML. While connecting,
 `DisplayBoardSkeleton` preserves the two-region layout with mint placeholders,
 an announced busy state and reduced-motion support. Initial failures show a retry
 instead, and a lost connection retains the last-known data with a stale warning.
@@ -315,7 +315,7 @@ Your account), the current one is highlighted, and the account sits at the foot
 with a single Sign out. "Dashboard" adapts to the person: the desk opens the
 service point it works, and an administrator opens the administration page. An
 administrator also gets a **Staff page** link to the desk dashboard, and the
-desk's own **Queue analytics** is left to the desk because the administration
+desk's own **Visitor statistics** is left to the desk because the administration
 page already carries the fuller **Statistics**; the duplicate is not listed
 twice. On a phone the same list opens as a drawer. Only sections that exist
 are listed, so the menu never offers a page it cannot open, and the
@@ -350,7 +350,7 @@ the selected service and appears only with enough completed-ticket samples. Desk
 availability, walk-in tickets, recall and undo retain their server rules. Cancelling
 a ticket asks for confirmation. Keyboard shortcuts are inactive inside controls,
 menus and dialogs; **U** restores the last decision while the desk has no current
-call. Queue actions are locked while a write is pending or the queue is stale
+call. Ticket actions are locked while a write is pending or the waiting list is stale
 (a failed refresh, or 15 seconds without a successful response). Connection loss
 shows one persistent, bottom-right toast with a Reconnect action, not an inline
 banner or a new notification on every poll. The compact Offline indicator stays
@@ -384,7 +384,7 @@ see [visitor notifications](docs/visitor-notifications.md) for setup, safe tests
 and delivery limitations. Unconfigured channels do not send. Provider acceptance
 is not confirmed delivery. Invitation/reset development links are unchanged.
 
-The `/ticket` queue facts use borderless summary rows with a matching request
+The `/ticket` waiting line facts use borderless summary rows with a matching request
 skeleton. Both service-choice counts and summary facts follow the live stream,
 with polling and reconnection fallback. Verify without office writes using
 `python tools/check-ticket-summary.py`.
@@ -469,7 +469,7 @@ cd api
 ```
 
 This starts its own Flask server and temporary SQLite database, exercises real
-WebSocket frames and HTTP queue actions, then runs the existing HTTP smoke suite
+WebSocket frames and HTTP waiting line actions, then runs the existing HTTP smoke suite
 against that same disposable office. It does not require or reset the live API.
 An Arduino compile verifies the firmware build; flashing and a physical
 disconnect/reconnect, sensor, LED and buzzer check are still required on the board.
@@ -520,12 +520,12 @@ Two windows open, one for each server.
     and the number is announced again. Hand a walk-in a ticket with **Give a
     walk-in a ticket**: it takes the next number in the same line.
 12. Leave one call unanswered: after the hold time it goes to the back of the
-    queue on its own and the next ticket is called.
+    waiting line on its own and the next ticket is called.
 13. Open `/admin/settings` to show the services and the desks, and change the
-    wording of a service while the queues are running.
-14. Open `/admin/activity` to show what the queue, the desk and the accounts
+    wording of a service while the waiting lines are running.
+14. Open `/admin/activity` to show what the waiting line, the desk and the accounts
     recorded, and `/admin/statistics` for the counts, the service-time
-    distribution and the busiest hours, queue by queue. Download the CSV.
+    distribution and the busiest hours, waiting line by waiting line. Download the CSV.
 15. Open `/account` from the sidebar and change the administrator's password -
     then change it back before the defence.
 16. If there is time, sign out, use **I have forgotten my password**, and follow

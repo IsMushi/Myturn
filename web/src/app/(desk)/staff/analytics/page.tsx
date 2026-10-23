@@ -4,13 +4,13 @@ import { AnalyticsDashboard } from "@/components/AnalyticsDashboard";
 import { AccountGate } from "@/components/console/AccountGate";
 
 export const metadata: Metadata = {
-  title: "Queue analytics — MyTurn",
-  description: "Real-time queue metrics, desk performance, and 7-day trends.",
+  title: "Visitor statistics — MyTurn",
+  description: "Live waiting-line figures, service point performance, and 7-day trends.",
 };
 
 export default function AnalyticsPage() {
   return (
-    <AccountGate title="Queue analytics">
+    <AccountGate title="Visitor statistics">
       <AnalyticsDashboard />
     </AccountGate>
   );

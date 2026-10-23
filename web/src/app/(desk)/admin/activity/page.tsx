@@ -5,7 +5,7 @@ import { AccountGate } from "@/components/console/AccountGate";
 
 export const metadata: Metadata = {
   title: "Activity — MyTurn",
-  description: "What the queue, the desk and the accounts have recorded, newest first.",
+  description: "What the waiting list, the desk and the accounts have recorded, newest first.",
 };
 
 export default function AdminActivityPage() {

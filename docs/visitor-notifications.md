@@ -3,7 +3,7 @@
 The contact entered on `/ticket` chooses the channel. Email addresses receive
 an email through SMTP; phone numbers receive an SMS through TextBee. Messages
 contain the ticket label and destination service point. New calls and recalls
-notify only after the queue transaction commits. A refused call never notifies.
+notify only after the waiting line transaction commits. A refused call never notifies.
 
 This is separate from administrator invitations and password-reset links; those
 retain the prototype's existing development-link flow.

@@ -2,7 +2,7 @@
 
 ## Scope and project constraints
 
-Restyle `/display` to reproduce the user's supplied 1916 × 821 image. This is an existing-screen redesign for visitors watching a waiting-room monitor, not a new application. Other pages, accounts, queue rules, and backend data are out of scope.
+Restyle `/display` to reproduce the user's supplied 1916 × 821 image. This is an existing-screen redesign for visitors watching a waiting-room monitor, not a new application. Other pages, accounts, waiting line rules, and backend data are out of scope.
 
 Read the project README, repository and web AGENTS instructions, global tokens, current display components and styles. Inspected browser captures of the current `/display`, `/`, and `/ticket` screens. The display currently has the right structure but undersized type, icons, badges and summary, different spacing, and a much plainer background and empty illustration.
 
@@ -15,7 +15,7 @@ The user's screenshot is the visual authority. Online references are domain cros
 | Source and exact section | Pattern and fit | Do not copy | Usability risk |
 | --- | --- | --- | --- |
 | User-supplied image, complete MyTurn waiting-room display | Three service columns, prominent title, status pills, total waiting and ticket empty-state illustration match the requested screen exactly | Static example counts and timestamp must not replace live values | Narrow screens need stacking rather than shrinking text beyond legibility |
-| https://help.waitwhile.com/en/articles/10073094-public-displays — Serving display and Waitlist overview display | Service-point calls and separate queue availability support MyTurn's multi-service model | Names, estimated times or extra customer data | Public identification would conflict with anonymous ticket numbers |
+| https://help.waitwhile.com/en/articles/10073094-public-displays — Serving display and Waitlist overview display | Service-point calls and separate waiting-line availability support MyTurn's multi-service model | Names, estimated times or extra customer data | Public identification would conflict with anonymous ticket numbers |
 | https://www.qmatic.com/products/display-signage/ — Waiting Area Displays and Counter Displays | Called tickets paired with destination support clear waiting-room wayfinding | Media advertising, product branding and voice features outside this task | Ancillary content could distract from current calls |
 | https://www.qminder.com/blog/queue-management/waitlist-monitor-digital-signage/ — monitor definition and steps 3–4 | Automatic progress and destination updates validate preserving the existing live stream | Name-based calls, SMS, and competitor branding | A stale screen must never appear connected |
 

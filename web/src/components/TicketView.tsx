@@ -251,10 +251,10 @@ export function TicketView({ initialToken }: { initialToken?: string }) {
         <div>
           <p className="myturn-ticket-kicker">A little less waiting around</p>
           <h1 className="text-3xl font-semibold tracking-tight text-deep-green sm:text-4xl">
-            Get Your Queue Ticket
+            Get your ticket
           </h1>
           <p className="mt-3 text-base leading-relaxed text-deep-green">
-            Join the queue in seconds and follow your turn without standing in line.
+            Join the line in seconds and follow your turn without standing in line.
           </p>
         </div>
         <ServiceStatusPill service={chosenService} error={live.error} loading={deskLoading} />
@@ -262,7 +262,7 @@ export function TicketView({ initialToken }: { initialToken?: string }) {
 
       {live.error && (
         <Alert tone="error">
-          The live queue information could not be loaded. You can still take a ticket, but the
+          The live waiting information could not be loaded. You can still take a ticket, but the
           numbers below may be out of date.
         </Alert>
       )}

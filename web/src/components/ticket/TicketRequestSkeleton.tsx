@@ -8,19 +8,19 @@ import { Skeleton } from "@/components/ui/Skeleton";
 export function TicketRequestSkeleton() {
   return (
     <div className="space-y-8 myturn-ticket-request-skeleton" aria-busy="true" data-testid="ticket-request-skeleton">
-      <p className="sr-only" role="status">Loading ticket services and live queue information…</p>
+      <p className="sr-only" role="status">Loading ticket services and live waiting information…</p>
       <header className="myturn-ticket-intro" aria-hidden="true">
         <div>
           <p className="myturn-ticket-kicker"><span>A little less waiting around</span></p>
-          <h1 className="text-3xl font-semibold tracking-tight text-deep-green sm:text-4xl"><span>Get Your Queue Ticket</span></h1>
-          <p className="mt-3 text-base leading-relaxed text-deep-green"><span>Join the queue in seconds and follow your turn without standing in line.</span></p>
+          <h1 className="text-3xl font-semibold tracking-tight text-deep-green sm:text-4xl"><span>Get your ticket</span></h1>
+          <p className="mt-3 text-base leading-relaxed text-deep-green"><span>Join the line in seconds and follow your turn without standing in line.</span></p>
         </div>
         <Skeleton className="h-10 w-32 shrink-0 rounded-full" />
       </header>
       <div className="myturn-ticket-request-grid">
         <div className="myturn-ticket-selection">
           <TicketStep number={1} title="Select your service">
-            <p className="mb-5 text-sm leading-relaxed text-deep-green">Choose what you came for. Each service has its own queue.</p>
+            <p className="mb-5 text-sm leading-relaxed text-deep-green">Choose what you came for. Each service has its own waiting list.</p>
             <div className="space-y-3" aria-hidden="true">
               {[0, 1, 2].map((index) => (
                 <div key={index} className="myturn-ticket-service-card flex items-start gap-4 rounded-2xl border border-line bg-white p-5">
@@ -38,7 +38,7 @@ export function TicketRequestSkeleton() {
           <p className="myturn-ticket-privacy"><ShieldCheck size={19} aria-hidden="true" /><span>Your ticket is private. No name or account is needed — a phone number or email is required, and only the desk sees it.</span></p>
         </div>
         <div className="myturn-ticket-summary">
-          <TicketStep number={2} title="Queue information"><QueueStatusSkeleton /></TicketStep>
+          <TicketStep number={2} title="Waiting information"><QueueStatusSkeleton /></TicketStep>
           <TicketStep number={3} title="Get my ticket">
             <div className="space-y-4" aria-hidden="true">
               <Skeleton className="h-4 w-44 max-w-full" />

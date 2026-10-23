@@ -1,4 +1,4 @@
-# Two-part public queue board
+# Two-part public waiting line board
 
 ## Approved direction
 

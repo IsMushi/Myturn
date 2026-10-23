@@ -20,7 +20,7 @@ for something that works.
 | **M2** | Larger features that change the data model or open the system out |
 | **M3** | Deployment, fleet and integration work |
 
-The algorithms behind the interesting entries - the queue state machine, the hold
+The algorithms behind the interesting entries - the waiting line state machine, the hold
 rule, the occupancy-assisted requeue, the waiting estimate - are specified in
 `innovation-and-design.md`.
 
@@ -40,7 +40,7 @@ rule, the occupancy-assisted requeue, the waiting estimate - are specified in
 | VIS-08 | Follow the ticket from any device that has the link | Built | - |
 | VIS-09 | Service availability indicator from the live desk state | Built | - |
 | VIS-10 | Duplicate-submission guard | Built | M1 |
-| VIS-11 | Queue-closed state | Built | - |
+| VIS-11 | Waiting Line-closed state | Built | - |
 | VIS-12 | Ticket-unavailable state for a stale or wrong link | Built | - |
 | VIS-13 | Language selector | Partial | M2 |
 | VIS-14 | Join without scanning: short link and a printed numeric code | Designed | M1 |
@@ -55,7 +55,7 @@ rule, the occupancy-assisted requeue, the waiting estimate - are specified in
 | VIS-23 | A missed call explains the new number on the same link | Built | - |
 
 * VIS-23 is the visitor's side of the hold rule. The hold rule gives a called
-  ticket a fresh number at the back of its own queue, on the *same* tracking
+  ticket a fresh number at the back of its own waiting line, on the *same* tracking
   link, so without this the number changes under a visitor who is still looking
   at the page. The `requeued` event now records the number that was given up,
   and `GET /api/tickets/<token>` returns it as `last_requeue`; the ticket page
@@ -78,9 +78,9 @@ rule, the occupancy-assisted requeue, the waiting estimate - are specified in
   ticket from the same counter as the QR code, so a walk-in takes the next number
   in the same line rather than a separate one.
 
-## 2. Queue engine (QUE)
+## 2. Waiting Line engine (QUE)
 
-The rules that make the queue trustworthy. This is the part the report defends.
+The rules that make the waiting line trustworthy. This is the part the report defends.
 
 | ID | Feature | Status | Milestone |
 |---|---|---|---|
@@ -97,11 +97,11 @@ The rules that make the queue trustworthy. This is the part the report defends.
 | QUE-11 | Call a chosen ticket out of order | Designed | M1 |
 | QUE-12 | Priority lane | Designed | M2 |
 | QUE-13 | Transfer a ticket to another desk | Designed | M2 |
-| QUE-14 | One office with several services and several desks, each service with its own queue | Built | - |
+| QUE-14 | One office with several services and several desks, each service with its own waiting line | Built | - |
 | QUE-15 | Target service time per service, with a breach flag | Designed | M2 |
 | QUE-16 | Occupancy-assisted requeue: the board shortens the wait for a no-show | Built | - |
 | QUE-17 | Capacity governor: stop issuing when the line is already long | Designed | M2 |
-| QUE-18 | Day rollover: number every queue day from one | Designed | M2 |
+| QUE-18 | Day rollover: number every waiting line day from one | Designed | M2 |
 | QUE-19 | Duplicate-ticket detection per browser | Built | M1 |
 
 * QUE-09 is the cheapest reliability win in the project. A mis-tap on "No-show"
@@ -112,7 +112,7 @@ The rules that make the queue trustworthy. This is the part the report defends.
   has seen nobody since the call shortens the hold to
   `MYTURN_MIN_CALL_SECONDS` (25 s); an occupied service point, an approach, a missing
   reading or a board that stopped reporting all fall back to the full hold.
-  `sweep_queue()` runs on the reads that matter, so the queue recovers even if
+  `sweep_queue()` runs on the reads that matter, so the waiting line recovers even if
   nobody presses a button, and the event log records that the service point was empty.
 * QUE-12 must stay self-declared. The moment the system guesses who deserves
   priority it is classifying people, which this project does not do.
@@ -125,7 +125,7 @@ The rules that make the queue trustworthy. This is the part the report defends.
 | ID | Feature | Status | Milestone |
 |---|---|---|---|
 | DSK-01 | Sign in as a person, or with the classroom password | Built | - |
-| DSK-02 | Live queue: waiting count, waiting numbers, current call | Built | - |
+| DSK-02 | Live waiting line: waiting count, waiting numbers, current call | Built | - |
 | DSK-03 | Call next | Built | - |
 | DSK-04 | Mark served, no-show or cancelled | Built | - |
 | DSK-05 | Open, pause or close the desk - and who did it | Built | - |
@@ -137,7 +137,7 @@ The rules that make the queue trustworthy. This is the part the report defends.
 | DSK-11 | Undo the last action | Built | - |
 | DSK-12 | Recall the current number | Built | - |
 | DSK-13 | Keyboard shortcuts (N, S, M, C, R, U) | Built | - |
-| DSK-14 | Alert when the queue grows | Built | - |
+| DSK-14 | Alert when the waiting line grows | Built | - |
 | DSK-15 | My tally for this shift | Built | - |
 | DSK-16 | A short note on a ticket | Designed | M2 |
 | DSK-17 | Add a walk-in ticket | Built | - |
@@ -206,7 +206,7 @@ The rules that make the queue trustworthy. This is the part the report defends.
   the administrator role, and the role route refuses to demote the last active
   administrator or to switch off your own account, so an installation cannot lock
   itself out of the administration page.
-* ADM-10 reads three records back in one order: `ticket_events` for the queue,
+* ADM-10 reads three records back in one order: `ticket_events` for the waiting line,
   `desk_settings` for the desk, and `account_events` for the accounts. The last one
   exists because an account can be deleted or renamed while its history has to stay
   readable, so it stores the address rather than a foreign key to `users`.
@@ -250,7 +250,7 @@ The rules that make the queue trustworthy. This is the part the report defends.
   window is treated as an obstruction and does not block the desk. A visitor
   who walked up and then stood still brought an approach with them, so they
   are never written off as a bag, and the hold rule is not relaxed at all.
-  The desk is told when this happens: the queue payload carries `obstruction`
+  The desk is told when this happens: the waiting line payload carries `obstruction`
   and `obstruction_seconds`, and the board panel says that calling is not
   blocked and for how long the object has been still. A rule that silently
   overrides a red light is a rule nobody can check.
@@ -311,15 +311,15 @@ The rules that make the queue trustworthy. This is the part the report defends.
 
 * ANL-01 is deliberately modest: a mean over at most 20 recent served tickets,
   withheld below three samples. ANL-03 is what makes that mean honest, because a
-  queue that is 40 seconds for most visitors and 8 minutes for one is not
+  waiting line that is 40 seconds for most visitors and 8 minutes for one is not
   described by its average.
 * ANL-08 is the one analysis only this project can do: it joins the sensor's
   measurements to the service durations, so the report can say whether the desk
   really takes longer when the service point is busy. That is a defensible use of the
   IoT data that never looks at a person.
-* The Queue analytics page sets the desks side by side in one sheet
+* The Visitor statistics page sets the desks side by side in one sheet
   (`GET /api/analytics/desks`): a row per service point with its served and no-show
-  counts for the day, the queue of the service it shares, its recent measured
+  counts for the day, the waiting line of the service it shares, its recent measured
   service time with the sample count, the hours in which it did work and when it
   last served. It sorts by tickets served but computes no score, and waiting is
   the service's number, so the same figure can appear at two service points.
@@ -375,7 +375,7 @@ The rules that make the queue trustworthy. This is the part the report defends.
 |---|---|---|---|
 | OPS-01 | Health endpoint | Built | - |
 | OPS-02 | Seed script that creates the database and the device key | Built | - |
-| OPS-03 | Reset script that clears the queue but not the accounts | Built | - |
+| OPS-03 | Reset script that clears the waiting line but not the accounts | Built | - |
 | OPS-04 | One-command development launcher | Built | - |
 | OPS-05 | Schema applied automatically on every start | Built | - |
 | OPS-06 | API test suite (234 checks) | Built | - |
@@ -416,9 +416,9 @@ These are decisions, not omissions, and the report should say so.
   distance; it never establishes who is standing there.
 * **No automatic priority.** Priority is only ever self-declared, so the system
   never decides that one person matters more than another.
-* **No queuing across several buildings by default.** One office may run several
+* **No waiting line across several buildings by default.** One office may run several
   services and several desks, but the building is still the boundary: there is no
-  queue that spans two sites.
+  waiting line that spans two sites.
 * **No estimate below three served tickets.** An invented number is worse than the
   words "Not available".
 * **No guessed waiting time from the sensor.** The sensor reports whether someone

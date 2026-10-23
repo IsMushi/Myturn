@@ -39,7 +39,8 @@ def main():
                "MYTURN_STAFF_PASSWORD": password, "MYTURN_DEV_TOKENS": "0",
                "MYTURN_UI_DEVICE_KEY": device_key, "MYTURN_HOLD_SECONDS": "600",
                "MYTURN_MIN_CALL_SECONDS": "600", "MYTURN_TICKET_ATTEMPTS": "1000",
-               "MYTURN_LOGIN_ATTEMPTS": "100", "MYTURN_SECURE_COOKIES": "0"}
+               "MYTURN_LOGIN_ATTEMPTS": "100", "MYTURN_SECURE_COOKIES": "0",
+               "MYTURN_SMTP_HOST": "", "MYTURN_TEXTBEE_API_KEY": ""}
         startup = """
 import os
 from datetime import datetime, timedelta, timezone
@@ -183,7 +184,7 @@ def verify(args, origin, password, device_key):
             expect(page.get_by_role("link", name="Statistics", exact=True)).to_have_count(0)
             passed("Shared staff session has one sign-out and no administrator navigation")
             expect(page.get_by_role("button", name="Call next", exact=True)).to_be_disabled()
-            expect(page.get_by_text("The queue is empty", exact=True)).to_be_visible()
+            expect(page.get_by_text("Nobody is waiting", exact=True)).to_be_visible()
             expect(page.get_by_text("Not available", exact=True)).to_be_visible()
             expect(page.get_by_text("LED override", exact=True)).to_have_count(0)
             expect(page.get_by_role("button", name="Set LED", exact=False)).to_have_count(0)
@@ -297,7 +298,7 @@ def verify(args, origin, password, device_key):
 
             mode["queue_error"] = 503
             expect(connection_toast).to_be_visible(timeout=10000)
-            expect(connection_toast).to_contain_text("Queue updates are interrupted")
+            expect(connection_toast).to_contain_text("Live updates are interrupted")
             expect(connection_toast).to_have_count(1)
             expect(page.locator(".staff-workspace > .staff-connection-notice")).to_have_count(0)
             expect(page.get_by_test_id("staff-connection-state")).to_have_text("Offline")
@@ -333,7 +334,7 @@ def verify(args, origin, password, device_key):
             mode["queue_error"] = None
             # The automatic retry can remove the transient Reconnect button
             # before a click settles; the persistent refresh control is stable.
-            page.get_by_role("button", name="Refresh queue", exact=True).click()
+            page.get_by_role("button", name="Refresh waiting list", exact=True).click()
             expect(page.get_by_role("button", name="Served", exact=True)).to_be_enabled()
             expect(connection_toast).to_have_count(0)
             expect(page.get_by_test_id("staff-connection-state")).to_have_count(0)
@@ -341,12 +342,12 @@ def verify(args, origin, password, device_key):
 
             mode["hold_queue"] = True
             expect(connection_toast).to_be_visible(timeout=22000)
-            expect(connection_toast).to_contain_text("Queue updates are interrupted")
+            expect(connection_toast).to_contain_text("Live updates are interrupted")
             expect(page.get_by_role("button", name="Served", exact=True)).to_be_disabled()
             passed("A stalled request also expires freshness, even before a network error arrives")
             mode["hold_queue"] = False
             release_held()
-            page.get_by_role("button", name="Refresh queue", exact=True).click()
+            page.get_by_role("button", name="Refresh waiting list", exact=True).click()
             expect(page.get_by_role("button", name="Served", exact=True)).to_be_enabled()
             expect(connection_toast).to_have_count(0)
             screenshot("desktop-active")
@@ -392,9 +393,9 @@ def verify(args, origin, password, device_key):
             expect(page.get_by_role("button", name="Call next", exact=True)).to_be_enabled()
             passed("Paused desks accept walk-ins; closed desks block both tickets and calling")
 
-            for _ in range(35):
-                assert api("/api/tickets", {"service": "A"})["status"] == 201
-            page.get_by_role("button", name="Refresh queue", exact=True).click()
+            for index in range(35):
+                assert api("/api/tickets", {"service": "A", "contact": f"line-test-{index}@example.test"})["status"] == 201
+            page.get_by_role("button", name="Refresh waiting list", exact=True).click()
             expect(page.locator(".staff-queue-table tbody tr")).to_have_count(37)
             assert page.locator(".staff-queue-scroll").evaluate("e => e.scrollHeight > e.clientHeight")
             assert_no_overflow()
@@ -414,8 +415,8 @@ def verify(args, origin, password, device_key):
             passed("The service average appears only after enough real completed-ticket samples")
 
             assert api("/api/device/readings", {"distance_cm": 30, "occupied": 1, "approach": 0, "led_state": "red"}, {"X-Device-Key": device_key})["status"] in (200, 201)
-            page.get_by_role("button", name="Refresh queue", exact=True).click()
-            expect(page.get_by_text("Counter occupied", exact=True)).to_be_visible()
+            page.get_by_role("button", name="Refresh waiting list", exact=True).click()
+            expect(page.get_by_text("Service point occupied", exact=True)).to_be_visible()
             if device_toggle.count():
                 device_toggle.click()
             expect(page.get_by_text("Latest sensor report", exact=False)).to_be_visible()

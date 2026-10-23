@@ -99,7 +99,7 @@ const GROUPS: NavGroup[] = [
     title: "Analytics",
     staffOnly: true,
     items: [
-      { href: "/staff/analytics", label: "Queue analytics", icon: BarChart3 },
+      { href: "/staff/analytics", label: "Visitor statistics", icon: BarChart3 },
     ],
   },
   {

@@ -8,7 +8,7 @@ import { homeStyles as styles } from "./public-home";
 const TRUST = [
   { icon: Smartphone, label: "Works on any phone" },
   { icon: CircleX, label: "No account needed" },
-  { icon: Radio, label: "Live queue updates" },
+  { icon: Radio, label: "Live waiting-list updates" },
 ];
 
 export function HeroSection() {

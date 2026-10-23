@@ -38,7 +38,7 @@ export function ServiceStatusPill({
 function status(service: Service | null, error: PollError | null, loading: boolean) {
   if (error) {
     return {
-      label: "Queue updates unavailable",
+      label: "Live updates unavailable",
       icon: WifiOff,
       className: "border-amber-300 bg-amber-50 text-amber-900",
       spin: false,

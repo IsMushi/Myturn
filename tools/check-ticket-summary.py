@@ -101,7 +101,7 @@ with sync_playwright() as p:
             page.screenshot(path=str(shots / f"loaded-{width}.png"), full_page=True)
     unavailable = True
     page.evaluate("window.__streams.filter(s => !s.closed).forEach(s => s.onerror?.())")
-    page.get_by_text("The live queue information could not be loaded.", exact=False).wait_for(timeout=15000)
+    page.get_by_text("The live waiting information could not be loaded.", exact=False).wait_for(timeout=15000)
     check("failed live connection marks displayed values as stale", "out of date" in page.locator("body").inner_text())
     unavailable = False
     state["services"][0].update(waiting=2, waiting_labels=["A002", "A003"], average_service_seconds=None, service_samples=0)

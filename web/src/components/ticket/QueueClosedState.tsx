@@ -35,14 +35,14 @@ export function QueueClosedState({
           <>
             {serviceName} is not taking tickets at the moment. Please come back when the desk
             is open again
-            {waiting > 0 ? `, or wait for the ${plural(waiting, "visitor")} still in the queue` : ""}
+            {waiting > 0 ? `, or wait for the ${plural(waiting, "visitor")} still in the line` : ""}
             . Another service may still be open above.
           </>
         ) : (
           <>
             Tickets are not being issued at the moment. Please come back when the desk is open
             again
-            {waiting > 0 ? `, or wait for the ${plural(waiting, "visitor")} still in the queue` : ""}
+            {waiting > 0 ? `, or wait for the ${plural(waiting, "visitor")} still in the line` : ""}
             .
           </>
         )}

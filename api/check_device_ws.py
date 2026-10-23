@@ -32,7 +32,8 @@ def main():
         os.environ.update({"MYTURN_DB": database, "MYTURN_DATA_DIR": folder,
                            "MYTURN_SECRET": secrets.token_urlsafe(32), "MYTURN_STAFF_PASSWORD": password,
                            "MYTURN_ADMIN_EMAIL": "ws-verification@example.com", "MYTURN_ADMIN_PASSWORD": admin_password,
-                           "MYTURN_SECURE_COOKIES": "0", "MYTURN_DEV_TOKENS": "1"})
+                           "MYTURN_SECURE_COOKIES": "0", "MYTURN_DEV_TOKENS": "1",
+                           "MYTURN_SMTP_HOST": "", "MYTURN_TEXTBEE_API_KEY": ""})
         # Imports happen only AFTER isolating every persistent path.
         from app import app
         from db import connect

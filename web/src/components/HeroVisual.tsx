@@ -29,7 +29,7 @@ export function HeroVisual() {
         sizes="(min-width: 1100px) 56vw, 100vw"
         className={styles.scene}
       />
-      <figcaption className="sr-only">Illustration with example tickets. The separate live queue panel shows the current service status.</figcaption>
+      <figcaption className="sr-only">Illustration with example tickets. The separate live waiting-list panel shows the current service status.</figcaption>
       <LiveDeskPanel />
     </figure>
   );
@@ -52,7 +52,7 @@ function LiveDeskPanel() {
   const heading = unavailable
     ? "Connection interrupted"
     : !data
-      ? "Checking the queue"
+      ? "Checking the waiting list"
       : hasCall
         ? "Now serving"
         : "No active call";
@@ -72,7 +72,7 @@ function LiveDeskPanel() {
     <div className={styles.livePanel}>
       <div role="status" aria-live="polite" aria-atomic="true">
         <div className="myturn-home-live-header">
-          <span><Radio size={15} aria-hidden="true" /> Live queue</span>
+          <span><Radio size={15} aria-hidden="true" /> Live waiting list</span>
           <span className="myturn-home-live-state" data-state={unavailable ? "offline" : state ?? "loading"}>
             <span aria-hidden="true" />{label}
           </span>

@@ -101,7 +101,7 @@ export function AnalyticsDashboard() {
   const hasError = Boolean(queueError || deskError || trendsError);
 
   useEffect(() => {
-    document.title = "Queue analytics | MyTurn";
+    document.title = "Visitor statistics | MyTurn";
     return () => {
       document.title = "MyTurn";
     };
@@ -113,7 +113,7 @@ export function AnalyticsDashboard() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-deep-green">Queue analytics</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-deep-green">Visitor statistics</h1>
           <p className="mt-1 text-sm text-medium-green">
             Real-time metrics and the last seven days, for every service desk.
           </p>

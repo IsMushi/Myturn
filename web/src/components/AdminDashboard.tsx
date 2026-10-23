@@ -72,7 +72,7 @@ export function AdminDashboard() {
       <div className="mx-auto max-w-lg rounded-2xl bg-white p-6 text-center">
         <h1 className="text-xl font-semibold text-deep-green">Administrators only</h1>
         <p className="mt-2 text-sm text-medium-green">
-          This page manages the team&rsquo;s accounts. Your account works the queue from the
+          This page manages the team&rsquo;s accounts. Your account manages the waiting list from the
           staff dashboard instead.
         </p>
         <Link
@@ -475,7 +475,7 @@ function Administration({ session }: { session: Extract<SessionState, { status: 
             <DialogTitle>Delete account?</DialogTitle>
             <DialogDescription>
               This permanently removes {deleting?.full_name}&apos;s account and sign-in access.
-              Password reset links stop working. Queue and activity history remain. This cannot be undone.
+              Password reset links stop working. Ticket and activity history remain. This cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={(event) => { event.preventDefault(); void deleteAccount(); }} className="space-y-4">
@@ -507,7 +507,7 @@ function Administration({ session }: { session: Extract<SessionState, { status: 
           <DialogHeader>
             <DialogTitle>Delete {selected.length} {selected.length === 1 ? "account" : "accounts"}?</DialogTitle>
             <DialogDescription>
-              These accounts and their reset links will be permanently removed. Queue and activity history remain. This cannot be undone.
+              These accounts and their reset links will be permanently removed. Ticket and activity history remain. This cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <ul className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-line p-3 text-sm text-deep-green" aria-label="Accounts to delete">
