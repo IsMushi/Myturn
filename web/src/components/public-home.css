@@ -160,10 +160,6 @@
 
 .myturn-home-nav { min-height: 84px; }
 
-.myturn-home-nav > a:first-child > span { gap: 16px; }
-.myturn-home-nav > a:first-child svg { width: 42px; height: 42px; }
-.myturn-home-nav > a:first-child span span { font-size: 25px; color: var(--color-deep-green); }
-
 .myturn-home-nav-links { margin-left: clamp(30px, 4vw, 68px); }
 
 .myturn-home-nav-link {

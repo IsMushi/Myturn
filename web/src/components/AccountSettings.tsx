@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Alert, Field, TextInput } from "@/components/ui/Field";
+import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { api } from "@/lib/api";
 import { calendarDate, clockTime, fullTimestamp, plural } from "@/lib/format";
 import { focusFirstError } from "@/lib/forms";
@@ -43,6 +44,8 @@ import { z } from "zod";
 /** The name is the one field the owner of an account may correct. */
 const nameSchema = z.object({
   full_name: z.string().trim().min(2, "Add your full name").max(80, "That name is too long"),
+  email: z.string().trim().email("Enter a valid email address").optional().or(z.literal("")),
+  current_password: z.string().optional(),
 });
 type NameValues = z.infer<typeof nameSchema>;
 
@@ -310,6 +313,12 @@ export function AccountSettings() {
   const [nameDone, setNameDone] = useState<string | null>(null);
   const [nameFailure, setNameFailure] = useState<string | null>(null);
   const [passwordOpen, setPasswordOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [historyQuery, setHistoryQuery] = useState("");
+  const [historyFilter, setHistoryFilter] = useState<string>("all");
+  const [historySort, setHistorySort] = useState<"newest" | "oldest">("newest");
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize, setHistoryPageSize] = useState(10);
 
   const account = session.status === "in" ? session.session.user : undefined;
   const administrator = session.status === "in" ? session.session.administrator : undefined;
@@ -321,22 +330,43 @@ export function AccountSettings() {
 
   const nameForm = useForm<NameValues>({
     resolver: zodResolver(nameSchema),
-    defaultValues: { full_name: account?.full_name ?? "" },
+    defaultValues: { full_name: account?.full_name ?? "", email: account?.email ?? "", current_password: "" },
   });
 
   // The name the server has may be newer than the one the form was given, so
   // the field is filled from the account whenever it changes.
   useEffect(() => {
     if (account?.full_name) {
-      nameForm.reset({ full_name: account.full_name });
+      nameForm.reset({ full_name: account.full_name, email: account.email, current_password: "" });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [account?.full_name]);
+  }, [account?.full_name, account?.email]);
 
   const loadHistory = useCallback(() => api.accountHistory(), []);
   const loadWork = useCallback(() => api.accountWork(), []);
   const history = usePolling(loadHistory, 30000);
   const work = usePolling(loadWork, 30000);
+
+  const allHistory = history.data?.entries ?? [];
+  const historyEventTypes = ["all", ...Array.from(new Set(allHistory.map((e) => e.event)))];
+  const filteredHistory = allHistory
+    .filter((e) => historyFilter === "all" || e.event === historyFilter)
+    .filter((e) => {
+      const q = historyQuery.trim().toLowerCase();
+      if (!q) return true;
+      return (e.event + " " + (e.detail ?? "") + " " + e.actor).toLowerCase().includes(q);
+    })
+    .sort((a, b) =>
+      historySort === "newest"
+        ? (a.at < b.at ? 1 : a.at > b.at ? -1 : 0)
+        : (a.at > b.at ? 1 : a.at < b.at ? -1 : 0),
+    );
+  const historyTotalPages = Math.max(1, Math.ceil(filteredHistory.length / historyPageSize));
+  const historySafePage = Math.min(historyPage, historyTotalPages);
+  const pagedHistory = filteredHistory.slice(
+    (historySafePage - 1) * historyPageSize,
+    historySafePage * historyPageSize,
+  );
 
   async function submit(values: ChangePasswordValues) {
     setDone(null);
@@ -356,11 +386,16 @@ export function AccountSettings() {
     setNameDone(null);
     setNameFailure(null);
     try {
-      const result = await api.updateProfile(values);
-      nameForm.reset({ full_name: result.user.full_name });
+      const payload: { full_name: string; email?: string; current_password?: string } = {
+        full_name: values.full_name,
+      };
+      if (values.email && values.email !== account?.email) {
+        payload.email = values.email;
+        payload.current_password = values.current_password;
+      }
+      const result = await api.updateProfile(payload);
+      nameForm.reset({ full_name: result.user.full_name, email: result.user.email, current_password: "" });
       setNameDone(result.message);
-      // The sidebar carries a copy of the account, so it is told to read it
-      // again rather than keeping the old name.
       announceSessionChange();
     } catch (e) {
       setNameFailure(e instanceof Error ? e.message : "The name could not be changed");
@@ -380,23 +415,35 @@ export function AccountSettings() {
 
       {account && (
         <section className="rounded-2xl bg-white p-5">
-          <div className="flex items-center gap-4">
-            <span
-              aria-hidden="true"
-              className="flex size-14 shrink-0 items-center justify-center rounded-full bg-deep-green text-lg font-semibold text-white"
-            >
-              {initials}
-            </span>
-            <div className="min-w-0">
-              <h2 className="truncate text-lg font-semibold text-deep-green">
-                {account.full_name}
-              </h2>
-              <p className="truncate text-sm text-medium-green">{account.email}</p>
-              <p className="mt-0.5 text-sm text-medium-green capitalize">
-                {account.role === "admin" ? "administrator" : "service desk"}
-                {account.is_active ? "" : " · switched off"}
-              </p>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <span
+                aria-hidden="true"
+                className="flex size-14 shrink-0 items-center justify-center rounded-full bg-deep-green text-lg font-semibold text-white"
+              >
+                {initials}
+              </span>
+              <div className="min-w-0">
+                <h2 className="truncate text-lg font-semibold text-deep-green">
+                  {account.full_name}
+                </h2>
+                <p className="truncate text-sm text-medium-green">{account.email}</p>
+                <p className="mt-0.5 text-sm text-medium-green capitalize">
+                  {account.role === "admin" ? "administrator" : "service desk"}
+                  {account.is_active ? "" : " · switched off"}
+                </p>
+              </div>
             </div>
+            {account?.role === "admin" && (
+              <Button
+                variant="quiet"
+                className="shrink-0"
+                onClick={() => setProfileOpen(true)}
+              >
+                <Pencil size={16} aria-hidden="true" />
+                Update profile
+              </Button>
+            )}
           </div>
 
           <dl className="mt-5 grid gap-4 border-t border-line pt-4 sm:grid-cols-2">
@@ -414,56 +461,119 @@ export function AccountSettings() {
             </div>
           </dl>
 
-          <form
-            noValidate
-            onSubmit={nameForm.handleSubmit((values) => void saveName(values), focusFirstError)}
-            className="mt-5 border-t border-line pt-4"
-          >
-            <p className="flex items-center gap-2 text-sm font-semibold text-deep-green">
-              <Pencil size={16} aria-hidden="true" />
-              Your name
-            </p>
-            <div className="mt-3 flex flex-wrap items-end gap-3">
-              <Field label="Full name" id="full_name" error={nameForm.formState.errors.full_name?.message}>
-                <TextInput
-                  id="full_name"
-                  autoComplete="name"
-                  className="max-w-xs"
-                  placeholder="e.g. Leah NIYODUHORANA"
-                  error={Boolean(nameForm.formState.errors.full_name)}
-                  {...nameForm.register("full_name")}
-                />
-              </Field>
-              <Button type="submit" disabled={nameForm.formState.isSubmitting}>
-                {nameForm.formState.isSubmitting ? "Saving…" : "Save my name"}
-              </Button>
-            </div>
-            <p className="mt-2 text-xs text-medium-green">
-              The address is the one your invitation was sent to, so an administrator changes it
-              and not you.
-            </p>
-            {administrator?.email && (
-              <p className="mt-1 text-xs text-medium-green">
-                Administrator contact:{" "}
-                <a
-                  href={`mailto:${administrator.email}`}
-                  className="font-medium text-deep-green underline decoration-line underline-offset-2 hover:text-medium-green"
-                >
-                  {administrator.email}
-                </a>
+          {account?.role === "admin" ? (
+            <>
+              <div className="mt-5 border-t border-line pt-4">
+                <p className="flex items-center gap-2 text-sm font-semibold text-deep-green">
+                  <Pencil size={16} aria-hidden="true" />
+                  Your name
+                </p>
+              </div>
+              <Sheet open={profileOpen} onOpenChange={setProfileOpen}>
+                <SheetContent side="right">
+                  <SheetHeader>
+                    <SheetTitle>Update your name</SheetTitle>
+                  </SheetHeader>
+                  <form
+                    noValidate
+                    onSubmit={nameForm.handleSubmit((values) => void saveName(values), focusFirstError)}
+                    className="mt-4 space-y-4"
+                  >
+                    <Field label="Full name" id="full_name" error={nameForm.formState.errors.full_name?.message}>
+                      <TextInput
+                        id="full_name"
+                        autoComplete="name"
+                        placeholder="e.g. Leah NIYODUHORANA"
+                        error={Boolean(nameForm.formState.errors.full_name)}
+                        {...nameForm.register("full_name")}
+                      />
+                    </Field>
+                    <Field label="Email address" id="profile_email" error={nameForm.formState.errors.email?.message}>
+                      <TextInput
+                        id="profile_email"
+                        type="email"
+                        autoComplete="email"
+                        placeholder="you@example.com"
+                        error={Boolean(nameForm.formState.errors.email)}
+                        {...nameForm.register("email")}
+                      />
+                    </Field>
+                    {nameForm.watch("email") && nameForm.watch("email") !== account?.email && (
+                      <Field
+                        label="Current password"
+                        id="profile_current_password"
+                        hint="Required to change your email address."
+                        error={nameForm.formState.errors.current_password?.message}
+                      >
+                        <TextInput
+                          id="profile_current_password"
+                          type="password"
+                          autoComplete="current-password"
+                          placeholder="Enter your current password"
+                          error={Boolean(nameForm.formState.errors.current_password)}
+                          {...nameForm.register("current_password")}
+                        />
+                      </Field>
+                    )}
+                    <Button type="submit" disabled={nameForm.formState.isSubmitting}>
+                      {nameForm.formState.isSubmitting ? "Saving…" : "Save changes"}
+                    </Button>
+                  </form>
+                </SheetContent>
+              </Sheet>
+            </>
+          ) : (
+            <form
+              noValidate
+              onSubmit={nameForm.handleSubmit((values) => void saveName(values), focusFirstError)}
+              className="mt-5 border-t border-line pt-4"
+            >
+              <p className="flex items-center gap-2 text-sm font-semibold text-deep-green">
+                <Pencil size={16} aria-hidden="true" />
+                Your name
               </p>
-            )}
-            {nameDone && (
-              <div className="mt-3 max-w-md">
-                <Alert tone="success">{nameDone}</Alert>
+              <div className="mt-3 flex flex-wrap items-end gap-3">
+                <Field label="Full name" id="full_name" error={nameForm.formState.errors.full_name?.message}>
+                  <TextInput
+                    id="full_name"
+                    autoComplete="name"
+                    className="max-w-xs"
+                    placeholder="e.g. Leah NIYODUHORANA"
+                    error={Boolean(nameForm.formState.errors.full_name)}
+                    {...nameForm.register("full_name")}
+                  />
+                </Field>
+                <Button type="submit" disabled={nameForm.formState.isSubmitting}>
+                  {nameForm.formState.isSubmitting ? "Saving…" : "Save my name"}
+                </Button>
               </div>
-            )}
-            {nameFailure && (
-              <div className="mt-3 max-w-md">
-                <Alert tone="error" focus>{nameFailure}</Alert>
-              </div>
-            )}
-          </form>
+              <p className="mt-2 text-xs text-medium-green">
+                The address is the one your invitation was sent to, so an administrator changes it
+                and not you.
+              </p>
+            </form>
+          )}
+          {administrator?.email && (
+            <p className="mt-1 text-xs text-medium-green">
+              Administrator contact:{" "}
+              <a
+                href={`mailto:${administrator.email}`}
+                className="font-medium text-deep-green underline decoration-line underline-offset-2 hover:text-medium-green"
+              >
+                {administrator.email}
+              </a>
+            </p>
+          )}
+          {nameDone && (
+            <div className="mt-3 max-w-md">
+              <Alert tone="success">{nameDone}</Alert>
+            </div>
+          )}
+          {nameFailure && (
+            <div className="mt-3 max-w-md">
+              <Alert tone="error" focus>{nameFailure}</Alert>
+            </div>
+          )}
         </section>
       )}
 
@@ -487,35 +597,179 @@ export function AccountSettings() {
       <WorkHistory entries={work.data?.entries ?? null} error={work.error} />
 
       <section className="rounded-2xl bg-white p-5">
-        <h2 className="text-lg font-semibold text-deep-green">Your account history</h2>
-        <p className="mt-1 text-sm text-medium-green">
-          Everything that has happened to this account, newest first.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="max-w-xl">
+            <h2 className="text-lg font-semibold text-deep-green">Your account history</h2>
+            <p className="mt-1 text-sm text-medium-green">
+              Everything that has happened to this account, newest first.
+            </p>
+          </div>
+          {history.data && history.data.entries.length > 0 && (
+            <p className="flex flex-wrap items-center gap-2 text-xs text-medium-green">
+              <span className="rounded-full bg-soft-mint px-2.5 py-1 font-semibold text-deep-green">
+                {plural(filteredHistory.length, "entry", "entries")}
+              </span>
+              {historyQuery || historyFilter !== "all" ? (
+                <span>of {plural(allHistory.length, "total")}</span>
+              ) : null}
+            </p>
+          )}
+        </div>
 
         {history.error ? (
           <p className="mt-3 text-sm text-danger">
             The history could not be read: {history.error.message}
           </p>
         ) : !history.data ? (
-          <p className="mt-3 text-sm text-medium-green">Reading the history…</p>
+          <div className="mt-4 space-y-2" aria-busy="true" aria-label="Reading the history">
+            <div className="h-10 animate-pulse rounded-xl bg-soft-mint" />
+            <div className="h-10 animate-pulse rounded-xl bg-soft-mint" />
+            <div className="h-10 animate-pulse rounded-xl bg-soft-mint" />
+          </div>
         ) : history.data.entries.length === 0 ? (
-          <p className="mt-3 text-sm text-medium-green">Nothing recorded yet.</p>
+          <div className="mt-4 flex flex-col items-center gap-2 rounded-2xl border border-dashed border-line bg-soft-mint/40 px-5 py-8 text-center">
+            <span className="flex size-10 items-center justify-center rounded-full bg-white text-medium-green">
+              <ListChecks size={20} aria-hidden="true" />
+            </span>
+            <p className="font-semibold text-deep-green">Nothing recorded yet</p>
+            <p className="max-w-sm text-sm text-medium-green">
+              Sign-ins, password changes and profile edits will appear here.
+            </p>
+          </div>
         ) : (
-          <ul className="mt-3 divide-y divide-line">
-            {history.data.entries.map((entry, index) => (
-              <li key={`${entry.at}-${index}`} className="flex items-center gap-3 py-2 text-sm">
-                <span className="text-medium-green">
-                  {spoken(entry.event, ACCOUNT_EVENTS)}
-                  {entry.detail && (
-                    <span className="text-medium-green/70"> · {entry.detail}</span>
-                  )}
-                </span>
-                <span className="ml-auto shrink-0 text-xs tabular-nums text-medium-green">
-                  {calendarDate(entry.at)} {clockTime(entry.at)}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <input
+                type="search"
+                value={historyQuery}
+                onChange={(e) => { setHistoryQuery(e.target.value); setHistoryPage(1); }}
+                placeholder="Search event, detail or actor…"
+                className="min-w-0 flex-1 rounded-full border border-line bg-white px-4 py-2 text-sm text-deep-green placeholder:text-medium-green/60 focus:outline-none focus:ring-2 focus:ring-deep-green/30"
+                aria-label="Search account history"
+              />
+              <select
+                value={historyFilter}
+                onChange={(e) => { setHistoryFilter(e.target.value); setHistoryPage(1); }}
+                className="rounded-full border border-line bg-white px-3 py-2 text-sm text-deep-green focus:outline-none focus:ring-2 focus:ring-deep-green/30"
+                aria-label="Filter by event type"
+              >
+                {historyEventTypes.map((type) => (
+                  <option key={type} value={type}>
+                    {type === "all" ? "All events" : spoken(type, ACCOUNT_EVENTS)}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setHistorySort((s) => (s === "newest" ? "oldest" : "newest"))}
+                className="rounded-full border border-line bg-white px-3 py-2 text-sm font-medium text-deep-green hover:bg-soft-mint"
+                aria-label="Toggle sort order"
+              >
+                {historySort === "newest" ? "Newest first" : "Oldest first"}
+              </button>
+              <select
+                value={historyPageSize}
+                onChange={(e) => { setHistoryPageSize(Number(e.target.value)); setHistoryPage(1); }}
+                className="rounded-full border border-line bg-white px-3 py-2 text-sm text-deep-green focus:outline-none focus:ring-2 focus:ring-deep-green/30"
+                aria-label="Rows per page"
+              >
+                {[10, 25, 50].map((n) => (
+                  <option key={n} value={n}>{n} rows</option>
+                ))}
+              </select>
+            </div>
+
+            {filteredHistory.length === 0 ? (
+              <div className="mt-4 rounded-2xl border border-dashed border-line bg-soft-mint/40 px-5 py-6 text-center text-sm text-medium-green">
+                No entries match your search.
+              </div>
+            ) : (
+              <>
+                <div className="mt-4 overflow-x-auto rounded-2xl border border-line">
+                  <table className="w-full text-sm">
+                    <thead className="bg-soft-mint/60 text-left text-xs font-semibold uppercase tracking-wide text-deep-green">
+                      <tr>
+                        <th className="px-4 py-3">Event</th>
+                        <th className="px-4 py-3">Detail</th>
+                        <th className="px-4 py-3">Actor</th>
+                        <th className="px-4 py-3 text-right">When</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-line">
+                      {pagedHistory.map((entry, index) => (
+                        <tr key={`${entry.at}-${index}`} className="hover:bg-soft-mint/30">
+                          <td className="px-4 py-3 font-medium text-deep-green">
+                            {spoken(entry.event, ACCOUNT_EVENTS)}
+                          </td>
+                          <td className="px-4 py-3 text-medium-green">
+                            {entry.detail ? entry.detail : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-medium-green">
+                            {entry.actor}
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3 text-right text-xs tabular-nums text-medium-green">
+                            {calendarDate(entry.at)} {clockTime(entry.at)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile card fallback */}
+                <ul className="mt-4 space-y-2 sm:hidden">
+                  {pagedHistory.map((entry, index) => (
+                    <li
+                      key={`m-${entry.at}-${index}`}
+                      className="rounded-2xl border border-line bg-white p-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="font-semibold text-deep-green">
+                          {spoken(entry.event, ACCOUNT_EVENTS)}
+                        </p>
+                        <span className="shrink-0 text-xs tabular-nums text-medium-green">
+                          {calendarDate(entry.at)} {clockTime(entry.at)}
+                        </span>
+                      </div>
+                      {entry.detail && (
+                        <p className="mt-1 text-sm text-medium-green">{entry.detail}</p>
+                      )}
+                      <p className="mt-1 text-xs text-medium-green/70">by {entry.actor}</p>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-medium-green">
+                  <span>
+                    Showing {(historySafePage - 1) * historyPageSize + 1}–
+                    {Math.min(historySafePage * historyPageSize, filteredHistory.length)} of{" "}
+                    {filteredHistory.length}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+                      disabled={historySafePage <= 1}
+                      className="rounded-full border border-line bg-white px-3 py-1.5 font-medium text-deep-green hover:bg-soft-mint disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Previous
+                    </button>
+                    <span className="tabular-nums">
+                      Page {historySafePage} of {historyTotalPages}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setHistoryPage((p) => Math.min(historyTotalPages, p + 1))}
+                      disabled={historySafePage >= historyTotalPages}
+                      className="rounded-full border border-line bg-white px-3 py-1.5 font-medium text-deep-green hover:bg-soft-mint disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </>
         )}
       </section>
 

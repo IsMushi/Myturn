@@ -30,5 +30,8 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/staff/dashboard", "/admin/dashboard", "/admin/team", "/auth/:path*"],
+  // Every page that needs a session, and the auth pages: a signed-out visitor
+  // is sent to the sign-in page by the server rather than after the console has
+  // painted and asked who they are.
+  matcher: ["/staff/:path*", "/admin/:path*", "/account", "/auth/:path*"],
 };

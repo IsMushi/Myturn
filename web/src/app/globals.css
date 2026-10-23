@@ -66,6 +66,13 @@
   --color-danger-strong: #930101;
   --color-danger-soft: #fdf1f1;
   --color-danger-line: #efc4c4;
+
+  /* The warning colour: a missed turn is not an error, so it is neither the
+     deep green of a served ticket nor the red of a cancelled one. */
+  --color-warning: #92400e;
+  --color-warning-strong: #7a350b;
+  --color-warning-soft: #fff6e9;
+  --color-warning-line: #f3d9ae;
 }
 
 /* shadcn/ui semantic tokens (Tailwind v4).

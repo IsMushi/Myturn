@@ -53,13 +53,37 @@ For implicit TLS, use `MYTURN_SMTP_SECURITY=ssl` and the provider's port (usuall
 supported. Some providers require an app password rather than the account
 password. Restart the API after changing settings.
 
+## Demonstrating without a provider
+
+Between them, TextBee and SMTP need a paired phone and an authorized sender. When
+neither is configured, a call can still be followed end to end:
+
+```dotenv
+MYTURN_NOTIFY_DEV_SINK=1
+```
+
+Every call and recall then appends one JSON line to `data/notifications.log`
+(`MYTURN_NOTIFY_SINK_FILE` moves it) and one `INFO` line to the server log. The
+line carries the channel, the ticket, the desk, the message, the recipient
+masked to `v***@example.test` or `***456`, and — deliberately — `"delivered":
+false` with the note `development record: no provider configured, nothing was
+sent`. Nothing leaves the machine.
+
+The sink is off by default and only records for a channel that is **not**
+configured: when `MYTURN_SMTP_HOST` or `MYTURN_TEXTBEE_API_KEY` is set, that
+channel is used and the record is not written, so a successful send can never
+also produce a "nothing was sent" line. It is a way to watch the flow, not a
+transport, and it must not be presented as delivery.
+
 ## Verification and limits
 
-`api/.venv/Scripts/python.exe api/check_notifications.py` runs twelve automated
+`api/.venv/Scripts/python.exe api/check_notifications.py` runs fifteen automated
 checks with mocked transports and a disposable database. It sends no real
 messages. It covers TextBee request/authentication, E.164 normalization, missing
 configuration, HTTP failures, SMTP TLS/login/content, header injection, channel
-selection, real Flask call/recall paths and failure containment.
+selection, real Flask call/recall paths, failure containment, and the development
+record above (written when asked for, silent when a provider sent, off by
+default, contact never written whole).
 
 For actual delivery, use an approved test phone/email address, take its ticket,
 then call it from the staff page. Verify the matching ticket and service point

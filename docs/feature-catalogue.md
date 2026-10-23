@@ -197,7 +197,7 @@ The rules that make the waiting line trustworthy. This is the part the report de
 | ADM-12 | Export the tickets as CSV | Built | - |
 | ADM-13 | Device list, rename, key rotation | Designed | M2 |
 | ADM-14 | Desk settings at runtime: name, description, target time | Built | - |
-| ADM-15 | A notice pushed to the wall display | Designed | M1 |
+| ADM-15 | A notice pushed to the wall display | Built | M1 |
 | ADM-16 | Retention policy: purge tickets older than N days | Designed | M2 |
 | ADM-17 | Two-factor sign-in for administrators | Designed | M2 |
 | ADM-18 | Backup and restore of the SQLite database | Designed | M2 |
@@ -230,7 +230,7 @@ The rules that make the waiting line trustworthy. This is the part the report de
 | IOT-06 | Reading history, capped per board | Built | - |
 | IOT-07 | Online or offline from the last report | Built | - |
 | IOT-08 | Settings poll: the board asks what to show | Built | - |
-| IOT-09 | Sensor self-test and a "this reading looks wrong" flag | Designed | M1 |
+| IOT-09 | Sensor self-test and a "this reading looks wrong" flag | Built | M1 |
 | IOT-10 | Occupancy-assisted requeue | Built | - |
 | IOT-11 | Buffer readings while the API is unreachable, then flush | Designed | M2 |
 | IOT-12 | Pairing a board without a hardcoded key | Designed | M2 |
@@ -335,7 +335,7 @@ The rules that make the waiting line trustworthy. This is the part the report de
 | ACC-05 | Loading skeletons, empty states and error states | Built | - |
 | ACC-06 | Mobile-first ticket flow, one column, large numbers | Built | - |
 | ACC-07 | Honour a reduced-motion preference | Partial | M1 |
-| ACC-08 | Kinyarwanda and French across the visitor pages | Designed | M2 |
+| ACC-08 | Kinyarwanda and French across the visitor pages | Built | M2 |
 | ACC-09 | Contrast audit at the WCAG AA threshold | Designed | M1 |
 
 * ACC-02 and ACC-07 are honest partials: the pages rely on the browser's own
@@ -358,7 +358,7 @@ The rules that make the waiting line trustworthy. This is the part the report de
 | SEC-09 | Only token digests stored for invitations and resets | Built | - |
 | SEC-10 | Audit log of privileged actions | Partial | M1 |
 | SEC-11 | Account lockout after repeated failures | Designed | M1 |
-| SEC-12 | Session lifetime and idle expiry | Partial | M1 |
+| SEC-12 | Session lifetime and idle expiry | Built | M1 |
 | SEC-13 | Two-factor sign-in for administrators | Designed | M2 |
 | SEC-14 | Security headers and a content security policy | Designed | M1 |
 | SEC-15 | Data retention and purge | Designed | M2 |
@@ -378,7 +378,7 @@ The rules that make the waiting line trustworthy. This is the part the report de
 | OPS-03 | Reset script that clears the waiting line but not the accounts | Built | - |
 | OPS-04 | One-command development launcher | Built | - |
 | OPS-05 | Schema applied automatically on every start | Built | - |
-| OPS-06 | API test suite (234 checks) | Built | - |
+| OPS-06 | API test suite (305 checks) | Built | - |
 | OPS-07 | Browser test suite (71 checks) | Built | - |
 | OPS-08 | Report figure capture | Built | - |
 | OPS-09 | The single-worker limit is documented, not discovered | Built | - |

@@ -3,6 +3,7 @@
 import {
   BarChart3,
   ChartColumn,
+  Cpu,
   Home,
   KeyRound,
   LayoutDashboard,
@@ -10,6 +11,7 @@ import {
   MonitorPlay,
   ScrollText,
   Settings2,
+  Users,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -79,8 +81,10 @@ const GROUPS: NavGroup[] = [
     title: "Administration",
     adminOnly: true,
     items: [
+      { href: "/admin/team", label: "Team", icon: Users },
       { href: "/admin/activity", label: "Activity", icon: ScrollText },
       { href: "/admin/statistics", label: "Statistics", icon: ChartColumn },
+      { href: "/admin/board", label: "Board", icon: Cpu },
       { href: "/admin/settings", label: "Desk settings", icon: Settings2 },
     ],
   },
@@ -169,9 +173,7 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
   }
 
   function renderLink(item: NavItem, onNavigate?: () => void) {
-    // /admin/team is the old address of the administration page; the Dashboard
-    // now opens it, so the Dashboard keeps the highlight when the alias is used.
-    const active = pathname === item.href || (item.href === "/admin/dashboard" && pathname === "/admin/team");
+    const active = pathname === item.href;
     const Icon = item.icon;
     return (
       <li key={item.href}>

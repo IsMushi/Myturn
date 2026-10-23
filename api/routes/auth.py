@@ -23,6 +23,7 @@ from security import (
     csrf_required,
     current_user,
     ensure_csrf,
+    hash_device_key,
     hash_password,
     new_token,
     password_problem,
@@ -161,8 +162,17 @@ def _profile_payload(row):
 
 def _desk_payload(conn, row):
     setting = conn.execute(
-        "select service_state, updated_at, updated_by from desk_settings "
+        "select service_state, updated_at, updated_by, pause_reason, paused_until "
+        "from desk_settings "
         "where desk_id = ? order by setting_id desc limit 1",
+        (row["desk_id"],),
+    ).fetchone()
+    # The board is named here so the desk list can say which counter it watches
+    # instead of telling every counter without one that it has "no board". An
+    # office may own fewer boards than counters, and usually does.
+    device = conn.execute(
+        "select label, last_seen from devices where desk_id = ? "
+        "order by device_id limit 1",
         (row["desk_id"],),
     ).fetchone()
     return {
@@ -175,7 +185,22 @@ def _desk_payload(conn, row):
         "service_state": setting["service_state"] if setting else "paused",
         "updated_at": setting["updated_at"] if setting else None,
         "updated_by": setting["updated_by"] if setting else None,
+        # The desk's own words while it is paused, so the administrator's
+        # dashboard can say why a counter is not calling rather than only that it
+        # is not. Written by the counter, never inferred here.
+        "pause_reason": setting["pause_reason"] if setting else None,
+        "paused_until": setting["paused_until"] if setting else None,
+        "device_label": device["label"] if device is not None else None,
+        "device_online": _board_online(device["last_seen"]) if device is not None else False,
     }
+
+
+def _board_online(last_seen):
+    """Whether a board has reported recently enough to be believed."""
+    if last_seen is None:
+        return False
+    age = seconds_since(last_seen)
+    return age is not None and age <= current_app.config["DEVICE_ONLINE_SECONDS"]
 
 
 def _desk_rows(conn):
@@ -253,7 +278,27 @@ def me():
 
     name = session.get("staff")
     if name is None:
-        return jsonify(error="not signed in"), 401
+        # The browser carried a session cookie that now names nobody: the
+        # account was deleted or switched off, its password was reset, or the
+        # cookie was signed with a key this API no longer uses. Dropping it here
+        # is what keeps the console and the sign-in page from sending the
+        # browser back and forth: the console refuses the cookie, and the
+        # sign-in page turns away anyone who has one.
+        response = jsonify(error="not signed in")
+        response.status_code = 401
+        if request.cookies.get("session"):
+            # `session.clear()` only reaches a cookie Flask could read; a cookie
+            # it could not read still has to leave the browser, so the deletion
+            # is written out explicitly as well.
+            session.clear()
+            response.delete_cookie(
+                "session",
+                path="/",
+                httponly=True,
+                samesite="Lax",
+                secure=current_app.config["SESSION_COOKIE_SECURE"],
+            )
+        return response
 
     return jsonify(staff=name, csrf_token=ensure_csrf(), shared=True)
 
@@ -264,11 +309,12 @@ def me():
 @bp.post("/api/auth/profile")
 @csrf_required
 def update_profile():
-    """The name on the account, corrected by the person it belongs to.
+    """The name (and, with the current password, the address) on the account.
 
     The address is the identity: it is the one the invitation was sent to and
-    the one the administrator sees, so it is not changed from here. The name is
-    only a label, and a misspelled one is worth fixing.
+    the one the administrator sees, so it is not changed lightly. Changing it
+    requires the current password, and the new address must not already be in
+    use.
     """
     user = current_user()
     if user is None:
@@ -279,19 +325,45 @@ def update_profile():
     if name is None:
         return jsonify(error="add your full name"), 400
 
-    conn = get_db()
+    new_email = data.get("email")
+    email_changed = False
+    if new_email is not None and str(new_email).strip().casefold() != user["email"].casefold():
+        new_email = str(new_email).strip()
+        if not new_email or "@" not in new_email:
+            return jsonify(error="enter a valid email address"), 400
+        password = data.get("current_password")
+        conn = get_db()
+        password_hash = conn.execute(
+            "select password_hash from users where user_id = ?", (user["user_id"],)
+        ).fetchone()["password_hash"]
+        if not password or not verify_password(password_hash, password):
+            return jsonify(error="enter your current password to change your email"), 403
+        existing = conn.execute(
+            "select user_id from users where email = ? and user_id <> ?",
+            (new_email, user["user_id"]),
+        ).fetchone()
+        if existing is not None:
+            return jsonify(error="that email address is already in use"), 409
+        email_changed = True
+    else:
+        new_email = user["email"]
+        conn = get_db()
+
     conn.execute(
-        "update users set full_name = ? where user_id = ?",
-        (name, user["user_id"]),
+        "update users set full_name = ?, email = ? where user_id = ?",
+        (name, new_email, user["user_id"]),
     )
-    log_account_event(conn, "profile", user["email"], user["email"], "Name changed")
+    if email_changed:
+        log_account_event(conn, "profile", user["email"], user["email"],
+                          "Email changed to %s" % new_email)
+    else:
+        log_account_event(conn, "profile", user["email"], user["email"], "Name changed")
     conn.commit()
 
-    fresh = public_user(find_user(conn, user["email"]))
-    # The session carries a copy of the account, so it is refreshed here: the
-    # name at the foot of the sidebar changes with the page.
+    fresh = public_user(find_user(conn, new_email))
     session["user"] = fresh
-    return jsonify(user=fresh, message="Your name has been changed.")
+    message = "Your email and name have been changed." if email_changed else "Your name has been changed."
+    return jsonify(user=fresh, message=message)
 
 
 @bp.get("/api/auth/account/history")
@@ -1080,17 +1152,6 @@ def list_desks():
             "where service_id = ? and status = 'waiting'",
             (row["service_id"],),
         ).fetchone()["c"]
-        payload["device_online"] = False
-        last = conn.execute(
-            "select last_seen from devices where desk_id = ? order by device_id limit 1",
-            (row["desk_id"],),
-        ).fetchone()
-        if last is not None and last["last_seen"] is not None:
-            age = seconds_since(last["last_seen"])
-            payload["device_online"] = (
-                age is not None
-                and age <= current_app.config["DEVICE_ONLINE_SECONDS"]
-            )
         listing.append(payload)
     return jsonify(desks=listing, server_time=now())
 
@@ -1133,7 +1194,6 @@ def create_desk():
     ).fetchone()
     payload = _desk_payload(conn, row)
     payload["waiting"] = 0
-    payload["device_online"] = False
     return jsonify(desk=payload), 201
 
 
@@ -1198,8 +1258,354 @@ def update_desk(desk_id):
         "where service_id = ? and status = 'waiting'",
         (updated["service_id"],),
     ).fetchone()["c"]
-    payload["device_online"] = False
     return jsonify(desk=payload)
+
+
+@bp.delete("/api/auth/desks/<int:desk_id>")
+@role_required("admin")
+@csrf_required
+def delete_desk(desk_id):
+    """Permanently remove a counter, and the tickets it ever served."""
+    conn = get_db()
+    conn.execute("begin immediate")
+    try:
+        row = conn.execute(
+            "select d.desk_id, d.name, d.service_id, s.letter, s.name as service_name "
+            "from desks d join services s on s.service_id = d.service_id "
+            "where d.desk_id = ?", (desk_id,),
+        ).fetchone()
+        if row is None:
+            return jsonify(error="unknown desk"), 404
+
+        data = request.get_json(silent=True) or {}
+        if not isinstance(data, dict) or str(data.get("confirm") or "").strip() != row["name"]:
+            return jsonify(error="confirm the desk name before deleting"), 400
+
+        # A board watching this counter is moved off it first, so the binding
+        # is not left pointing at a counter that no longer exists.
+        conn.execute("update devices set desk_id = null where desk_id = ?", (desk_id,))
+
+        # The tickets this counter ever touched, and their event log.
+        ticket_ids = [r["ticket_id"] for r in conn.execute(
+            "select ticket_id from tickets where desk_id = ?", (desk_id,),
+        ).fetchall()]
+        for tid in ticket_ids:
+            conn.execute("delete from ticket_events where ticket_id = ?", (tid,))
+        conn.execute("delete from tickets where desk_id = ?", (desk_id,))
+
+        conn.execute("delete from desk_settings where desk_id = ?", (desk_id,))
+        conn.execute("delete from desks where desk_id = ?", (desk_id,))
+
+        actor = current_user()["email"]
+        log_account_event(conn, "desk deleted", actor, actor,
+                          "%s — %s" % (row["name"], row["service_name"]))
+        conn.commit()
+        signal()
+        return jsonify(deleted=desk_id, name=row["name"])
+    finally:
+        if conn.in_transaction:
+            conn.rollback()
+
+
+@bp.delete("/api/auth/services/<int:service_id>")
+@role_required("admin")
+@csrf_required
+def delete_service(service_id):
+    """Permanently remove a waiting list, and everything it ever held."""
+    conn = get_db()
+    conn.execute("begin immediate")
+    try:
+        row = conn.execute("select * from services where service_id = ?", (service_id,)).fetchone()
+        if row is None:
+            return jsonify(error="unknown service"), 404
+
+        data = request.get_json(silent=True) or {}
+        if not isinstance(data, dict) or str(data.get("confirm") or "").strip() != row["name"]:
+            return jsonify(error="confirm the service name before deleting"), 400
+
+        remaining_active = conn.execute(
+            "select count(*) as c from services where is_active = 1 and service_id <> ?",
+            (service_id,),
+        ).fetchone()["c"]
+        if row["is_active"] and remaining_active == 0:
+            return jsonify(error="the office must keep at least one active service"), 400
+
+        desks = conn.execute(
+            "select desk_id, name from desks where service_id = ?", (service_id,),
+        ).fetchall()
+        if desks:
+            return jsonify(error="move or remove the desks serving this service first"), 409
+
+        # Every ticket this service ever issued, and its event log.
+        ticket_ids = [r["ticket_id"] for r in conn.execute(
+            "select ticket_id from tickets where service_id = ?", (service_id,),
+        ).fetchall()]
+        for tid in ticket_ids:
+            conn.execute("delete from ticket_events where ticket_id = ?", (tid,))
+        conn.execute("delete from tickets where service_id = ?", (service_id,))
+
+        conn.execute("delete from ticket_numbers where name = ?", ("ticket:%s" % row["letter"],))
+
+        conn.execute("delete from services where service_id = ?", (service_id,))
+
+        actor = current_user()["email"]
+        log_account_event(conn, "service deleted", actor, actor,
+                          "%s — %s" % (row["letter"], row["name"]))
+        conn.commit()
+        signal()
+        return jsonify(deleted=service_id, letter=row["letter"], name=row["name"])
+    finally:
+        if conn.in_transaction:
+            conn.rollback()
+
+
+@bp.post("/api/auth/office/reset")
+@role_required("admin")
+@csrf_required
+def reset_office():
+    """Clear every queue, counter and reading; keep accounts and settings."""
+    data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict) or str(data.get("confirm") or "").strip() != "RESET THE OFFICE":
+        return jsonify(error="confirm with the phrase RESET THE OFFICE"), 400
+
+    conn = get_db()
+    conn.execute("begin immediate")
+    try:
+        # Clear the queue and its history of events.
+        for tid in [r["ticket_id"] for r in conn.execute("select ticket_id from tickets").fetchall()]:
+            conn.execute("delete from ticket_events where ticket_id = ?", (tid,))
+        conn.execute("delete from tickets")
+        # Zero every per-service counter.
+        conn.execute("update ticket_numbers set value = 0")
+        # Pause every desk and drop its pause words.
+        conn.execute(
+            "update desk_settings set service_state = 'paused', "
+            "pause_reason = null, paused_until = null, updated_at = ?, updated_by = ?",
+            (now(), current_user()['email']),
+        )
+        # Drop the readings a board took, so a stale occupancy does not survive.
+        conn.execute("delete from device_reports")
+        conn.execute("update devices set last_seen = null")
+
+        actor = current_user()["email"]
+        log_account_event(conn, "office reset", actor, actor, "queues cleared")
+        conn.commit()
+        signal()
+        return jsonify(reset=True)
+    finally:
+        if conn.in_transaction:
+            conn.rollback()
+
+#
+# The office owns one board and several counters, so this is a single movable
+# binding rather than a property every counter has: `devices.desk_id` names the
+# one counter the board watches, and pointing it somewhere else takes it off the
+# counter it was on. Nothing else changes - a counter without a board still
+# serves visitors, it simply cannot tell whether somebody is standing at it, so
+# the hold rule keeps its full length there.
+# ---------------------------------------------------------------------------
+
+
+def _device_rows(conn, device_id=None):
+    where = " where v.device_id = ?" if device_id is not None else ""
+    params = (device_id,) if device_id is not None else ()
+    return conn.execute(
+        "select v.device_id, v.label, v.chip_id, v.mac_address, v.last_seen, "
+        "       v.desk_id, d.name as desk_name, s.letter as service_letter, "
+        "       s.name as service_name "
+        "from devices v "
+        "left join desks d on d.desk_id = v.desk_id "
+        "left join services s on s.service_id = d.service_id" + where +
+        " order by v.device_id",
+        params,
+    ).fetchall()
+
+
+def _device_payload(row):
+    return {
+        "device_id": row["device_id"],
+        "label": row["label"],
+        "chip_id": row["chip_id"],
+        "mac_address": row["mac_address"],
+        "last_seen": row["last_seen"],
+        "online": _board_online(row["last_seen"]),
+        "desk_id": row["desk_id"],
+        "desk_name": row["desk_name"],
+        "service_letter": row["service_letter"],
+        "service_name": row["service_name"],
+    }
+
+
+@bp.get("/api/auth/devices")
+@role_required("admin")
+def list_devices():
+    """Every board the office owns, and the counter each one watches."""
+    conn = get_db()
+    return jsonify(
+        devices=[_device_payload(row) for row in _device_rows(conn)],
+        server_time=now(),
+    )
+
+
+@bp.post("/api/auth/devices")
+@role_required("admin")
+@csrf_required
+def register_device():
+    """Register a board and hand out the one key it signs in with.
+
+    The key is in this reply and nowhere else afterwards: only its digest is
+    stored, so a key that is lost is replaced rather than looked up. That is why
+    the page that registers a board is also the page that replaces its key.
+    """
+    data = request.get_json(silent=True) or {}
+    label = _desk_text(data.get("label"), 60)
+    if label is None:
+        return jsonify(error="give the board a name of 60 characters or fewer"), 400
+
+    conn = get_db()
+    taken = conn.execute(
+        "select device_id from devices where label = ? collate nocase", (label,)
+    ).fetchone()
+    if taken is not None:
+        return jsonify(error="a board with that name is already registered"), 400
+
+    wanted = data.get("desk_id")
+    desk = None
+    if wanted not in (None, ""):
+        try:
+            wanted = int(wanted)
+        except (TypeError, ValueError):
+            return jsonify(error="choose the counter this board watches"), 400
+        desk = conn.execute(
+            "select desk_id, name from desks where desk_id = ?", (wanted,)
+        ).fetchone()
+        if desk is None:
+            return jsonify(error="unknown counter"), 404
+
+    key = new_token()
+    device_id = conn.execute(
+        "insert into devices (label, device_key_hash, desk_id) values (?, ?, ?)",
+        (label, hash_device_key(key), desk["desk_id"] if desk is not None else None),
+    ).lastrowid
+
+    actor = current_user()["email"]
+    log_account_event(
+        conn,
+        "board registered",
+        actor,
+        actor,
+        "%s -> %s" % (label, desk["name"] if desk is not None else "no counter"),
+    )
+    signal()
+    row = _device_rows(conn, device_id)[0]
+    return jsonify(device=_device_payload(row), device_key=key), 201
+
+
+@bp.post("/api/auth/devices/<int:device_id>/key")
+@role_required("admin")
+@csrf_required
+def replace_device_key(device_id):
+    """Give a board a new key, for a key that was lost or written down elsewhere.
+
+    The board keeps its name and the counter it watches; the key it was signing
+    in with stops working the moment this answers, so a board that is still
+    running the old key falls silent until it is flashed with the new one.
+    """
+    conn = get_db()
+    device = conn.execute(
+        "select device_id, label from devices where device_id = ?", (device_id,)
+    ).fetchone()
+    if device is None:
+        return jsonify(error="unknown board"), 404
+
+    key = new_token()
+    conn.execute(
+        "update devices set device_key_hash = ? where device_id = ?",
+        (hash_device_key(key), device_id),
+    )
+    actor = current_user()["email"]
+    log_account_event(conn, "board key replaced", actor, actor, device["label"])
+    signal()
+    row = _device_rows(conn, device_id)[0]
+    return jsonify(device=_device_payload(row), device_key=key)
+
+
+@bp.delete("/api/auth/devices/<int:device_id>")
+@role_required("admin")
+@csrf_required
+def retire_device(device_id):
+    """Take a board out of service, with the readings it took.
+
+    Its key stops working with the row. The counter it watched keeps serving
+    visitors: the hold rule simply returns to its full length there.
+    """
+    conn = get_db()
+    device = conn.execute(
+        "select device_id, label from devices where device_id = ?", (device_id,)
+    ).fetchone()
+    if device is None:
+        return jsonify(error="unknown board"), 404
+
+    conn.execute("delete from device_reports where device_id = ?", (device_id,))
+    conn.execute("delete from devices where device_id = ?", (device_id,))
+    actor = current_user()["email"]
+    log_account_event(conn, "board retired", actor, actor, device["label"])
+    signal()
+    return jsonify(ok=True)
+
+
+@bp.post("/api/auth/devices/<int:device_id>")
+@role_required("admin")
+@csrf_required
+def assign_device(device_id):
+    """Point one board at a counter, or take it off every counter.
+
+    Moving a board clears the readings it took at the counter it has left.
+    Those readings describe the old service point: the obstruction rule asks
+    whether an approach was seen *there*, and an occupied reading carried over
+    would tell the new counter that somebody is standing at it. The board's
+    next report arrives within a few seconds and starts its history afresh.
+    """
+    conn = get_db()
+    device = conn.execute(
+        "select device_id, label, desk_id from devices where device_id = ?",
+        (device_id,),
+    ).fetchone()
+    if device is None:
+        return jsonify(error="unknown board"), 404
+
+    data = request.get_json(silent=True) or {}
+    wanted = data.get("desk_id")
+    desk = None
+    if wanted not in (None, ""):
+        try:
+            wanted = int(wanted)
+        except (TypeError, ValueError):
+            return jsonify(error="choose the counter this board watches"), 400
+        desk = conn.execute(
+            "select desk_id, name from desks where desk_id = ?", (wanted,)
+        ).fetchone()
+        if desk is None:
+            return jsonify(error="unknown counter"), 404
+
+    watching = desk["desk_id"] if desk is not None else None
+    conn.execute(
+        "update devices set desk_id = ? where device_id = ?", (watching, device_id)
+    )
+    if watching != device["desk_id"]:
+        conn.execute("delete from device_reports where device_id = ?", (device_id,))
+
+    actor = current_user()["email"]
+    log_account_event(
+        conn,
+        "board moved",
+        actor,
+        actor,
+        "%s -> %s" % (device["label"], desk["name"] if desk is not None else "no counter"),
+    )
+    signal()
+    row = _device_rows(conn, device_id)[0]
+    return jsonify(device=_device_payload(row))
 
 
 # The older settings page edited one desk profile. Keep the route working for
@@ -1243,6 +1649,42 @@ def update_desk_profile():
         "select * from services where service_id = ?", (row["service_id"],)
     ).fetchone()
     return jsonify(profile=_profile_payload(updated))
+
+
+@bp.post("/api/auth/notices")
+@role_required("admin")
+def add_notice():
+    """An administrator posts a notice that the wall display shows.
+
+    The body should be `{ "message": "some text" }`. The notice is stored
+    in the process memory and piggybacked onto the public state so the
+    wall display can render it without a separate request.
+    """
+    data = request.get_json(silent=True) or {}
+    message = data.get("message")
+    if not message:
+        return jsonify(error="notice message required"), 400
+    # Store in process‑wide memory so the display can read it.
+    if not hasattr(add_notice, "_notices"):
+        add_notice._notices = []
+    add_notice._notices.append({"message": message, "at": now()})
+    signal()
+    return jsonify(ok=True)
+
+
+@bp.get("/api/auth/notices")
+@role_required("admin")
+def list_notices():
+    """Return the notices stored by the admin, for the display."""
+    notices = getattr(add_notice, "_notices", []) if "add_notice" in dir() else []
+    return jsonify(notices=notices)
+
+
+@bp.get("/api/auth/notices/public")
+def public_notices():
+    """Return just the latest notice for the wall display (no auth)."""
+    notices = getattr(add_notice, "_notices", []) if "add_notice" in dir() else []
+    return jsonify(notices=notices[-1:] if notices else [])
 
 
 @bp.get("/api/auth/stats")

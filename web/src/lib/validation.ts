@@ -82,6 +82,15 @@ export const deskSettingsSchema = z.object({
     ),
 });
 
+/** A board's name. The counter is chosen from a list, not typed. */
+export const boardSchema = z.object({
+  label: z
+    .string()
+    .trim()
+    .min(2, "Give the board a name")
+    .max(60, "Use 60 characters or fewer"),
+});
+
 export const changePasswordSchema = z
   .object({
     current_password: z.string().min(1, "Enter your current password"),
@@ -101,3 +110,4 @@ export type InviteValues = z.infer<typeof inviteSchema>;
 export type SharedPasswordValues = z.infer<typeof sharedPasswordSchema>;
 export type ChangePasswordValues = z.infer<typeof changePasswordSchema>;
 export type DeskSettingsValues = z.infer<typeof deskSettingsSchema>;
+export type BoardValues = z.infer<typeof boardSchema>;

@@ -9,6 +9,7 @@ sign in, call and close a ticket, the board sends readings, and the hold rule is
 exercised by back-dating the call time in the database.
 """
 import http.cookiejar
+import hashlib
 import json
 import sqlite3
 import sys
@@ -77,6 +78,13 @@ def reset():
     conn.execute("delete from ticket_events")
     conn.execute("delete from tickets")
     conn.execute("delete from device_reports")
+    # The registration checks below register a board of their own. A run that
+    # was interrupted would leave it behind, so it is cleared here as well.
+    conn.execute(
+        "delete from device_reports where device_id in "
+        "(select device_id from devices where label = 'Suite board')"
+    )
+    conn.execute("delete from devices where label = 'Suite board'")
     # A board that is plugged in reports every few seconds, so `last_seen`
     # would survive the reset and the desk would start the run online. The
     # suite expects the "no board has ever reported" state, and says so in its
@@ -1073,9 +1081,16 @@ def main():
     check("switching off blocks an existing member session", status, 401)
     status, _ = call("POST", endpoint + "/active", {"is_active": True}, admin)
     check("admin can restore a member", status, 200)
+    # Being switched off ended that session for good: the browser was told to
+    # drop its cookie while it was refused, so the member signs in again rather
+    # than picking up where the disabled session left off.
+    status, restored = call("POST", "/api/auth/login",
+                            {"email": "new@example.com", "password": "sunflower2"},
+                            member_again)
+    check("a restored member signs in again", status, 200)
     status, _ = call("DELETE", endpoint, {"confirm_email": "new@example.com"})
     check("deleting an account requires sign-in", status, 401)
-    csrf_token = signed_in_again["csrf_token"]
+    csrf_token = restored["csrf_token"]
     status, _ = call("DELETE", endpoint, {"confirm_email": "new@example.com"}, member_again)
     check("staff cannot delete an account", status, 403)
     csrf_token = None
@@ -1169,6 +1184,153 @@ def main():
                        (batch[0]["email"], batch[1]["email"])).fetchone()[0], 2)
     conn.close()
 
+    print("The sensor board")
+    # The board this suite posts readings for is the one under test: `devices`
+    # may hold more than one row, and the disposable office that
+    # check_device_ws.py builds always does.
+    conn = sqlite3.connect(config.DATABASE)
+    board_row = conn.execute(
+        "select device_id, desk_id from devices where device_key_hash = ?",
+        (hashlib.sha256(DEVICE_KEY.encode("utf-8")).hexdigest(),),
+    ).fetchone()
+    device_id, home = board_row
+    status, listing = call("GET", "/api/auth/devices", opener=admin)
+    check("an administrator reads the boards", status, 200)
+    check("the list carries the board that is reporting",
+          [row["device_id"] for row in listing["devices"] if row["device_id"] == device_id],
+          [device_id])
+    status, _ = call("GET", "/api/auth/devices", opener=staff)
+    check("a shared session cannot read the boards", status, 401)
+
+    other = 2 if home != 2 else 1
+    status, moved = call("POST", "/api/auth/devices/%d" % device_id,
+                         {"desk_id": other}, admin)
+    check("an administrator moves the board to another counter",
+          (status, moved["device"]["desk_id"]), (200, other))
+    check("the board answers with the counter it now watches",
+          moved["device"]["desk_name"] is not None, True)
+    check("the counter it left no longer holds it",
+          conn.execute("select count(*) from devices where desk_id = ? and device_id = ?",
+                       (home, device_id)).fetchone()[0], 0)
+
+    conn.execute(
+        "insert into device_reports (device_id, distance_cm, occupied, approach, led_state, "
+        "reported_at) values (?, 30, 1, 1, 'red', ?)",
+        (device_id, seconds_ago(0)),
+    )
+    conn.commit()
+    status, _ = call("POST", "/api/auth/devices/%d" % device_id, {"desk_id": home}, admin)
+    check("moving the board back works", status, 200)
+    check("a board's old readings do not follow it to its new counter",
+          conn.execute("select count(*) from device_reports where device_id = ?",
+                       (device_id,)).fetchone()[0], 0)
+
+    status, off = call("POST", "/api/auth/devices/%d" % device_id,
+                       {"desk_id": None}, admin)
+    check("a board can be taken off every counter",
+          (status, off["device"]["desk_id"]), (200, None))
+    status, back = call("POST", "/api/auth/devices/%d" % device_id,
+                        {"desk_id": home}, admin)
+    check("the board can be put back on a counter",
+          (status, back["device"]["desk_id"]), (200, home))
+    status, _ = call("POST", "/api/auth/devices/999999", {"desk_id": home}, admin)
+    check("moving an unknown board is refused", status, 404)
+    status, _ = call("POST", "/api/auth/devices/%d" % device_id,
+                     {"desk_id": 999999}, admin)
+    check("pointing a board at an unknown counter is refused", status, 404)
+    status, _ = call("POST", "/api/auth/devices/%d" % device_id,
+                     {"desk_id": "kitchen"}, admin)
+    check("a counter must be a number", status, 400)
+    csrf_token = None
+    status, _ = call("POST", "/api/auth/devices/%d" % device_id, {"desk_id": home}, admin)
+    check("moving a board requires a security token", status, 403)
+    csrf_token = admin_token
+    check("every move is written to the account history",
+          conn.execute("select count(*) from account_events where event_type = 'board moved'")
+          .fetchone()[0] >= 4, True)
+    conn.close()
+    _, desks_now = call("GET", "/api/auth/desks", opener=admin)
+    watched = [row for row in desks_now["desks"] if row["desk_id"] == home][0]
+    check("the counter names the board watching it", watched["device_label"], back["device"]["label"])
+    # The administrator's dashboard says why a counter is not calling, so the
+    # desk list carries the counter's own words and not only its state.
+    check("the counter carries its pause wording",
+          ("pause_reason" in watched, "paused_until" in watched), (True, True))
+
+    print("Registering a board")
+    status, registered = call("POST", "/api/auth/devices",
+                              {"label": "Suite board", "desk_id": None}, admin)
+    check("an administrator registers a board", status, 201)
+    suite_id = registered["device"]["device_id"]
+    suite_key = registered.get("device_key") or ""
+    check("registration hands out a key", len(suite_key) >= 32, True)
+    check("the new board is not watching a counter yet",
+          registered["device"]["desk_id"], None)
+
+    conn = sqlite3.connect(config.DATABASE)
+    stored = conn.execute(
+        "select device_key_hash from devices where device_id = ?", (suite_id,)
+    ).fetchone()[0]
+    check("only the digest of the key is stored",
+          stored, hashlib.sha256(suite_key.encode("utf-8")).hexdigest())
+    check("the key itself is not written down", suite_key in (stored or ""), False)
+
+    status, _ = call("POST", "/api/device/readings",
+                     {"distance_cm": 88, "occupied": False, "led_state": "green"},
+                     key=suite_key)
+    check("the key it was given signs the board in", status, 200)
+
+    status, listing = call("GET", "/api/auth/devices", opener=admin)
+    check("the registered board is in the list",
+          [row["device_id"] for row in listing["devices"] if row["device_id"] == suite_id],
+          [suite_id])
+    status, _ = call("POST", "/api/auth/devices", {"label": "suite board"}, admin)
+    check("a name already in use is refused", status, 400)
+    status, _ = call("POST", "/api/auth/devices",
+                     {"label": "Rack board", "desk_id": 999999}, admin)
+    check("registering against an unknown counter is refused", status, 404)
+    status, _ = call("POST", "/api/auth/devices", {"label": "Rack board"}, staff)
+    check("a shared session cannot register a board", status, 401)
+    csrf_token = None
+    status, _ = call("POST", "/api/auth/devices", {"label": "Rack board"}, admin)
+    check("registering a board requires a security token", status, 403)
+    csrf_token = admin_token
+
+    status, renamed = call("POST", "/api/auth/devices/%d/key" % suite_id, None, admin)
+    check("an administrator replaces a board's key", status, 200)
+    new_key = renamed.get("device_key") or ""
+    check("the new key is a different one", new_key != suite_key, True)
+    status, _ = call("POST", "/api/device/readings",
+                     {"distance_cm": 61, "occupied": False}, key=suite_key)
+    check("the key it was registered with stops working", status, 401)
+    status, _ = call("POST", "/api/device/readings",
+                     {"distance_cm": 61, "occupied": False}, key=new_key)
+    check("the replacement key works", status, 200)
+
+    status, _ = call("DELETE", "/api/auth/devices/%d" % suite_id, None, admin)
+    check("an administrator retires a board", status, 200)
+    status, listing = call("GET", "/api/auth/devices", opener=admin)
+    check("the retired board is gone from the list",
+          [row["device_id"] for row in listing["devices"] if row["device_id"] == suite_id], [])
+    status, _ = call("POST", "/api/device/readings",
+                     {"distance_cm": 61, "occupied": False}, key=new_key)
+    check("a retired board's key stops working", status, 401)
+    check("the readings went with the board",
+          conn.execute("select count(*) from device_reports where device_id = ?",
+                       (suite_id,)).fetchone()[0], 0)
+    status, _ = call("DELETE", "/api/auth/devices/%d" % suite_id, None, admin)
+    check("retiring an unknown board is refused", status, 404)
+    csrf_token = None
+    status, _ = call("DELETE", "/api/auth/devices/999999", None, admin)
+    check("retiring a board requires a security token", status, 403)
+    csrf_token = admin_token
+    check("the account history records the life of a board",
+          conn.execute(
+              "select count(*) from account_events where event_type in "
+              "('board registered', 'board key replaced', 'board retired')"
+          ).fetchone()[0] >= 3, True)
+    conn.close()
+
     print("Persistence")
     # Back to the shared classroom session for the last two checks.
     csrf_token = saved
@@ -1176,6 +1338,23 @@ def main():
     check("sign out works", status, 200)
     status, _ = call("GET", "/api/staff/queue", opener=staff)
     check("the session is really closed", status, 401)
+
+    # A cookie this API can no longer read - a changed signing key, an account
+    # that is gone - has to leave the browser on the same reply that refuses it.
+    # Otherwise the console keeps sending the browser to the sign-in page and the
+    # sign-in page keeps sending it back, because it still sees a cookie.
+    stale = urllib.request.Request(BASE + "/api/auth/me")
+    stale.add_header("Cookie", "session=not-a-cookie-this-api-could-have-signed")
+    try:
+        with urllib.request.urlopen(stale) as reply:
+            dropped = None
+            stale_status = reply.status
+    except urllib.error.HTTPError as error:
+        stale_status = error.code
+        dropped = error.headers.get("Set-Cookie")
+    check("a refused cookie is answered with 401", stale_status, 401)
+    check("a refused cookie is dropped from the browser",
+          bool(dropped) and "session=;" in dropped, True)
 
     print()
     print("%d checks passed, %d failed" % (passed, failed))

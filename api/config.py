@@ -109,3 +109,11 @@ SMTP_USERNAME = os.environ.get("MYTURN_SMTP_USERNAME", "")
 SMTP_PASSWORD = os.environ.get("MYTURN_SMTP_PASSWORD", "")
 SMTP_FROM = os.environ.get("MYTURN_SMTP_FROM", "")
 SMTP_SECURITY = os.environ.get("MYTURN_SMTP_SECURITY", "starttls").lower()
+
+# When no provider is configured, a call can still be recorded locally so the
+# notification path can be followed during a demonstration. This is a record of
+# what would have been sent, never a delivery, and it is off unless asked for.
+NOTIFY_DEV_SINK = os.environ.get("MYTURN_NOTIFY_DEV_SINK", "0").lower() in {"1", "true", "yes"}
+NOTIFY_SINK_FILE = os.environ.get(
+    "MYTURN_NOTIFY_SINK_FILE", str(DATA_DIR / "notifications.log")
+)

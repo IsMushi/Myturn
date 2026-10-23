@@ -61,10 +61,6 @@
   color: var(--display-ink);
 }
 
-.myturn-display-logo > span > span {
-  color: inherit;
-}
-
 .myturn-display-status {
   display: flex;
   align-items: center;

@@ -571,20 +571,12 @@ def call_next():
             409,
         )
 
-    # A desk may only hold one call at a time, so calling the next is only
-    # possible once the current one has been closed. When nothing is being
-    # called yet, the first waiting ticket becomes the call.
-    current = conn.execute(
-        "select ticket_id, ticket_no, status from tickets "
-        "where desk_id = ? and status = 'called'",
-        (desk_id,),
-    ).fetchone()
-    if current is not None:
-        return (
-            jsonify(error="finish the current ticket before calling the next"),
-            409,
-        )
-
+    # A desk may only hold one call at a time, and that is what
+    # `_clear_expired_call` enforces below: it refuses while the call is still
+    # inside its hold, and puts the ticket back at the end of its own queue once
+    # the hold has run out. An earlier guard here refused *any* outstanding
+    # call, which made the hold unreachable: a visitor who walked away could
+    # block the desk for good, and the refusal carried no hold time.
     conn.execute("begin immediate")
     try:
         conflict = _clear_expired_call(conn, desk_id)

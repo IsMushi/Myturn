@@ -9,7 +9,7 @@
 -- has been migrated, because they refer to columns that database does not have
 -- yet. Keeping them out of this file is what lets `create table if not exists`
 -- run first on both a fresh and an existing file.
-
+--
 -- The next ticket number for each service, one row per service letter
 -- (ticket:A, ticket:B, ...). Nothing else belongs here.
 create table if not exists ticket_numbers (
@@ -96,25 +96,17 @@ create table if not exists devices (
     mac_address     text
 );
 
-create table if not exists device_reports (
-    report_id   integer primary key autoincrement,
-    device_id   integer not null references devices (device_id),
-    distance_cm real,
-    occupied    integer not null default 0,
-    approach    integer not null default 0,
-    led_state   text,
-    reported_at text    not null
+create table if not exists device_self_test (
+    device_id       integer primary key references devices (device_id),
+    distance_cm     real,
+    flags           text not null default '',
+    reported_at     text not null
 );
 
--- ---------------------------------------------------------------------------
--- Staff accounts.
---
--- The queue above is unchanged: a visitor still needs no account. These three
--- tables sit beside it so that a staff member can sign in as a person, and so
--- that an administrator can invite the next staff member without a shared
--- password being passed around. Only digests of invitation and reset tokens are
--- stored, so a copy of this file does not hand anyone a way in.
-
+-- What happened to an account: invited, registered, switched off, made an
+-- administrator, password changed. The queue keeps its own history in
+-- ticket_events; this is the same idea for the people who work the desk, so the
+-- administration page can show who did what instead of only the current state.
 create table if not exists users (
     user_id       integer primary key autoincrement,
     full_name     text    not null,

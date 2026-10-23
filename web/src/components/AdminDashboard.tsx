@@ -1,544 +1,468 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { CheckCircle2, Link2, Loader2, MoreVertical, UserPlus } from "lucide-react";
+import {
+  ArrowRight, BarChart3, Cpu, LayoutDashboard, MonitorPlay, Settings2,
+  ScrollText, Ticket, Users,
+} from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
-import { toast } from "sonner";
+import { useCallback, type ReactNode } from "react";
 
-import { Button } from "@/components/ui/Button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Alert, Field, TextInput } from "@/components/ui/Field";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DeskStateBadge } from "@/components/DeskStateBadge";
 import { api } from "@/lib/api";
-import { focusFirstError } from "@/lib/forms";
-import { calendarDate, relative } from "@/lib/format";
+import { activityLabel } from "@/lib/activity";
+import { formatDuration, plural, relative } from "@/lib/format";
 import { usePolling } from "@/lib/usePolling";
 import { useLiveRefresh } from "@/lib/useLiveRefresh";
-import { useSession, type SessionState } from "@/lib/useSession";
-import type { Account, AccountsListing, DeskList, PublicState, Role } from "@/lib/types";
-import { inviteSchema, type InviteValues } from "@/lib/validation";
+import type { LiveStatus } from "@/lib/useLive";
+import type {
+  AccountsListing, ActivityEntry, AdminDesk, AdminDevice,
+  ServiceProfile, Stats,
+} from "@/lib/types";
 
 /**
- * The administrator's confirmations, as toasts.
+ * The administrator's Dashboard: the whole office on one page.
  *
- * The account table is long, so a strip of text at the top of the page is a
- * long way from the row that was just changed. A toast lands beside the work.
+ * The other administration pages each answer one question — who works here
+ * (Team), what happened (Activity), how the office is doing (Statistics), how it
+ * is set up (Desk settings). This page is the question before those: what needs
+ * my attention right now, and where do I go to act on it. Nothing is folded
+ * away behind a summary: a panel that has to be opened is a panel nobody opens.
  *
- * Every confirmation shares one id: a second action replaces the message
- * rather than stacking another card under it. The toast is dismissed by the
- * site-wide host, which carries a close button, so the administrator can take
- * it away as well as let it go.
- */
-const ADMIN_NOTICE = "admin-notice";
-
-function confirm(title: string, description?: string) {
-  toast.success(title, { id: ADMIN_NOTICE, testId: ADMIN_NOTICE, description });
-}
-
-/**
- * The administrator's page.
- *
- * Handing out invitations, keeping the roster of accounts in order, and moving
- * somebody between the service desk and the administration are the whole job.
- * An invitation can still only ever create a staff account; administrator
- * rights are granted afterwards, from the accounts table, which is also the
- * only place they are taken back.
+ * Every number is read from an endpoint the dedicated page also reads, so the
+ * dashboard can never quietly disagree with the page it links to. Live figures
+ * say when they were last read, and fall back to polling when the stream is
+ * away rather than pretending to be current.
  */
 export function AdminDashboard() {
-  const session = useSession();
-  const router = useRouter();
-  const pathname = usePathname();
+  const offices = usePolling(useCallback(() => api.serviceList(), []), 15000);
+  const desks = usePolling(useCallback(() => api.deskList(), []), 15000);
+  const board = usePolling(useCallback(() => api.deviceList(), []), 15000);
+  const team = usePolling(useCallback(() => api.accounts(), []), 30000);
+  const activity = usePolling(useCallback(() => api.activity(6), []), 15000);
+  const stats = usePolling(useCallback(() => api.stats(), []), 30000);
 
-  useEffect(() => {
-    if (session.status === "out") router.replace(`/auth/login?next=${encodeURIComponent(pathname)}`);
-  }, [session.status, router, pathname]);
-
-  if (session.status === "loading") {
-    return <p className="text-medium-green">Checking your session…</p>;
-  }
-  if (session.status === "out") {
-    return (
-      <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-        <Loader2 size={20} className="animate-spin text-medium-green" aria-hidden="true" />
-        <p className="text-sm text-medium-green">Taking you to the sign-in page…</p>
-      </div>
-    );
-  }
-  if (session.session.user?.role !== "admin") {
-    return (
-      <div className="mx-auto max-w-lg rounded-2xl bg-white p-6 text-center">
-        <h1 className="text-xl font-semibold text-deep-green">Administrators only</h1>
-        <p className="mt-2 text-sm text-medium-green">
-          This page manages the team&rsquo;s accounts. Your account manages the waiting list from the
-          staff dashboard instead.
-        </p>
-        <Link
-          href="/staff/dashboard"
-          className="mt-5 inline-block rounded-full bg-deep-green px-5 py-2.5 text-sm font-semibold text-white hover:bg-medium-green"
-        >
-          Go to the staff dashboard
-        </Link>
-      </div>
-    );
-  }
-
-  return <Administration session={session} />;
-}
-
-function Administration({ session }: { session: Extract<SessionState, { status: "in" }> }) {
-  const load = useCallback(() => api.accounts(), []);
-  const { data, error, refresh } = usePolling<AccountsListing>(load, 15000);
-  const [failure, setFailure] = useState<string | null>(null);
-  const [invited, setInvited] = useState<string | null>(null);
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [deleting, setDeleting] = useState<Account | null>(null);
-  const [confirmEmail, setConfirmEmail] = useState("");
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [deletingBusy, setDeletingBusy] = useState(false);
-  const accountsHeading = useRef<HTMLHeadingElement>(null);
-  const [busyId, setBusyId] = useState<number | null>(null);
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [openMenu, setOpenMenu] = useState<number | null>(null);
-  const [bulkBusy, setBulkBusy] = useState(false);
-  const [bulkOpen, setBulkOpen] = useState(false);
-  const [bulkConfirm, setBulkConfirm] = useState("");
-  const [bulkError, setBulkError] = useState<string | null>(null);
-  const selectAllRef = useRef<HTMLInputElement>(null);
-  const { data: office, refresh: refreshOffice } = usePolling<PublicState>(
-    useCallback(() => api.publicState(), []),
-    5000,
-  );
-  const { data: desks, refresh: refreshDesks } = usePolling<DeskList>(
-    useCallback(() => api.desks(), []),
-    10000,
-  );
-
-  // A queue, desk or service change moves the summary and the open-desk count
-  // at once; the polls above stay as the fallback when the stream is away.
-  useLiveRefresh(() => {
-    void refreshOffice();
-    void refreshDesks();
+  // The queue stream says something changed; the polls above stay underneath as
+  // the fallback for a proxy that buffers the stream.
+  const live = useLiveRefresh(() => {
+    void offices.refresh();
+    void desks.refresh();
+    void board.refresh();
+    void team.refresh();
+    void activity.refresh();
+    void stats.refresh();
   }, 10000);
 
-  const form = useForm<InviteValues>({
-    resolver: zodResolver(inviteSchema),
-    defaultValues: { email: "" },
-  });
+  const services: ServiceProfile[] = offices.data?.services ?? [];
+  const servicePoints: AdminDesk[] = desks.data?.desks ?? [];
+  const boards: AdminDevice[] = board.data?.devices ?? [];
+  const people: AccountsListing | null = team.data;
+  const feed: ActivityEntry[] = activity.data?.entries ?? [];
+  const totals: Stats | null = stats.data;
 
-  async function invite(values: InviteValues) {
-    setFailure(null);
-    setInvited(null);
-    try {
-      const created = await api.invite(values.email);
-      setInvited(created.register_path ?? null);
-      confirm(
-        created.replaced
-          ? `A fresh link replaces the one already waiting for ${created.email}.`
-          : `Invitation ready for ${created.email}.`,
-        `It stays usable for ${created.expires_in_hours} hours.`,
-      );
-      form.reset();
-      await refresh();
-      setInviteOpen(false);
-    } catch (e) {
-      setFailure(e instanceof Error ? e.message : "The invitation could not be created");
-    }
-  }
-
-  async function switchAccount(user: Account, isActive: boolean) {
-    setBusyId(user.user_id);
-    setFailure(null);
-    try {
-      await api.setAccountActive(user.user_id, isActive);
-      confirm(
-        isActive ? "The account is switched on." : "The account is switched off.",
-        user.email,
-      );
-      await refresh();
-    } catch (e) {
-      setFailure(e instanceof Error ? e.message : "The account could not be changed");
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function moveRole(userId: number, role: Role) {
-    setBusyId(userId);
-    setFailure(null);
-    try {
-      await api.setAccountRole(userId, role);
-      confirm(
-        role === "admin"
-          ? "That account is now an administrator."
-          : "That account is back on the service desk.",
-      );
-      await refresh();
-    } catch (e) {
-      // The server refuses to leave the installation without an administrator,
-      // so this message is usually that rule answering.
-      setFailure(e instanceof Error ? e.message : "The rights could not be changed");
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function withdraw(invitationId: number) {
-    setBusyId(invitationId);
-    setFailure(null);
-    try {
-      const gone = await api.revokeInvitation(invitationId);
-      confirm(`The invitation for ${gone.email} has been withdrawn.`);
-      await refresh();
-    } catch (e) {
-      setFailure(e instanceof Error ? e.message : "The invitation could not be withdrawn");
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function deleteAccount() {
-    if (!deleting || deletingBusy || confirmEmail.trim().toLowerCase() !== deleting.email.toLowerCase()) return;
-    setDeletingBusy(true);
-    setDeleteError(null);
-    try {
-      const gone = await api.deleteAccount(deleting.user_id, confirmEmail.trim());
-      await refresh();
-      setDeleting(null);
-      setConfirmEmail("");
-      confirm(`The account for ${gone.email} was permanently deleted.`, "Its activity history remains.");
-      setFailure(null);
-      window.requestAnimationFrame(() => accountsHeading.current?.focus());
-    } catch (e) {
-      setDeleteError(e instanceof Error ? e.message : "The account could not be deleted");
-    } finally {
-      setDeletingBusy(false);
-    }
-  }
-
-  const account = session.session.user;
-  const eligible = (data?.users ?? []).filter((user) => user.user_id !== account?.user_id);
-  const selected = eligible.filter((user) => selectedIds.includes(user.user_id));
-  const allSelected = eligible.length > 0 && selected.length === eligible.length;
-
-  useEffect(() => {
-    if (selectAllRef.current) selectAllRef.current.indeterminate = selected.length > 0 && !allSelected;
-  }, [selected.length, allSelected]);
-
-  function toggleSelection(userId: number, checked: boolean) {
-    setOpenMenu(null);
-    setSelectedIds((ids) => {
-      const current = ids.filter((id) => eligible.some((user) => user.user_id === id));
-      return checked ? [...current, userId] : current.filter((id) => id !== userId);
-    });
-  }
-
-  async function applyBulk(action: "activate" | "deactivate" | "delete") {
-    if (bulkBusy || selected.length === 0) return;
-    if (action === "delete" && bulkConfirm !== `DELETE ${selected.length}`) return;
-    setBulkBusy(true);
-    setBulkError(null);
-    setFailure(null);
-    try {
-      const result = await api.batchAccounts(action, selected, action === "delete" ? bulkConfirm : undefined);
-      await refresh();
-      setSelectedIds([]);
-      setBulkOpen(false);
-      setBulkConfirm("");
-      confirm(
-        action === "delete"
-          ? `${result.changed} ${result.changed === 1 ? "account was" : "accounts were"} permanently deleted.`
-          : `${result.changed} ${result.changed === 1 ? "account was" : "accounts were"} switched ${action === "activate" ? "on" : "off"}.`,
-        action === "delete" ? "Activity history remains." : undefined,
-      );
-      window.requestAnimationFrame(() => accountsHeading.current?.focus());
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "The selected accounts could not be changed";
-      if (action === "delete") setBulkError(message);
-      else setFailure(message);
-    } finally {
-      setBulkBusy(false);
-    }
-  }
+  const openDesks = servicePoints.filter((desk) => desk.service_state === "active").length;
+  const waiting = totals?.totals.waiting ?? services.reduce((sum, s) => sum + s.waiting, 0);
+  const updated = stats.data?.server_time ?? null;
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight text-deep-green">Administration</h1>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="flex flex-wrap items-center gap-3 text-2xl font-semibold tracking-tight text-deep-green">
+            Dashboard
+            <LiveBadge status={live} updated={updated} />
+          </h1>
+          <p className="mt-1 max-w-2xl text-sm text-medium-green">
+            The waiting lines, the service points and the team in one place, read from the same
+            pages that manage them.
+          </p>
+        </div>
+        <Link
+          href="/admin/team"
+          className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-deep-green hover:bg-soft-mint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-deep-green"
+        >
+          <Users className="size-4" aria-hidden="true" />
+          Manage the team
+        </Link>
       </div>
 
-      {office && (
-        <section className="grid gap-3 sm:grid-cols-3">
-          <Summary label="Waiting now" value={String(office.waiting)} />
-          <Summary label="Services on offer" value={String(office.services.length)} />
-          <Summary
-            label="Desks open"
-            value={String(
-              (desks?.desks ?? []).filter((desk) => desk.service_state === "active").length,
-            )}
-          />
-        </section>
-      )}
-
-      <section className="rounded-2xl bg-white p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-deep-green">
-              <UserPlus className="size-5" aria-hidden="true" />
-              Invite a staff member
-            </h2>
-            <p className="mt-1 text-sm text-medium-green">Invite someone to join the team as staff.</p>
-          </div>
-          <Button type="button" onClick={() => { setFailure(null); setInviteOpen(true); }}>
-            Invite a member
-          </Button>
-        </div>
-
-        {failure && !inviteOpen && <div className="mt-4"><Alert tone="error" focus>{failure}</Alert></div>}
-        {invited && (
-          <p className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-soft-mint px-3.5 py-3 text-sm text-deep-green">
-            <Link2 className="size-4" aria-hidden="true" />
-            <span className="break-all">Register link: {invited}</span>
-          </p>
-        )}
-        {invited && <p className="mt-3 text-xs text-medium-green">There is no mail server in this prototype. Share the registration link above with the invited person.</p>}
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="The office now">
+        <Stat
+          label="Waiting now"
+          value={offices.data ? String(waiting) : "—"}
+          note={offices.data ? `${plural(services.length, "service")} on offer` : "reading the queues…"}
+        />
+        <Stat
+          label="Service points open"
+          value={desks.data ? `${openDesks} of ${servicePoints.length}` : "—"}
+          note={
+            !desks.data
+              ? "reading the counters…"
+              : servicePoints.length === 0
+                ? "none configured yet"
+                : openDesks === servicePoints.length
+                  ? "every point is open"
+                  : `${plural(servicePoints.length - openDesks, "point")} paused or closed`
+          }
+        />
+        <Stat
+          label="Served"
+          value={totals ? String(totals.totals.served) : "—"}
+          note={
+            totals
+              ? `${totals.totals.issued} issued · ${totals.totals.no_show_percent}% no-shows`
+              : "counting…"
+          }
+        />
+        <Stat
+          label="Average service"
+          value={
+            totals?.average_service_seconds === null || totals === null
+              ? "Not available"
+              : formatDuration(totals.average_service_seconds)
+          }
+          note={
+            totals && totals.service_samples > 0
+              ? `measured over ${plural(totals.service_samples, "served ticket")}`
+              : "no served ticket has been measured yet"
+          }
+        />
       </section>
 
-      <Dialog open={inviteOpen} onOpenChange={(open) => {
-        if (form.formState.isSubmitting) return;
-        setInviteOpen(open);
-        if (!open) { form.reset(); setFailure(null); }
-      }}>
-        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Invite a staff member</DialogTitle>
-            <DialogDescription>
-              The invitation creates a staff account. Administrator rights can be granted later from the accounts table.
-            </DialogDescription>
-          </DialogHeader>
-          <form noValidate onSubmit={form.handleSubmit((values) => void invite(values), focusFirstError)} className="space-y-4">
-            <Field label="Email address" id="invite-email" error={form.formState.errors.email?.message}>
-              <TextInput id="invite-email" type="email" autoComplete="off" placeholder="colleague@example.com"
-                error={Boolean(form.formState.errors.email)} {...form.register("email")} />
-            </Field>
-            {failure && <Alert tone="error" focus>{failure}</Alert>}
-            <p className="text-xs text-medium-green">This prototype has no mail server. You can copy the registration link after creating the invitation.</p>
-            <DialogFooter>
-              <Button type="button" variant="quiet" disabled={form.formState.isSubmitting}
-                onClick={() => { form.reset(); setFailure(null); setInviteOpen(false); }}>Cancel</Button>
-              <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? "Creating…" : "Create invitation"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <section className="rounded-2xl bg-white p-5">
-        <h2 ref={accountsHeading} tabIndex={-1} className="text-lg font-semibold text-deep-green">Accounts</h2>
-        <p className="mt-1 text-xs text-medium-green">
-          Switch an account off to block access without deleting it. Deleting an account is permanent;
-          its activity history remains. You cannot delete yourself or remove the last administrator.
-        </p>
-        {error && <p className="mt-2 text-sm text-danger">{error.message}</p>}
-        {!data && !error && <p className="mt-2 text-sm text-medium-green">Loading accounts…</p>}
-
-        {data && (
-          <>
-          {selected.length > 0 && (
-            <div role="group" aria-label="Selected account actions" className="mt-4 flex flex-wrap items-center gap-2 rounded-xl bg-soft-mint p-3">
-              <strong className="mr-auto text-sm text-deep-green" aria-live="polite">{selected.length} selected</strong>
-              <Button type="button" variant="quiet" disabled={bulkBusy} onClick={() => void applyBulk("activate")}>Switch on</Button>
-              <Button type="button" variant="quiet" disabled={bulkBusy} onClick={() => void applyBulk("deactivate")}>Switch off</Button>
-              <button type="button" disabled={bulkBusy} onClick={() => { setBulkConfirm(""); setBulkError(null); setBulkOpen(true); }}
-                className="rounded-full border border-danger-line bg-white px-4 py-2.5 text-sm font-semibold text-danger hover:bg-danger-soft disabled:opacity-50">
-                Delete selected
-              </button>
-              <Button type="button" variant="ghost" disabled={bulkBusy} onClick={() => setSelectedIds([])}>Clear</Button>
-            </div>
-          )}
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-left text-sm" aria-label="Team accounts">
-              <thead>
-                <tr className="border-b border-line text-xs tracking-wide text-medium-green uppercase">
-                  <th scope="col" className="w-10 py-2 pr-3">
-                    <input ref={selectAllRef} type="checkbox" aria-label="Select all accounts except yours"
-                      checked={allSelected} disabled={eligible.length === 0 || bulkBusy}
-                      onChange={(event) => { setOpenMenu(null); setSelectedIds(event.target.checked ? eligible.map((user) => user.user_id) : []); }}
-                      className="size-4 cursor-pointer accent-deep-green focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-deep-green" />
-                  </th>
-                  <th className="py-2 pr-4 font-semibold">Name</th>
-                  <th className="py-2 pr-4 font-semibold">Email</th>
-                  <th className="py-2 pr-4 font-semibold">Role</th>
-                  <th className="py-2 pr-4 font-semibold">Last sign in</th>
-                  <th className="py-2 pr-4 font-semibold">State</th>
-                  <th className="py-2 font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.users.map((user) => (
-                  <tr key={user.user_id} className={`border-b border-line/60 last:border-0 ${selectedIds.includes(user.user_id) ? "bg-soft-mint/60" : ""}`}>
-                    <td className="py-3 pr-3">
-                      <input type="checkbox" aria-label={`Select ${user.full_name} (${user.email})`}
-                        checked={selectedIds.includes(user.user_id)}
-                        disabled={user.user_id === account?.user_id || bulkBusy}
-                        onChange={(event) => toggleSelection(user.user_id, event.target.checked)}
-                        className="size-4 cursor-pointer accent-deep-green disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-deep-green" />
-                    </td>
-                    <td className="py-3 pr-4 font-medium text-deep-green">{user.full_name}</td>
-                    <td className="py-3 pr-4 text-medium-green">{user.email}</td>
-                    <td className="py-3 pr-4">
-                      <span className={user.role === "admin" ? "font-semibold text-deep-green" : "text-medium-green"}>
-                        {user.role}
-                      </span>
-                    </td>
-                    <td className="py-3 pr-4 text-medium-green">{relative(user.last_login_at)}</td>
-                    <td className="py-3 pr-4">
-                      <span className={user.is_active ? "text-medium-green" : "text-danger"}>
-                        {user.is_active ? "in use" : "switched off"}
-                      </span>
-                    </td>
-                    <td className="py-3">
-                      {user.user_id === account?.user_id ? (
-                        <span className="text-xs text-medium-green">this is you</span>
-                      ) : (
-                        <Popover open={openMenu === user.user_id} onOpenChange={(open) => setOpenMenu(open ? user.user_id : null)}>
-                          <PopoverTrigger asChild>
-                            <button type="button" aria-label={`More actions for ${user.full_name}`} disabled={busyId === user.user_id || bulkBusy || selected.length > 0}
-                              className="inline-flex size-9 items-center justify-center rounded-lg text-deep-green hover:bg-soft-mint focus-visible:outline-2 focus-visible:outline-deep-green disabled:opacity-50">
-                              <MoreVertical size={18} aria-hidden="true" />
-                            </button>
-                          </PopoverTrigger>
-                          <PopoverContent align="end" className="w-52 p-1" aria-label={`Actions for ${user.full_name}`}>
-                            <button type="button" onClick={() => { setOpenMenu(null); void switchAccount(user, !user.is_active); }}
-                              className="block w-full rounded-lg px-3 py-2 text-left text-sm text-deep-green hover:bg-soft-mint">
-                              {user.is_active ? "Switch off" : "Switch on"}
-                            </button>
-                            <button type="button" onClick={() => { setOpenMenu(null); void moveRole(user.user_id, user.role === "admin" ? "staff" : "admin"); }}
-                              className="block w-full rounded-lg px-3 py-2 text-left text-sm text-deep-green hover:bg-soft-mint">
-                              {user.role === "admin" ? "Make staff" : "Make administrator"}
-                            </button>
-                            <div className="my-1 border-t border-line" />
-                            <button type="button" onClick={() => { setOpenMenu(null); setDeleting(user); setConfirmEmail(""); setDeleteError(null); }}
-                              className="block w-full rounded-lg px-3 py-2 text-left text-sm text-danger hover:bg-danger-soft">
-                              Delete account
-                            </button>
-                          </PopoverContent>
-                        </Popover>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          </>
-        )}
-
-        {data && data.invitations.length > 0 && (
-          <div className="mt-6">
-            <h3 className="text-sm font-semibold text-deep-green">Waiting to be accepted</h3>
-            <p className="mt-1 text-xs text-medium-green">
-              Inviting the same address again replaces its link; the older one stops working.
-            </p>
-            <ul className="mt-2 space-y-2 text-sm text-medium-green">
-              {data.invitations.map((invitation) => (
-                <li
-                  key={invitation.invitation_id}
-                  className="flex flex-wrap items-center gap-x-3 gap-y-1"
-                >
-                  <CheckCircle2 className="size-4 text-medium-green" aria-hidden="true" />
-                  <span className="font-medium text-deep-green">{invitation.email}</span>
-                  <span>expires {calendarDate(invitation.expires_at)}</span>
-                  <button
-                    onClick={() => void withdraw(invitation.invitation_id)}
-                    disabled={busyId === invitation.invitation_id}
-                    className="ml-auto rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-deep-green hover:bg-soft-mint disabled:opacity-50"
+      <div className="grid gap-5 lg:grid-cols-3">
+        <section
+          className="rounded-2xl bg-white p-5 lg:col-span-2"
+          aria-labelledby="dashboard-services"
+        >
+          <PanelHead
+            id="dashboard-services"
+            title="Waiting lines"
+            note="Each service keeps its own queue and its own numbers."
+            href="/admin/statistics"
+            link="Statistics"
+          />
+          {services.length === 0 ? (
+            <Empty>
+              No service is on offer yet. <Link className="underline" href="/admin/settings">Add one in Desk settings</Link>.
+            </Empty>
+          ) : (
+            <ul className="mt-4 divide-y divide-line">
+              {services.map((service) => (
+                <li key={service.service_id} className="flex flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0">
+                  <span
+                    className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-soft-mint text-base font-bold text-deep-green"
+                    aria-hidden="true"
                   >
-                    {busyId === invitation.invitation_id ? "Working…" : "Withdraw invitation"}
-                  </button>
+                    {service.letter}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="flex flex-wrap items-center gap-2 font-semibold text-deep-green">
+                      {service.name}
+                      <DeskStateBadge state={service.service_state} />
+                      {!service.is_active && (
+                        <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-semibold text-rose-800 ring-1 ring-rose-300">
+                          switched off
+                        </span>
+                      )}
+                    </p>
+                    <p className="mt-0.5 text-xs text-medium-green">
+                      {service.waiting} waiting · {plural(service.desk_count, "desk")}
+                      {service.target_seconds === null
+                        ? " · no target set"
+                        : ` · target ${formatDuration(service.target_seconds)}`}
+                    </p>
+                  </div>
+                  <Link
+                    href={`/admin/statistics?service=${encodeURIComponent(service.id)}`}
+                    className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-semibold text-deep-green hover:bg-soft-mint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-deep-green"
+                  >
+                    Figures
+                    <ArrowRight className="size-4" aria-hidden="true" />
+                    <span className="sr-only"> for {service.name}</span>
+                  </Link>
                 </li>
               ))}
             </ul>
-          </div>
+          )}
+        </section>
+
+        <section className="rounded-2xl bg-white p-5" aria-labelledby="dashboard-team">
+          <PanelHead
+            id="dashboard-team"
+            title="Team"
+            note="Who can sign in, and who has been invited."
+            href="/admin/team"
+            link="Manage"
+          />
+          {people === null ? (
+            <p className="mt-4 text-sm text-medium-green">Reading the team…</p>
+          ) : (
+            <>
+              <dl className="mt-4 space-y-2.5 text-sm">
+                <Row label="Accounts" value={String(people.users.length)} />
+                <Row
+                  label="Administrators"
+                  value={String(people.users.filter((user) => user.role === "admin").length)}
+                />
+                <Row
+                  label="Switched off"
+                  value={String(people.users.filter((user) => !user.is_active).length)}
+                />
+                <Row label="Invitations waiting" value={String(people.invitations.length)} />
+              </dl>
+              {people.invitations.length > 0 && (
+                <p className="mt-3 rounded-xl bg-soft-mint px-3 py-2 text-xs text-deep-green">
+                  {people.invitations[0].email}
+                  {people.invitations.length > 1
+                    ? ` and ${people.invitations.length - 1} more are waiting to accept`
+                    : " is waiting to accept"}
+                </p>
+              )}
+            </>
+          )}
+        </section>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-3">
+        <section
+          className="rounded-2xl bg-white p-5 lg:col-span-2"
+          aria-labelledby="dashboard-desks"
+        >
+          <PanelHead
+            id="dashboard-desks"
+            title="Service points"
+            note="Each counter serves one service. The board watches one of them."
+            href="/admin/settings"
+            link="Desk settings"
+          />
+          {servicePoints.length === 0 ? (
+            <Empty>
+              No counter is configured yet. <Link className="underline" href="/admin/settings">Add one in Desk settings</Link>.
+            </Empty>
+          ) : (
+            <ul className="mt-4 divide-y divide-line">
+              {servicePoints.map((desk) => (
+                <li key={desk.desk_id} className="flex flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0">
+                  <div className="min-w-0 flex-1">
+                    <p className="flex flex-wrap items-center gap-2 font-semibold text-deep-green">
+                      {desk.name}
+                      <DeskStateBadge state={desk.service_state} />
+                      {!desk.is_active && (
+                        <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-semibold text-rose-800 ring-1 ring-rose-300">
+                          retired
+                        </span>
+                      )}
+                    </p>
+                    <p className="mt-0.5 text-xs text-medium-green">
+                      {desk.service_letter} · {desk.service_name} · {desk.waiting} waiting
+                      {desk.pause_reason ? ` · ${desk.pause_reason}` : ""}
+                    </p>
+                  </div>
+                  <span className="text-xs text-medium-green">
+                    {desk.device_label ? (
+                      <>
+                        <Cpu className="mr-1 inline size-3.5" aria-hidden="true" />
+                        {desk.device_label} · {desk.device_online ? "reporting" : "silent"}
+                      </>
+                    ) : (
+                      "no board"
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="rounded-2xl bg-white p-5" aria-labelledby="dashboard-board">
+          <PanelHead
+            id="dashboard-board"
+            title="Sensor boards"
+            note="Each board watches one counter. Boards are registered, and moved, on their own page."
+            href="/admin/board"
+            link="The boards"
+          />
+          {boards.length === 0 ? (
+            <Empty>
+              No board is registered. <Link className="underline" href="/admin/board">Register one</Link>{" "}
+              to start measuring a counter.
+            </Empty>
+          ) : (
+            <ul className="mt-4 space-y-3">
+              {boards.map((device) => (
+                <li key={device.device_id} className="rounded-xl bg-soft-mint/60 px-3.5 py-3">
+                  <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-deep-green">
+                    {device.label}
+                    <span
+                      className={
+                        device.online
+                          ? "rounded-full bg-white px-2.5 py-0.5 text-xs font-semibold text-deep-green"
+                          : "rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-semibold text-rose-800 ring-1 ring-rose-300"
+                      }
+                    >
+                      {device.online ? "reporting" : "silent"}
+                    </span>
+                  </p>
+                  <p className="mt-1 text-xs text-medium-green">
+                    {device.desk_name ? `Watching ${device.desk_name}` : "Not watching a counter"}
+                    {" · "}
+                    {device.last_seen ? `last report ${relative(device.last_seen)}` : "no report yet"}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-3 text-xs text-medium-green">
+            A counter without a board still serves visitors; the hold rule simply keeps its full length there.
+          </p>
+        </section>
+      </div>
+
+      <section className="rounded-2xl bg-white p-5" aria-labelledby="dashboard-activity">
+        <PanelHead
+          id="dashboard-activity"
+          title="Recent activity"
+          note="The last few things the waiting line, the desk and the accounts recorded."
+          href="/admin/activity"
+          link="All activity"
+        />
+        {feed.length === 0 ? (
+          <Empty>Nothing has been recorded yet.</Empty>
+        ) : (
+          <ul className="mt-4 grid gap-x-6 gap-y-2 sm:grid-cols-2">
+            {feed.map((entry, index) => (
+              <li
+                key={`${entry.at}-${entry.event}-${index}`}
+                className="flex items-start gap-2.5 border-b border-line/60 pb-2 text-sm last:border-0 sm:last:border-b"
+              >
+                <Icon kind={entry.kind} />
+                <p className="min-w-0 flex-1 text-medium-green">
+                  <span className="font-medium text-deep-green">{activityLabel(entry.event)}</span>
+                  {entry.label ? ` · ${entry.label}` : ""}
+                  {entry.email ? ` · ${entry.email}` : ""}
+                  {entry.detail ? ` · ${entry.detail}` : ""}
+                  <span className="block text-xs">{relative(entry.at)}</span>
+                </p>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
 
-      <Dialog open={deleting !== null} onOpenChange={(open) => {
-        if (deletingBusy) return;
-        if (!open) { setDeleting(null); setConfirmEmail(""); setDeleteError(null); }
-      }}>
-        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md" onPointerDownOutside={(event) => event.preventDefault()}>
-          <DialogHeader>
-            <DialogTitle>Delete account?</DialogTitle>
-            <DialogDescription>
-              This permanently removes {deleting?.full_name}&apos;s account and sign-in access.
-              Password reset links stop working. Ticket and activity history remain. This cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={(event) => { event.preventDefault(); void deleteAccount(); }} className="space-y-4">
-            <Field label={`Type ${deleting?.email ?? "the account email"} to confirm`} id="delete-account-email">
-              <TextInput id="delete-account-email" type="email" autoComplete="off"
-                value={confirmEmail} placeholder={deleting?.email ?? "account@example.com"}
-                onChange={(event) => setConfirmEmail(event.target.value)} />
-            </Field>
-            {deleteError && <Alert tone="error" focus>{deleteError}</Alert>}
-            <DialogFooter>
-              <Button type="button" variant="quiet" disabled={deletingBusy}
-                onClick={() => { setDeleting(null); setConfirmEmail(""); setDeleteError(null); }}>Cancel</Button>
-              <button type="submit" disabled={deletingBusy || confirmEmail.trim().toLowerCase() !== deleting?.email.toLowerCase()}
-                className="inline-flex items-center justify-center rounded-full bg-danger px-4 py-2.5 text-sm font-semibold text-white hover:bg-danger-strong disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger">
-                {deletingBusy ? "Deleting…" : "Delete account"}
-              </button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={bulkOpen} onOpenChange={(open) => {
-        if (bulkBusy) return;
-        setBulkOpen(open);
-        if (!open) { setBulkConfirm(""); setBulkError(null); }
-      }}>
-        <DialogContent className="max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-md"
-          onPointerDownOutside={(event) => event.preventDefault()}>
-          <DialogHeader>
-            <DialogTitle>Delete {selected.length} {selected.length === 1 ? "account" : "accounts"}?</DialogTitle>
-            <DialogDescription>
-              These accounts and their reset links will be permanently removed. Ticket and activity history remain. This cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <ul className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-line p-3 text-sm text-deep-green" aria-label="Accounts to delete">
-            {selected.map((user) => <li key={user.user_id} className="break-all">{user.full_name} · {user.email}</li>)}
-          </ul>
-          <form onSubmit={(event) => { event.preventDefault(); void applyBulk("delete"); }} className="space-y-4">
-            <Field label={`Type DELETE ${selected.length} to confirm`} id="bulk-delete-confirm">
-              <TextInput id="bulk-delete-confirm" value={bulkConfirm} autoComplete="off"
-                placeholder={`DELETE ${selected.length}`}
-                onChange={(event) => setBulkConfirm(event.target.value)} />
-            </Field>
-            {bulkError && <Alert tone="error" focus>{bulkError}</Alert>}
-            <DialogFooter>
-              <Button type="button" variant="quiet" disabled={bulkBusy} onClick={() => { setBulkOpen(false); setBulkConfirm(""); setBulkError(null); }}>Cancel</Button>
-              <button type="submit" disabled={bulkBusy || selected.length === 0 || bulkConfirm !== `DELETE ${selected.length}`}
-                className="inline-flex items-center justify-center rounded-full bg-danger px-4 py-2.5 text-sm font-semibold text-white hover:bg-danger-strong disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger">
-                {bulkBusy ? "Deleting…" : `Delete ${selected.length} ${selected.length === 1 ? "account" : "accounts"}`}
-              </button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <nav className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="Administration pages">
+        <QuickLink href="/admin/team" label="Team" note="Accounts, roles and invitations" icon={Users} />
+        <QuickLink href="/admin/activity" label="Activity" note="Everything that happened" icon={ScrollText} />
+        <QuickLink href="/admin/statistics" label="Statistics" note="Counts, times and targets" icon={BarChart3} />
+        <QuickLink href="/admin/board" label="Board" note="Register a board, give it a counter" icon={Cpu} />
+        <QuickLink href="/admin/settings" label="Desk settings" note="Services and the desks that serve them" icon={Settings2} />
+      </nav>
     </div>
   );
 }
 
-function Summary({ label, value }: { label: string; value: string }) {
+/**
+ * The freshness of the page, in the page's own words.
+ *
+ * "Live" means the queue stream is connected; "polling" means the page is still
+ * reading, just less often. Neither word claims a reading is newer than the one
+ * printed beside it, which is the time the server answered.
+ */
+function LiveBadge({ status, updated }: { status: LiveStatus; updated: string | null }) {
+  const label = status === "live" ? "Live" : status === "polling" ? "Polling" : "Connecting";
   return (
-    <div className="rounded-2xl bg-white px-4 py-3">
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-medium-green">
+      <span
+        className={
+          status === "live"
+            ? "size-2 rounded-full bg-primary"
+            : "size-2 rounded-full bg-medium-green/50"
+        }
+        aria-hidden="true"
+      />
+      {label}
+      {updated && <span className="font-normal"> · {relative(updated)}</span>}
+    </span>
+  );
+}
+
+function Stat({ label, value, note }: { label: string; value: string; note: string }) {
+  return (
+    <div className="rounded-2xl bg-white px-4 py-3.5">
       <p className="text-xs tracking-wide text-medium-green uppercase">{label}</p>
-      <p className="mt-1 text-xl font-semibold text-deep-green capitalize">{value}</p>
+      <p className="mt-1 text-2xl font-semibold tracking-tight text-deep-green">{value}</p>
+      <p className="mt-0.5 text-xs text-medium-green">{note}</p>
     </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <dt className="text-medium-green">{label}</dt>
+      <dd className="font-semibold text-deep-green">{value}</dd>
+    </div>
+  );
+}
+
+function PanelHead({
+  id, title, note, href, link,
+}: {
+  id: string;
+  title: string;
+  note: string;
+  href: string;
+  link: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h2 id={id} className="text-lg font-semibold text-deep-green">{title}</h2>
+        <p className="mt-1 text-sm text-medium-green">{note}</p>
+      </div>
+      <Link
+        href={href}
+        className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-semibold text-deep-green hover:bg-soft-mint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-deep-green"
+      >
+        {link}
+        <ArrowRight className="size-4" aria-hidden="true" />
+      </Link>
+    </div>
+  );
+}
+
+function Empty({ children }: { children: ReactNode }) {
+  return <p className="mt-4 text-sm text-medium-green">{children}</p>;
+}
+
+function Icon({ kind }: { kind: ActivityEntry["kind"] }) {
+  const Glyph = kind === "ticket" ? Ticket : kind === "desk" ? MonitorPlay : Users;
+  return (
+    <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-soft-mint text-deep-green">
+      <Glyph className="size-4" aria-hidden="true" />
+    </span>
+  );
+}
+
+function QuickLink({
+  href, label, note, icon: Glyph,
+}: {
+  href: string;
+  label: string;
+  note: string;
+  icon: typeof LayoutDashboard;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex items-center gap-3 rounded-2xl bg-white px-4 py-3.5 hover:bg-soft-mint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-deep-green"
+    >
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-soft-mint text-deep-green group-hover:bg-white">
+        <Glyph className="size-4.5" aria-hidden="true" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold text-deep-green">{label}</span>
+        <span className="block text-xs text-medium-green">{note}</span>
+      </span>
+      <ArrowRight className="size-4 text-medium-green" aria-hidden="true" />
+    </Link>
   );
 }

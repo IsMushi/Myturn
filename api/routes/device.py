@@ -4,6 +4,7 @@ Both routes are authenticated with a device key. The reading carried occupancy,
 the approach flag and the LED state the board applied, so the dashboard can be
 compared with what the hardware actually did.
 """
+import json
 import math
 
 from flask import Blueprint, g, jsonify, request
@@ -40,11 +41,55 @@ def clean_identifier(value, limit):
 @bp.post("/api/device/readings")
 @device_required
 def readings():
+    """Store one sensor reading from a board (HTTP, for tests and tooling)."""
     try:
         reported = store_reading(get_db(), g.device_id, request.get_json(silent=True))
     except ValueError as error:
         return jsonify(error=str(error)), 400
+    signal()
     return jsonify(ok=True, server_time=reported)
+
+
+@bp.post("/api/device/self-test")
+@device_required
+def self_test():
+    """Report self-test results from the board.
+
+    The body should be `{ "ok": true, "distance_cm": <number>, "flags": [...] }`.
+    `flags` is a list of strings describing any issues (e.g. "stuck-at-min",
+    "intermittent", "sensor-error"). The server stores the last report per board
+    so the admin can see whether a board is healthy.
+    """
+    data = request.get_json(silent=True) or {}
+    ok = data.get("ok")
+    if ok is None or not isinstance(ok, bool):
+        return jsonify(error="ok field required and must be true/false"), 400
+    # Store the self-test result so the admin can inspect it.
+    conn = get_db()
+    chip_id = clean_identifier(data.get("chip_id"), 64)
+    mac = clean_identifier(data.get("mac"), 32)
+    if mac is not None and all(part == "00" for part in mac.split(":")):
+        mac = None
+    reported = now()
+    conn.execute(
+        "begin immediate"
+    )
+    try:
+        conn.execute(
+            "insert into device_self_test (device_id, distance_cm, flags, reported_at) "
+            "values (?, ?, ?, ?)",
+            (g.device_id, data.get("distance_cm"), json.dumps(data.get("flags", [])), reported),
+        )
+        conn.execute(
+            "update devices set last_self_test = ? where device_id = ?",
+            (reported, g.device_id),
+        )
+        conn.execute("commit")
+    except Exception:
+        conn.execute("rollback")
+        return jsonify(error="storage failed"), 500
+    signal()
+    return jsonify(ok=True)
 
 
 def store_reading(conn, device_id, data):

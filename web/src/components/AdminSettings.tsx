@@ -1,12 +1,14 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Pencil, Plus, Save, Store } from "lucide-react";
+import { Pencil, Plus, Save, Store, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { DeskStateBadge } from "@/components/DeskStateBadge";
 import { Button } from "@/components/ui/Button";
+import { toast } from "sonner";
 import { Alert, Field, Select, SelectItem, TextInput, inputClass } from "@/components/ui/Field";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -52,6 +54,13 @@ export function AdminSettings() {
   const [addingService, setAddingService] = useState(false);
   const [editingDesk, setEditingDesk] = useState<AdminDesk | null>(null);
   const [addingDesk, setAddingDesk] = useState(false);
+  const [deletingService, setDeletingService] = useState<ServiceProfile | null>(null);
+  const [deletingDesk, setDeletingDesk] = useState<AdminDesk | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetConfirm, setResetConfirm] = useState("");
+  const [resetBusy, setResetBusy] = useState(false);
 
   const list = services.data;
 
@@ -103,7 +112,12 @@ export function AdminSettings() {
 
         <ul className="mt-4 divide-y divide-line">
           {list.map((service) => (
-            <ServiceRow key={service.service_id} service={service} onEdit={setEditingService} />
+            <ServiceRow
+              key={service.service_id}
+              service={service}
+              onEdit={setEditingService}
+              onDelete={setDeletingService}
+            />
           ))}
         </ul>
         {list.length === 0 && (
@@ -119,7 +133,8 @@ export function AdminSettings() {
             <h2 id="desks-title" className="text-lg font-semibold text-deep-green">The desks</h2>
             <p className="mt-1 text-sm text-medium-green">
               A desk serves one service. Two desks may serve the same service, and each of them can
-              call a number of its own.
+              call a number of its own. The sensor boards are registered, and pointed at a counter,
+              on the <Link className="underline" href="/admin/board">Board page</Link>.
             </p>
           </div>
           <Button variant="quiet" onClick={() => setAddingDesk(true)}>
@@ -130,7 +145,7 @@ export function AdminSettings() {
 
         <ul className="mt-4 divide-y divide-line">
           {(desks.data ?? []).map((desk) => (
-            <DeskRow key={desk.desk_id} desk={desk} onEdit={setEditingDesk} />
+            <DeskRow key={desk.desk_id} desk={desk} onEdit={setEditingDesk} onDelete={setDeletingDesk} />
           ))}
         </ul>
         {(desks.data ?? []).length === 0 && (
@@ -201,6 +216,205 @@ export function AdminSettings() {
           />
         </DialogContent>
       </Dialog>
+
+      <Dialog
+        open={deletingService !== null}
+        onOpenChange={(open) => { if (!open && !deleteBusy) { setDeletingService(null); setDeleteConfirm(""); } }}
+      >
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
+          {deletingService && (
+            <div className="space-y-4">
+              <DialogHeader>
+                <DialogTitle>Delete {deletingService.name}?</DialogTitle>
+                <DialogDescription>
+                  This removes the service and its ticket history for good. It only works when no
+                  desk serves it and no visitor is waiting. Type the service name to confirm.
+                </DialogDescription>
+              </DialogHeader>
+              <Field label="Service name" id="delete-service-confirm" error={undefined}>
+                <TextInput
+                  id="delete-service-confirm"
+                  value={deleteConfirm}
+                  onChange={(e) => setDeleteConfirm(e.target.value)}
+                  placeholder={deletingService.name}
+                />
+              </Field>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="quiet"
+                  disabled={deleteBusy}
+                  onClick={() => { setDeletingService(null); setDeleteConfirm(""); }}
+                >
+                  Cancel
+                </Button>
+                <button
+                  type="button"
+                  disabled={deleteBusy || deleteConfirm !== deletingService.name}
+                  onClick={async () => {
+                    if (!deletingService) return;
+                    setDeleteBusy(true);
+                    try {
+                      await api.deleteService(deletingService.service_id, deleteConfirm);
+                      toast.success(`${deletingService.name} was deleted.`, { id: "delete-service" });
+                      setDeletingService(null);
+                      setDeleteConfirm("");
+                      void services.reload();
+                      void desks.reload();
+                    } catch (failure) {
+                      toast.error(failure instanceof Error ? failure.message : "The service could not be deleted", {
+                        id: "delete-service",
+                      });
+                    } finally {
+                      setDeleteBusy(false);
+                    }
+                  }}
+                  className="inline-flex items-center justify-center rounded-full bg-danger px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-danger-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {deleteBusy ? "Deleting." : "Delete the service"}
+                </button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={deletingDesk !== null}
+        onOpenChange={(open) => { if (!open && !deleteBusy) { setDeletingDesk(null); setDeleteConfirm(""); } }}
+      >
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
+          {deletingDesk && (
+            <div className="space-y-4">
+              <DialogHeader>
+                <DialogTitle>Delete {deletingDesk.name}?</DialogTitle>
+                <DialogDescription>
+                  This removes the counter and the tickets it ever served. A board watching it is
+                  moved off first. Type the desk name to confirm.
+                </DialogDescription>
+              </DialogHeader>
+              <Field label="Desk name" id="delete-desk-confirm" error={undefined}>
+                <TextInput
+                  id="delete-desk-confirm"
+                  value={deleteConfirm}
+                  onChange={(e) => setDeleteConfirm(e.target.value)}
+                  placeholder={deletingDesk.name}
+                />
+              </Field>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="quiet"
+                  disabled={deleteBusy}
+                  onClick={() => { setDeletingDesk(null); setDeleteConfirm(""); }}
+                >
+                  Cancel
+                </Button>
+                <button
+                  type="button"
+                  disabled={deleteBusy || deleteConfirm !== deletingDesk.name}
+                  onClick={async () => {
+                    if (!deletingDesk) return;
+                    setDeleteBusy(true);
+                    try {
+                      await api.deleteDesk(deletingDesk.desk_id, deleteConfirm);
+                      toast.success(`${deletingDesk.name} was deleted.`, { id: "delete-desk" });
+                      setDeletingDesk(null);
+                      setDeleteConfirm("");
+                      void desks.reload();
+                      void services.reload();
+                    } catch (failure) {
+                      toast.error(failure instanceof Error ? failure.message : "The desk could not be deleted", {
+                        id: "delete-desk",
+                      });
+                    } finally {
+                      setDeleteBusy(false);
+                    }
+                  }}
+                  className="inline-flex items-center justify-center rounded-full bg-danger px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-danger-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {deleteBusy ? "Deleting." : "Delete the desk"}
+                </button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <section className="rounded-2xl bg-white p-5" aria-labelledby="reset-office-title">
+        <h2 id="reset-office-title" className="text-lg font-semibold text-deep-green">
+          Reset the office
+        </h2>
+        <p className="mt-1 text-sm text-medium-green">
+          Clears every waiting line, zeroes every counter and pauses every desk. Accounts and
+          settings are kept. This cannot be undone.
+        </p>
+        <div className="mt-4">
+          <Button variant="quiet" onClick={() => setResetOpen(true)}>
+            Reset the office
+          </Button>
+        </div>
+      </section>
+
+      <Dialog
+        open={resetOpen}
+        onOpenChange={(open) => { if (!open && !resetBusy) { setResetOpen(false); setResetConfirm(""); } }}
+      >
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
+          <div className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Reset the office?</DialogTitle>
+              <DialogDescription>
+                Every queue, counter and reading is cleared. Accounts and settings are kept. Type
+                RESET THE OFFICE to confirm.
+              </DialogDescription>
+            </DialogHeader>
+            <Field label="Confirmation" id="reset-office-confirm" error={undefined}>
+              <TextInput
+                id="reset-office-confirm"
+                value={resetConfirm}
+                onChange={(e) => setResetConfirm(e.target.value)}
+                placeholder="RESET THE OFFICE"
+              />
+            </Field>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="quiet"
+                disabled={resetBusy}
+                onClick={() => { setResetOpen(false); setResetConfirm(""); }}
+              >
+                Cancel
+              </Button>
+              <button
+                type="button"
+                disabled={resetBusy || resetConfirm !== "RESET THE OFFICE"}
+                onClick={async () => {
+                  setResetBusy(true);
+                  try {
+                    await api.resetOffice(resetConfirm);
+                    toast.success("The office was reset.", { id: "reset-office" });
+                    setResetOpen(false);
+                    setResetConfirm("");
+                    void services.reload();
+                    void desks.reload();
+                  } catch (failure) {
+                    toast.error(failure instanceof Error ? failure.message : "The office could not be reset", {
+                      id: "reset-office",
+                    });
+                  } finally {
+                    setResetBusy(false);
+                  }
+                }}
+                className="inline-flex items-center justify-center rounded-full bg-danger px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-danger-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {resetBusy ? "Resetting." : "Reset the office"}
+              </button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
@@ -209,9 +423,11 @@ export function AdminSettings() {
 function ServiceRow({
   service,
   onEdit,
+  onDelete,
 }: {
   service: ServiceProfile;
   onEdit: (service: ServiceProfile) => void;
+  onDelete: (service: ServiceProfile) => void;
 }) {
   return (
     <li className="flex flex-wrap items-start gap-4 py-4 first:pt-0 last:pb-0">
@@ -253,6 +469,14 @@ function ServiceRow({
         <Pencil className="size-4" aria-hidden="true" />
         Edit<span className="sr-only"> {service.name}</span>
       </Button>
+      <Button
+        variant="quiet"
+        onClick={() => onDelete(service)}
+        className="text-rose-700 hover:text-rose-900"
+      >
+        <Trash2 className="size-4" aria-hidden="true" />
+        Delete<span className="sr-only"> {service.name}</span>
+      </Button>
     </li>
   );
 }
@@ -261,9 +485,11 @@ function ServiceRow({
 function DeskRow({
   desk,
   onEdit,
+  onDelete,
 }: {
   desk: AdminDesk;
   onEdit: (desk: AdminDesk) => void;
+  onDelete: (desk: AdminDesk) => void;
 }) {
   return (
     <li className="flex flex-wrap items-center gap-4 py-4 first:pt-0 last:pb-0">
@@ -283,16 +509,35 @@ function DeskRow({
           </span>
           {desk.waiting > 0 ? ` · ${desk.waiting} waiting` : ""}
         </p>
-        <p className="mt-1 text-xs text-medium-green">
-          {desk.device_online ? "Board online" : "No board"}
-          {desk.updated_at
-            ? ` · last state change by ${desk.updated_by}, ${relative(desk.updated_at)}`
-            : ""}
-        </p>
+        {/* Only a counter that actually has a board mentions one. Saying "no
+            board" on every other counter would read as three missing boards,
+            when the office owns one and it is named above. */}
+        {(desk.device_label || desk.updated_at) && (
+          <p className="mt-1 text-xs text-medium-green">
+            {desk.device_label && (
+              <>
+                Board: {desk.device_label} ·{" "}
+                {desk.device_online ? "online" : "not reporting"}
+                {desk.updated_at ? " · " : ""}
+              </>
+            )}
+            {desk.updated_at
+              ? `last state change by ${desk.updated_by}, ${relative(desk.updated_at)}`
+              : ""}
+          </p>
+        )}
       </div>
       <Button variant="quiet" onClick={() => onEdit(desk)}>
         <Pencil className="size-4" aria-hidden="true" />
         Edit<span className="sr-only"> {desk.name}</span>
+      </Button>
+      <Button
+        variant="quiet"
+        onClick={() => onDelete(desk)}
+        className="text-rose-700 hover:text-rose-900"
+      >
+        <Trash2 className="size-4" aria-hidden="true" />
+        Delete<span className="sr-only"> {desk.name}</span>
       </Button>
     </li>
   );

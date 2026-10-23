@@ -13,6 +13,26 @@ from util import now
 bp = Blueprint("public", __name__)
 
 
+_notice_cache: dict | None = None
+
+
+def _flush_notice_cache():
+    global _notice_cache
+    if _notice_cache is not None:
+        return
+    # Read the latest notice from the auth blueprint's cache.
+    try:
+        from routes import auth as _auth_mod
+        _add_notice = getattr(_auth_mod, "add_notice", None)
+        notices = getattr(_add_notice, "_notices", []) if _add_notice is not None else []
+    except Exception:
+        notices = []
+    if notices:
+        _notice_cache = notices[-1]
+    else:
+        _notice_cache = None
+
+
 def state_payload(conn):
     """The waiting-room state as a plain dict.
 
@@ -25,6 +45,7 @@ def state_payload(conn):
     # This is the one read every watching page and the wall display make, so it
     # is also where an expired call is recovered when a desk is unattended.
     sweep_queue(conn)
+    _flush_notice_cache()
 
     services = [
         service_info(conn, row)
@@ -45,6 +66,7 @@ def state_payload(conn):
         average_service_seconds=first["average_service_seconds"] if first else None,
         service_samples=first["service_samples"] if first else 0,
         server_time=now(),
+        notice=_notice_cache,
     )
 
 

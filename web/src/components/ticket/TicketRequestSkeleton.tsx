@@ -37,19 +37,23 @@ export function TicketRequestSkeleton() {
           </TicketStep>
           <p className="myturn-ticket-privacy"><ShieldCheck size={19} aria-hidden="true" /><span>Your ticket is private. No name or account is needed — a phone number or email is required, and only the desk sees it.</span></p>
         </div>
-        <div className="myturn-ticket-summary">
-          <TicketStep number={2} title="Waiting information"><QueueStatusSkeleton /></TicketStep>
-          <TicketStep number={3} title="Get my ticket">
-            <div className="space-y-4" aria-hidden="true">
-              <Skeleton className="h-4 w-44 max-w-full" />
-              <Skeleton className="h-10 w-full rounded-full" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-14 w-full rounded-full" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-4/5" />
-            </div>
-          </TicketStep>
+        <div className="myturn-ticket-cards">
+          <div className="myturn-ticket-summary">
+            <TicketStep number={2} title="Waiting information"><QueueStatusSkeleton /></TicketStep>
+          </div>
+          <div className="myturn-ticket-summary myturn-ticket-summary-action">
+            <TicketStep number={3} title="Get my ticket">
+              <div className="space-y-4" aria-hidden="true">
+                <Skeleton className="h-4 w-44 max-w-full" />
+                <Skeleton className="h-10 w-full rounded-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-14 w-full rounded-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-4/5" />
+              </div>
+            </TicketStep>
+          </div>
         </div>
       </div>
     </div>

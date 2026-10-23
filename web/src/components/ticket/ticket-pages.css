@@ -3,14 +3,17 @@
 .myturn-ticket-main { flex: 1; padding-block: 48px 64px; }
 .myturn-ticket-header-inner { min-height: 80px; }
 .myturn-ticket-header-inner > nav a, .myturn-ticket-header-inner select { min-height: 40px; }
-.myturn-ticket-header-inner > a > span > svg { width: 38px; height: 38px; }
 .myturn-ticket-intro { display: flex; align-items: center; justify-content: space-between; gap: 32px; padding-bottom: 28px; border-bottom: 1px solid var(--color-line); }
 .myturn-ticket-intro h1 { font-size: clamp(30px, 3vw, 44px); font-weight: 600; line-height: 1.15; letter-spacing: -0.035em; }
 .myturn-ticket-intro > [role="status"] { flex-shrink: 0; }
 .myturn-ticket-kicker { margin-bottom: 14px; font-size: 13px; }
 .myturn-ticket-request-grid { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr); gap: 40px; align-items: start; }
 .myturn-ticket-selection { min-width: 0; }
-.myturn-ticket-summary { min-width: 0; display: grid; gap: 28px; padding: 28px; border: 1px solid var(--color-line); border-radius: 24px; background: var(--color-soft-mint); }
+.myturn-ticket-cards { min-width: 0; display: grid; gap: 20px; align-content: start; }
+.myturn-ticket-summary { min-width: 0; padding: 28px; border: 1px solid var(--color-line); border-radius: 24px; background: var(--color-soft-mint); }
+/* The action card is a plain surface like the service cards on the left, so the
+   lime button is the only loud thing on the page. */
+.myturn-ticket-summary-action { background: var(--color-white); }
 .myturn-ticket-step > h2 { font-size: 18px; }
 .myturn-ticket-step > h2 > span { width: 28px; height: 28px; background: var(--color-white); border: 1px solid var(--color-line); font-size: 13px; }
 .myturn-ticket-selection .myturn-ticket-step > h2 > span { background: var(--color-soft-mint); }

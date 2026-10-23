@@ -113,6 +113,11 @@ the real one is never touched by a test.
 | `GET /api/auth/desks` | Desk settings page | Every service point, with the service it serves and its live state (administrators only) |
 | `POST /api/auth/desks` | Desk settings page | Adds a service point and points it at one service (administrators only) |
 | `POST /api/auth/desks/<id>` | Desk settings page | Renames a service point, moves it to another service, or retires it (administrators only) |
+| `GET /api/auth/devices` | Board page | Every sensor board, with the counter it watches and when it last reported (administrators only) |
+| `POST /api/auth/devices` | Board page | Registers a board and answers with the one copy of its key (administrators only) |
+| `POST /api/auth/devices/<id>` | Board page | Points one board at a counter, or takes it off every counter (administrators only) |
+| `POST /api/auth/devices/<id>/key` | Board page | Replaces a board's key; the old one stops working at once (administrators only) |
+| `DELETE /api/auth/devices/<id>` | Board page | Takes a board out of service, with the readings it took (administrators only) |
 | `POST /api/staff/login` | Demonstration only | The shared classroom password, kept for the defence |
 | `POST /api/staff/logout` | Desk dashboard | Ends the session |
 | `GET /api/staff/desks` | Desk dashboard | The service points of the office, so the dashboard can ask which one this is |
@@ -161,6 +166,16 @@ address.
   nobody at the service point since the call, the server shortens that hold to
   `MYTURN_MIN_CALL_SECONDS` (25 seconds). An occupied service point, an approach, a
   missing reading or an offline board keeps the full hold.
+* A board is a piece of hardware, not a property of a counter. Every board is
+  registered on `/admin/board`, which hands out the one key it signs in with -
+  only the digest is stored, so the key is shown once and replaced there rather
+  than recovered. `devices.desk_id` is the board's single binding: it watches one
+  counter at a time, and the administrator moves it on the same page. Moving it
+  writes the move to the account history and clears the readings it took at the
+  counter it left, because those readings describe that counter. An office with
+  several boards gives each of them its own counter. A service point without a
+  board still serves visitors; the hold rule simply keeps its full length there,
+  and the desk page says so.
 * A bag left on the desk reads as occupied for as long as it is there, and a
   desk that cannot call anybody is a desk that has stopped working. So an
   object that has sat still for `MYTURN_OBSTRUCTION_SECONDS` (300 seconds), with
@@ -227,10 +242,12 @@ npm run dev                          # serves http://localhost:3000
 | Choose a new password | `/auth/reset-password` | The same person, following the link |
 | Desk dashboard | `/staff/dashboard` | The person at the desk: which service point they are working, the waiting line of its service, the board, walk-ins, recall and undo. An administrator reaches it from the sidebar's **Staff page** |
 | Visitor statistics | `/staff/analytics` | The office's numbers: waiting now, every desk side by side for today, and the last seven days |
-| Administration | `/admin/dashboard` | The administrator's Dashboard: the office summary, accounts, roles and invitations. The old `/admin/team` address still opens the same page |
+| Administration | `/admin/dashboard` | The administrator's Dashboard: the waiting lines, the service points, the sensor board, the team and the newest activity, each one a step away from the page that manages it |
+| Team | `/admin/team` | The administrator: staff accounts, roles, bulk actions and invitations |
 | Activity | `/admin/activity` | The administrator: what the waiting line, the desk and the accounts recorded |
 | Statistics | `/admin/statistics` | The administrator: counts, service times, busiest hours, target comparison, CSV export |
-| Desk settings | `/admin/settings` | The administrator: the services the office offers and the desks that serve them, changed live |
+| Desk settings | `/admin/settings` | The administrator: the services the office offers and the desks that serve them, all changed live |
+| Board | `/admin/board` | The administrator: register a sensor board, copy the one key it signs in with, choose the counter it watches, replace a lost key, or take a board out of service |
 | Your account | `/account` | Any signed-in account: its details, what its role may do, its own account history, its work at the service point, and its password |
 
 The old addresses `/screen` and `/staff` still work: `next.config.ts` redirects
@@ -522,7 +539,11 @@ Two windows open, one for each server.
 12. Leave one call unanswered: after the hold time it goes to the back of the
     waiting line on its own and the next ticket is called.
 13. Open `/admin/settings` to show the services and the desks, and change the
-    wording of a service while the waiting lines are running.
+    wording of a service while the waiting lines are running. Then open
+    `/admin/board` and use **Watches** to move the board from Desk 1 to Desk 2:
+    Desk 2's dashboard picks it up on the next poll, Desk 1 says no board is
+    assigned to it, and a move is written to the account history. Move it back
+    before the next step.
 14. Open `/admin/activity` to show what the waiting line, the desk and the accounts
     recorded, and `/admin/statistics` for the counts, the service-time
     distribution and the busiest hours, waiting line by waiting line. Download the CSV.

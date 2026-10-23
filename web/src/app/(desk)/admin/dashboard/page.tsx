@@ -1,12 +1,18 @@
 import type { Metadata } from "next";
 
 import { AdminDashboard } from "@/components/AdminDashboard";
+import { AccountGate } from "@/components/console/AccountGate";
 
 export const metadata: Metadata = {
-  title: "Administration — MyTurn",
-  description: "Invite staff members and manage the accounts that can work the desk.",
+  title: "Dashboard — MyTurn",
+  description:
+    "The waiting lines, the service points, the sensor board and the team, with the way to each administration page.",
 };
 
 export default function AdminDashboardPage() {
-  return <AdminDashboard />;
+  return (
+    <AccountGate adminOnly title="Dashboard">
+      <AdminDashboard />
+    </AccountGate>
+  );
 }

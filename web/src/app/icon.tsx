@@ -25,6 +25,7 @@ export default function Icon() {
           justifyContent: "center",
           background: "#00594f",
           borderRadius: 9,
+          boxShadow: "inset 0 0 0 1px #29835d",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 3 }}>

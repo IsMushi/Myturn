@@ -135,6 +135,53 @@ class NotificationTests(unittest.TestCase):
             self.assertEqual(email.call_count, 1)
             self.assertEqual(text.call_count, 1)
 
+    def test_development_sink_records_instead_of_sending(self):
+        with tempfile.TemporaryDirectory() as folder:
+            sink = Path(folder) / "notifications.log"
+            with patch.object(config, "SMTP_HOST", ""), patch.object(config, "SMTP_FROM", ""), \
+                 patch.object(config, "TEXTBEE_API_KEY", ""), \
+                 patch.object(config, "NOTIFY_DEV_SINK", True), \
+                 patch.object(config, "NOTIFY_SINK_FILE", str(sink)), \
+                 patch("notifications.send_email") as email, patch("notifications.send_sms") as text:
+                email.return_value = False
+                text.return_value = False
+                notifications.notify_called("A001", "General Service", "visitor@example.test")
+                notifications.notify_called("A002", "Admissions", "0788 123 456")
+                self.assertTrue(sink.exists())
+                lines = [json.loads(line) for line in sink.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual([line["channel"] for line in lines], ["email", "sms"])
+            self.assertEqual(lines[0]["ticket"], "A001")
+            self.assertEqual(lines[0]["desk"], "General Service")
+            self.assertEqual(lines[1]["desk"], "Admissions")
+            self.assertIn("A002", lines[1]["message"])
+            self.assertIn("Admissions", lines[1]["message"])
+            # A record is never a delivery, and no contact detail is written whole.
+            self.assertEqual([line["delivered"] for line in lines], [False, False])
+            self.assertIn("no provider configured", lines[0]["note"])
+            self.assertEqual(lines[0]["recipient"], "v***@example.test")
+            self.assertEqual(lines[1]["recipient"], "***456")
+            self.assertNotIn("visitor@example.test", sink.read_text(encoding="utf-8"))
+            self.assertNotIn("788123456", sink.read_text(encoding="utf-8"))
+
+    def test_development_sink_is_silent_when_a_provider_sent(self):
+        with tempfile.TemporaryDirectory() as folder:
+            sink = Path(folder) / "notifications.log"
+            with patch.object(config, "NOTIFY_DEV_SINK", True), \
+                 patch.object(config, "NOTIFY_SINK_FILE", str(sink)), \
+                 patch("notifications.send_email", return_value=True):
+                notifications.notify_called("A003", "General Service", "visitor@example.test")
+            self.assertFalse(sink.exists())
+
+    def test_development_sink_is_off_by_default(self):
+        with tempfile.TemporaryDirectory() as folder:
+            sink = Path(folder) / "notifications.log"
+            with patch.object(config, "SMTP_HOST", ""), patch.object(config, "SMTP_FROM", ""), \
+                 patch.object(config, "NOTIFY_DEV_SINK", False), \
+                 patch.object(config, "NOTIFY_SINK_FILE", str(sink)), \
+                 patch("notifications.send_email", return_value=False):
+                notifications.notify_called("A004", "General Service", "visitor@example.test")
+            self.assertFalse(sink.exists())
+
     def test_committed_call_and_recall_trigger_notifications(self):
         client = app.test_client()
         response = client.post("/api/staff/login", json={"password": "isolated-notification-check", "name": "Check"})

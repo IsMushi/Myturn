@@ -6,7 +6,10 @@ import type {
   ActivityFeed,
   AdminDesk,
   AdminDeskList,
+  AdminDevice,
+  AdminDeviceList,
   DeskList,
+  DeviceRegistration,
   PublicState,
   Role,
   ServiceList,
@@ -316,6 +319,13 @@ export const api = {
       body: values,
     }),
 
+  /** Permanently removes a service that has never been used. */
+  deleteService: (serviceId: number, confirm: string) =>
+    request<{ deleted: number; letter: string; name: string }>(
+      `/api/auth/services/${serviceId}`,
+      { method: "DELETE", body: { confirm } },
+    ),
+
   /** Every counter, including a retired one. */
   deskList: () => request<AdminDeskList>("/api/auth/desks"),
 
@@ -330,6 +340,42 @@ export const api = {
   ) =>
     request<{ desk: AdminDesk }>(`/api/auth/desks/${deskId}`, { method: "POST", body: values }),
 
+  /** Permanently removes a desk that has never been used. */
+  deleteDesk: (deskId: number, confirm: string) =>
+    request<{ deleted: number; name: string }>(`/api/auth/desks/${deskId}`, {
+      method: "DELETE",
+      body: { confirm },
+    }),
+
+  /** Clears every queue, counter and reading; keeps accounts and settings. */
+  resetOffice: (confirm: string) =>
+    request<{ reset: boolean }>("/api/auth/office/reset", {
+      method: "POST",
+      body: { confirm },
+    }),
+
+  /** Every sensor board, with the counter each one watches. */
+  deviceList: () => request<AdminDeviceList>("/api/auth/devices"),
+
+  /** Registers a board. The key in the reply is the only copy of it. */
+  registerDevice: (values: { label: string; desk_id: number | null }) =>
+    request<DeviceRegistration>("/api/auth/devices", { method: "POST", body: values }),
+
+  /** Points one board at a counter, or takes it off every counter. */
+  assignDevice: (deviceId: number, deskId: number | null) =>
+    request<{ device: AdminDevice }>(`/api/auth/devices/${deviceId}`, {
+      method: "POST",
+      body: { desk_id: deskId },
+    }),
+
+  /** Gives a board a new key; the one it was using stops working. */
+  replaceDeviceKey: (deviceId: number) =>
+    request<DeviceRegistration>(`/api/auth/devices/${deviceId}/key`, { method: "POST" }),
+
+  /** Takes a board out of service, with the readings it took. */
+  retireDevice: (deviceId: number) =>
+    request<{ ok: boolean }>(`/api/auth/devices/${deviceId}`, { method: "DELETE" }),
+
   stats: (service?: string) =>
     request<Stats>(service ? `/api/auth/stats?service=${encodeURIComponent(service)}` : "/api/auth/stats"),
 
@@ -343,7 +389,7 @@ export const api = {
   }) => request<{ message: string }>("/api/auth/password", { method: "POST", body: values }),
 
   /** The name on the account, corrected by the person it belongs to. */
-  updateProfile: (values: { full_name: string }) =>
+  updateProfile: (values: { full_name: string; email?: string; current_password?: string }) =>
     request<{ user: Account; message: string }>("/api/auth/profile", {
       method: "POST",
       body: values,

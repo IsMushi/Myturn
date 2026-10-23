@@ -59,15 +59,18 @@ export function DisplayBoard() {
      the numbers were written, not by when this browser happened to render. */
   const serverNow = data ? Date.parse(data.server_time) : Number.NaN;
 
+  const notice = data?.notice?.message;
+
   return (
     <main className="myturn-display" data-offline={offline} aria-busy={!data && !error}>
       <p className="sr-only" role="status" aria-atomic="true">
-        {label}.{" "}
+        {label}.{" "}        
         {calls.length > 0
           ? `Now serving ${calls.join(". ")}.`
-          : "No number is currently being called."}{" "}
+          : "No number is currently being called."}{" "}        
         {data ? `${plural(data.waiting, "visitor")} waiting.` : "Loading the waiting list."}
         {updatedAt ? ` Last updated ${updatedAt}.` : ""}
+        {notice && <span className="myturn-display-notice">{notice}</span>}
       </p>
 
       <PublicDisplayHeader status={status} offline={offline} updatedAt={updatedAt} />

@@ -194,6 +194,8 @@ export interface PublicState {
   average_service_seconds: number | null;
   service_samples: number;
   server_time: string;
+  /** Latest administrator notice shown on the wall display. */
+  notice: { message: string } | null;
 }
 
 export interface QueueTicket {
@@ -348,6 +350,11 @@ export interface AdminDesk {
   service_state: ServiceState;
   waiting: number;
   device_online: boolean;
+  /** The board watching this counter, or null when none is assigned to it. */
+  device_label: string | null;
+  /** The counter's own words while it is paused: why, and until when. */
+  pause_reason: string | null;
+  paused_until: string | null;
   updated_at: string | null;
   updated_by: string | null;
 }
@@ -355,6 +362,42 @@ export interface AdminDesk {
 export interface AdminDeskList {
   desks: AdminDesk[];
   server_time: string;
+}
+
+/**
+ * A sensor board and the one counter it watches.
+ *
+ * The office owns one board and several counters, so this is the movable
+ * binding: pointing the board somewhere else takes it off the counter it was
+ * on, and that counter keeps working without it.
+ */
+export interface AdminDevice {
+  device_id: number;
+  label: string;
+  chip_id: string | null;
+  mac_address: string | null;
+  last_seen: string | null;
+  online: boolean;
+  desk_id: number | null;
+  desk_name: string | null;
+  service_letter: string | null;
+  service_name: string | null;
+}
+
+export interface AdminDeviceList {
+  devices: AdminDevice[];
+  server_time: string;
+}
+
+/**
+ * A board that has just been registered, with its key.
+ *
+ * The API stores only the digest, so this reply is the one chance to write the
+ * key down: the page shows it before it lets the administrator do anything else.
+ */
+export interface DeviceRegistration {
+  device: AdminDevice;
+  device_key: string;
 }
 
 /**

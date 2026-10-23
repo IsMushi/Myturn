@@ -22,9 +22,6 @@
 }
 
 .myturn-auth-brand { align-self: flex-start; }
-.myturn-auth-brand > span { gap: 12px; }
-.myturn-auth-brand svg { width: 42px; height: 42px; border: 1px solid var(--color-medium-green); border-radius: 12px; }
-.myturn-auth-brand span span { font-size: 24px; }
 .myturn-auth-story-content { max-width: 440px; margin-block: 64px; }
 .myturn-auth-audience { color: var(--color-light-lime); font-size: 14px; }
 .myturn-auth-story h2 { margin-top: 20px; font-size: clamp(38px, 3.5vw, 58px); font-weight: 600; line-height: 1.08; letter-spacing: -0.04em; }

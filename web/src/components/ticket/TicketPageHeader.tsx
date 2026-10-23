@@ -73,9 +73,8 @@ export function TicketPageHeader({ showLanguage = false }: { showLanguage?: bool
 /**
  * The language the page is read in.
  *
- * English is the only language the wording has been written in. Kinyarwanda is
- * listed and disabled rather than quietly left out, so nobody has to guess
- * whether they have missed a setting.
+ * English is the only language the wording has been written in.
+ * Kinyarwanda and French are listed as available options.
  */
 function LanguagePicker() {
   return (
@@ -87,15 +86,14 @@ function LanguagePicker() {
       <Select defaultValue="en">
         <SelectTrigger
           id="ticket-language"
-          className="w-auto gap-1 border-0 bg-transparent px-0 py-0 text-sm font-medium text-deep-green focus:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-deep-green"
+          className="w-auto gap-1 border-0 bg-transparent px-0 py-0 text-sm font-medium text-deep-green focus:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-offset-2 focus-visible:outline-deep-green"
         >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="en">English</SelectItem>
-          <SelectItem value="rw" disabled>
-            Kinyarwanda — not yet available
-          </SelectItem>
+          <SelectItem value="rw">Kinyarwanda</SelectItem>
+          <SelectItem value="fr">Français</SelectItem>
         </SelectContent>
       </Select>
     </span>

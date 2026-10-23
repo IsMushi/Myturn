@@ -53,96 +53,100 @@ export function TicketRequestForm({
   return (
     <div className="myturn-ticket-request-grid">
       <div className="myturn-ticket-selection">
-      <TicketStep number={1} title="Select your service">
-        <p className="mb-5 text-sm leading-relaxed text-deep-green">Choose what you came for. Each service has its own waiting list.</p>
-        {services.length === 0 ? (
-          <Alert tone="info">
-            This office has not published a service yet. Please ask at the service point.
-          </Alert>
-        ) : (
-          <ServiceSelector
-            services={services}
-            value={serviceId}
-            onChange={onServiceChange}
-            disabled={busy}
-          />
-        )}
-      </TicketStep>
+        <TicketStep number={1} title="Select your service">
+          <p className="mb-5 text-sm leading-relaxed text-deep-green">Choose what you came for. Each service has its own waiting list.</p>
+          {services.length === 0 ? (
+            <Alert tone="info">
+              This office has not published a service yet. Please ask at the service point.
+            </Alert>
+          ) : (
+            <ServiceSelector
+              services={services}
+              value={serviceId}
+              onChange={onServiceChange}
+              disabled={busy}
+            />
+          )}
+        </TicketStep>
 
-      <p className="myturn-ticket-privacy"><ShieldCheck size={19} aria-hidden="true" /><span>Your ticket is private. No name or account is needed — a phone number or email is required, and only the desk sees it.</span></p>
+        <p className="myturn-ticket-privacy"><ShieldCheck size={19} aria-hidden="true" /><span>Your ticket is private. No name or account is needed — a phone number or email is required, and only the desk sees it.</span></p>
       </div>
 
-      <div className="myturn-ticket-summary">
-      <TicketStep number={2} title="Waiting information">
-        <QueueStatusCard service={service} loading={stateLoading} />
-        {paused && (
-          <p className="mt-3 text-sm text-medium-green">
-            The desk is on a break. You can still take a ticket and keep your place.
-          </p>
-        )}
-      </TicketStep>
-
-      <TicketStep number={3} title="Get my ticket">
-        {closed ? (
-          <QueueClosedState
-            waiting={service?.waiting ?? 0}
-            serviceName={service?.name}
-            onCheck={onCheck}
-          />
-        ) : (
-          <>
-            <div className="mb-4">
-              <Field
-                label="Phone or email (required)"
-                id="ticket-contact"
-                hint="Enter either your phone number or email address, but not both. So the desk can reach you when your number is called."
-                error={!contact ? "This is required" : undefined}
-              >
-                <TextInput
-                  id="ticket-contact"
-                  name="contact"
-                  value={contact}
-                  onChange={(event) => setContact(event.target.value)}
-                  maxLength={120}
-                  autoComplete="email"
-                  placeholder="e.g. 082 123 4567 or you@example.com"
-                  required
-                />
-              </Field>
-            </div>
-
-            <Button
-              type="button"
-              size="lg"
-              className="myturn-ticket-request-button w-full"
-              onClick={() => onRequest(contact)}
-              disabled={busy || blocked}
-              aria-busy={busy}
-            >
-              {busy && <LoaderCircle className="size-4 motion-safe:animate-spin" aria-hidden="true" />}
-              {busy ? "Getting your ticket…" : "Get My Ticket"}
-              {!busy && <ArrowRight className="size-4" aria-hidden="true" />}
-            </Button>
-
-            {error && (
-              <div className="mt-4">
-                <Alert tone="error">
-                  <span className="flex items-start gap-2">
-                    <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                    <span>
-                      {error} Nothing has been issued. You can try again, or ask at the service point.
-                    </span>
-                  </span>
-                </Alert>
-              </div>
+      <div className="myturn-ticket-cards">
+        <div className="myturn-ticket-summary">
+          <TicketStep number={2} title="Waiting information">
+            <QueueStatusCard service={service} loading={stateLoading} />
+            {paused && (
+              <p className="mt-3 text-sm text-medium-green">
+                The desk is on a break. You can still take a ticket and keep your place.
+              </p>
             )}
+          </TicketStep>
+        </div>
 
-            <p className="mt-4 text-sm leading-relaxed text-deep-green">
-              Your ticket stays on this phone. Keep the page open to follow your place and see when you are called.
-            </p>
-          </>
-        )}
-      </TicketStep>
+        <div className="myturn-ticket-summary myturn-ticket-summary-action">
+          <TicketStep number={3} title="Get my ticket">
+            {closed ? (
+              <QueueClosedState
+                waiting={service?.waiting ?? 0}
+                serviceName={service?.name}
+                onCheck={onCheck}
+              />
+            ) : (
+              <>
+                <div className="mb-4">
+                  <Field
+                    label="Phone or email (required)"
+                    id="ticket-contact"
+                    hint="Enter either your phone number or email address, but not both. So the desk can reach you when your number is called."
+                    error={!contact ? "This is required" : undefined}
+                  >
+                    <TextInput
+                      id="ticket-contact"
+                      name="contact"
+                      value={contact}
+                      onChange={(event) => setContact(event.target.value)}
+                      maxLength={120}
+                      autoComplete="email"
+                      placeholder="e.g. 082 123 4567 or you@example.com"
+                      required
+                    />
+                  </Field>
+                </div>
+
+                <Button
+                  type="button"
+                  size="lg"
+                  className="myturn-ticket-request-button w-full"
+                  onClick={() => onRequest(contact)}
+                  disabled={busy || blocked}
+                  aria-busy={busy}
+                >
+                  {busy && <LoaderCircle className="size-4 motion-safe:animate-spin" aria-hidden="true" />}
+                  {busy ? "Getting your ticket…" : "Get My Ticket"}
+                  {!busy && <ArrowRight className="size-4" aria-hidden="true" />}
+                </Button>
+
+                {error && (
+                  <div className="mt-4">
+                    <Alert tone="error">
+                      <span className="flex items-start gap-2">
+                        <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                        <span>
+                          {error} Nothing has been issued. You can try again, or ask at the service point.
+                        </span>
+                      </span>
+                    </Alert>
+                  </div>
+                )}
+
+                <p className="mt-4 text-sm leading-relaxed text-deep-green">
+                  Your ticket stays on this phone. Keep the page open to follow your place and see when you are called.
+                </p>
+              </>
+            )}
+          </TicketStep>
+        </div>
       </div>
     </div>
   );
