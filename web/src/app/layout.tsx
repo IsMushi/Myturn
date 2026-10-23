@@ -8,7 +8,7 @@ import { Toaster } from "@/components/ui/sonner";
 export const metadata: Metadata = {
   title: "MyTurn — Your Turn, Made Simple.",
   description:
-    "An Internet of Things queue for one service desk: take a number on your phone, watch your turn, and let the counter light tell you when the desk is free.",
+    "An Internet of Things queue for one service desk: take a number on your phone, watch your turn, and let the service point light tell you when the desk is free.",
 };
 
 /**

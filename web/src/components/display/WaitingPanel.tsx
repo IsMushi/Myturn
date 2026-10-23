@@ -6,8 +6,8 @@ export function WaitingPanel({ services, total }: { services: Service[]; total: 
     <aside className="myturn-display-waiting-panel" aria-labelledby="display-waiting-heading">
       <div className="myturn-display-waiting-panel-head">
         <div>
-          <p>Up next</p>
           <h2 id="display-waiting-heading">Waiting list</h2>
+          <p>{total} {total === 1 ? "ticket" : "tickets"} waiting</p>
         </div>
         <strong aria-label={`${total} ${total === 1 ? "visitor" : "visitors"} waiting`}>{total}</strong>
       </div>

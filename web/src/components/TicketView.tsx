@@ -7,10 +7,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ServiceStatusPill } from "@/components/ticket/ServiceStatusPill";
 import { TicketConfirmation } from "@/components/ticket/TicketConfirmation";
 import { TicketRequestForm } from "@/components/ticket/TicketRequestForm";
+import { TicketRequestSkeleton } from "@/components/ticket/TicketRequestSkeleton";
 import { TicketTrackingStatus } from "@/components/ticket/TicketTrackingStatus";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Field";
-import { Skeleton, SkeletonCard } from "@/components/ui/Skeleton";
 import { api } from "@/lib/api";
 import { isFinished } from "@/lib/ticket-status";
 import { useLive } from "@/lib/useLive";
@@ -125,7 +125,7 @@ export function TicketView({ initialToken }: { initialToken?: string }) {
       ? issuedState
       : ticketData;
 
-  const serviceList = services.data?.services ?? [];
+  const serviceList = publicState?.services ?? services.data?.services ?? [];
 
   // The first service is the one a visitor gets by default, so the office's
   // main queue is the one they land on. The live state is preferred over the
@@ -183,10 +183,10 @@ export function TicketView({ initialToken }: { initialToken?: string }) {
 
   // The first render has to match the one the server sent, and the server
   // cannot read this phone's storage, so the ticket is looked for after that.
-  if (!mounted) return <TicketSkeleton />;
+  if (!mounted) return <TicketRequestSkeleton />;
 
   // Nothing else on the page can be trusted if the service list cannot be read.
-  if (!services.data && services.error) {
+  if (!services.data && !publicState && services.error) {
     return (
       <Unreachable
         message={services.error.message}
@@ -243,6 +243,8 @@ export function TicketView({ initialToken }: { initialToken?: string }) {
     );
   }
 
+  if (!services.data && !publicState) return <TicketRequestSkeleton />;
+
   return (
     <div className="space-y-8">
       <header className="myturn-ticket-intro">
@@ -276,22 +278,6 @@ export function TicketView({ initialToken }: { initialToken?: string }) {
         busy={busy}
         error={createError}
       />
-    </div>
-  );
-}
-
-/** The page before anything is known: the shape of what is coming. */
-function TicketSkeleton() {
-  return (
-    <div className="space-y-8" aria-busy="true">
-      <span className="sr-only">Loading the ticket service…</span>
-      <div className="space-y-4">
-        <Skeleton className="h-9 w-80 max-w-full" />
-        <Skeleton className="h-5 w-full max-w-xl" />
-        <Skeleton className="h-8 w-56 rounded-full" />
-      </div>
-      <SkeletonCard lines={2} />
-      <SkeletonCard lines={4} />
     </div>
   );
 }

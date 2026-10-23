@@ -11,7 +11,7 @@ import type { ServiceState } from "@/lib/types";
 const MESSAGES: Record<ServiceState, string> = {
   active: "The next number will appear here.",
   paused: "Service will continue after the break.",
-  closed: "This service is closed. Please ask at the counter.",
+  closed: "This service is closed. Please ask at the service point.",
 };
 
 export function EmptyQueueState({ state }: { state: ServiceState }) {

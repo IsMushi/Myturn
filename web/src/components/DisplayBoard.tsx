@@ -10,8 +10,8 @@ import type { PublicState, ServiceCall } from "@/lib/types";
 
 import { PublicDisplayFooter } from "./display/PublicDisplayFooter";
 import { PublicDisplayHeader } from "./display/PublicDisplayHeader";
+import { DisplayBookingPanel } from "./display/DisplayBookingPanel";
 import { connectionLabel } from "./display/ConnectionIndicator";
-import { NowServingHeader } from "./display/NowServingHeader";
 import { CombinedServicePanel } from "./display/CombinedServicePanel";
 import { DisplayBoardSkeleton } from "./display/DisplayBoardSkeleton";
 
@@ -25,11 +25,6 @@ function calledJustNow(call: ServiceCall, serverNow: number): boolean {
   if (!call.called_at || !Number.isFinite(serverNow)) return false;
   const called = Date.parse(call.called_at);
   return Number.isFinite(called) && serverNow >= called && serverNow - called < CALL_IS_NEW_MS;
-}
-
-/** The calls a service currently holds, as a stable identity for one card. */
-function callSignature(calls: ServiceCall[]): string {
-  return calls.map((call) => `${call.label}@${call.desk ?? ""}`).join("|");
 }
 
 /**
@@ -109,18 +104,21 @@ export function DisplayBoard() {
         <div className="myturn-display-state">
           <Ticket size={44} aria-hidden="true" />
           <h2>No services to display</h2>
-          <p>Please ask a staff member at the counter.</p>
+          <p>Please ask a staff member at the service point.</p>
         </div>
       ) : (
         <>
           <div className="myturn-display-board-content">
-            <CombinedServicePanel 
-              services={services} 
+            <CombinedServicePanel
+              services={services}
+              serverTime={data.server_time}
+              offline={offline}
               freshServiceIds={services
                 .filter((service) => service.now_serving.some((call) => calledJustNow(call, serverNow)))
                 .map((service) => service.id)
               }
             />
+            <DisplayBookingPanel />
           </div>
         </>
       )}

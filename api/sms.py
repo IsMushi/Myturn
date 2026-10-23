@@ -1,18 +1,10 @@
-"""SMS notifications via openSMS.dev.
+"""Best-effort TextBee SMS via the office's registered Android phone.
 
-A visitor may leave a phone number when taking a ticket. When their number is
-called, the desk can reach them by hand from the contact link on the dashboard;
-this module also sends an automatic SMS so a visitor who stepped away (or who
-has no phone screen in front of them) is still told to come to the counter.
-
-The send is best-effort and never blocks the desk: it runs in a background
-thread, and any failure (no key configured, bad number, network down) is
-logged and swallowed. A queueing system must not stop serving because a text
-message could not be delivered.
+API acceptance is not handset delivery. Network work runs off the queue request;
+timeouts are not retried automatically because the phone might already be sending.
 """
 import json
 import logging
-import os
 import re
 import threading
 import urllib.error
@@ -22,63 +14,71 @@ from typing import Optional
 import config
 
 logger = logging.getLogger("myturn.sms")
-
-# openSMS.dev: POST https://opensms.io/api/v1/messages
-#   Authorization: Bearer <api key>
-#   Idempotency-Key: <unique key>
-#   Body: { "to": "+E.164", "text": "..." }
-OPENSMS_API_URL = os.environ.get("MYTURN_OPENSMS_API_URL", "https://opensms.io")
-OPENSMS_API_KEY = os.environ.get("MYTURN_OPENSMS_API_KEY", "")
-# Country code used to turn a local number into E.164. Rwanda by default.
-SMS_COUNTRY_CODE = getattr(config, "OPENSMS_COUNTRY_CODE", "250")
+TEXTBEE_SEND_URL = "https://api.textbee.dev/api/v1/gateway/send-sms"
 
 
 def _normalise_phone(contact: str) -> Optional[str]:
-    """Return an E.164 number, or None when the contact is not a phone."""
-    text = " ".join(str(contact or "").split())
-    if not text or "@" in text:
+    """Return E.164, defaulting local numbers to the configured country code."""
+    text = str(contact or "").strip()
+    if not re.fullmatch(r"\+?[0-9 ()-]+", text):
         return None
-    digits = re.sub(r"[^0-9]", "", text)
-    if not (7 <= len(digits) <= 15):
+    digits = re.sub(r"\D", "", text)
+    country = config.SMS_COUNTRY_CODE.strip().lstrip("+")
+    if text.startswith("+"):
+        pass
+    elif digits.startswith("00"):
+        digits = digits[2:]
+    elif not digits.startswith(country):
+        digits = country + digits.lstrip("0")
+    if not re.fullmatch(r"[1-9][0-9]{7,14}", digits):
         return None
-    if text.strip().startswith("+"):
-        return "+" + digits
-    return "+" + SMS_COUNTRY_CODE + digits.lstrip("0")
+    return "+" + digits
 
 
-def _post(url: str, payload: dict, key: str) -> None:
-    data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(url, data=data, method="POST")
-    req.add_header("Authorization", "Bearer " + key)
-    req.add_header("Content-Type", "application/json")
-    req.add_header("Idempotency-Key", payload.get("idempotency_key", ""))
+def _post(payload: dict) -> None:
+    request = urllib.request.Request(TEXTBEE_SEND_URL,
+        data=json.dumps(payload).encode("utf-8"), method="POST",
+        headers={"x-api-key": config.TEXTBEE_API_KEY, "Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(req, timeout=10) as response:
-            logger.info("sms sent: %s", response.read().decode("utf-8", "replace"))
+        with urllib.request.urlopen(request, timeout=10) as response:
+            result = json.loads(response.read())
+        data = result.get("data", {})
+        if not isinstance(data, dict) or data.get("success") is not True:
+            logger.warning("TextBee did not confirm queue acceptance")
+            return
+        # Batch ID enables tracing in the TextBee dashboard, not proof of delivery.
+        logger.info("TextBee accepted SMS; batch=%s; delivery not yet confirmed", data.get("smsBatchId", "unavailable"))
     except urllib.error.HTTPError as exc:
-        logger.warning("sms rejected (%s): %s", exc.code, exc.read().decode("utf-8", "replace"))
-    except Exception as exc:  # network, timeout, dns, ...
-        logger.warning("sms failed: %s", exc)
+        logger.warning("TextBee rejected SMS (HTTP %s)", exc.code)
+    except Exception as exc:
+        # Do not log provider bodies, credentials or recipient numbers.
+        logger.warning("TextBee SMS attempt failed (%s)", type(exc).__name__)
 
 
-def send_sms(to: str, message: str, *, idempotency_key: Optional[str] = None) -> None:
-    """Queue an SMS through openSMS.dev. Never raises."""
+def send_sms(to: str, message: str, *, idempotency_key: Optional[str] = None) -> bool:
+    """Start a local send worker, not a delivery guarantee.
+
+    idempotency_key is retained for older callers; TextBee's documented endpoint
+    does not promise this header, so it must not be presented as deduplication.
+    """
     phone = _normalise_phone(to)
     if not phone:
-        return
-    if not OPENSMS_API_KEY:
-        logger.debug("OPENSMS_API_KEY not set; skipping SMS to %s", phone)
-        return
-    url = OPENSMS_API_URL.rstrip("/") + "/api/v1/messages"
-    payload = {"to": phone, "text": message}
-    if idempotency_key:
-        payload["idempotency_key"] = idempotency_key
-    threading.Thread(target=_post, args=(url, payload, OPENSMS_API_KEY), daemon=True).start()
+        return False
+    if not config.TEXTBEE_API_KEY:
+        logger.warning("SMS not sent: configure MYTURN_TEXTBEE_API_KEY")
+        return False
+    payload = {"recipients": [phone], "message": message}
+    if config.TEXTBEE_DEVICE_ID:
+        payload["deviceId"] = config.TEXTBEE_DEVICE_ID
+    try:
+        threading.Thread(target=_post, args=(payload,), daemon=True).start()
+        return True
+    except RuntimeError:
+        logger.warning("SMS worker could not be started")
+        return False
 
 
 def notify_called(ticket_label: str, desk_name: str, contact: Optional[str]) -> None:
-    """Tell a visitor their number has been called, by SMS when possible."""
-    if not contact:
-        return
-    message = "MyTurn: your ticket %s has been called. Please proceed to %s." % (ticket_label, desk_name)
-    send_sms(contact, message, idempotency_key="call-%s" % ticket_label)
+    """Compatibility entry point; new code imports notifications.notify_called."""
+    from notifications import notify_called as notify
+    notify(ticket_label, desk_name, contact)

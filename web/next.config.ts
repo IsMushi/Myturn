@@ -5,6 +5,7 @@ import type { NextConfig } from "next";
 const backend = process.env.BACKEND_ORIGIN ?? "http://127.0.0.1:5000";
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ["machinist-snowy-whooping.ngrok-free.dev"],
   cacheComponents: true,
   partialPrefetching: true,
   // The screenshots that go into the project report are taken from the running

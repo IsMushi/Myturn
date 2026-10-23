@@ -53,11 +53,11 @@ export function TicketRequestForm({
   return (
     <div className="myturn-ticket-request-grid">
       <div className="myturn-ticket-selection">
-      <Step number={1} title="Select your service">
+      <TicketStep number={1} title="Select your service">
         <p className="mb-5 text-sm leading-relaxed text-deep-green">Choose what you came for. Each service has its own queue.</p>
         {services.length === 0 ? (
           <Alert tone="info">
-            This office has not published a service yet. Please ask at the counter.
+            This office has not published a service yet. Please ask at the service point.
           </Alert>
         ) : (
           <ServiceSelector
@@ -67,22 +67,22 @@ export function TicketRequestForm({
             disabled={busy}
           />
         )}
-      </Step>
+      </TicketStep>
 
       <p className="myturn-ticket-privacy"><ShieldCheck size={19} aria-hidden="true" /><span>Your ticket is private. No name or account is needed — a phone number or email is required, and only the desk sees it.</span></p>
       </div>
 
       <div className="myturn-ticket-summary">
-      <Step number={2} title="Queue information">
+      <TicketStep number={2} title="Queue information">
         <QueueStatusCard service={service} loading={stateLoading} />
         {paused && (
           <p className="mt-3 text-sm text-medium-green">
             The desk is on a break. You can still take a ticket and keep your place.
           </p>
         )}
-      </Step>
+      </TicketStep>
 
-      <Step number={3} title="Get my ticket">
+      <TicketStep number={3} title="Get my ticket">
         {closed ? (
           <QueueClosedState
             waiting={service?.waiting ?? 0}
@@ -130,7 +130,7 @@ export function TicketRequestForm({
                   <span className="flex items-start gap-2">
                     <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                     <span>
-                      {error} Nothing has been issued. You can try again, or ask at the counter.
+                      {error} Nothing has been issued. You can try again, or ask at the service point.
                     </span>
                   </span>
                 </Alert>
@@ -142,13 +142,13 @@ export function TicketRequestForm({
             </p>
           </>
         )}
-      </Step>
+      </TicketStep>
       </div>
     </div>
   );
 }
 
-function Step({
+export function TicketStep({
   number,
   title,
   children,

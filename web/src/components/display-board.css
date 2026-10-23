@@ -27,7 +27,6 @@
   gap: 24px;
   margin-inline: calc(-1 * var(--display-gutter));
   padding: 16px var(--display-gutter);
-  border-bottom: 1px solid var(--display-line);
   background: var(--color-white);
 }
 
@@ -90,7 +89,6 @@
 
 .myturn-display-updated {
   padding-left: clamp(18px, 1.57vw, 30px);
-  border-left: 1px solid var(--display-line);
   color: var(--display-ink);
 }
 
@@ -135,7 +133,6 @@
   align-items: center;
   gap: clamp(12px, .73vw, 14px);
   padding: 14px clamp(18px, 1.4vw, 26px);
-  border: 1px solid var(--display-line);
   border-radius: clamp(16px, 1.15vw, 22px);
   background: var(--color-white);
   font-size: clamp(14px, .97vw, 19px);
@@ -167,24 +164,223 @@
   display: grid;
   flex: 1;
   min-height: 0;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr) clamp(240px, 18vw, 320px);
   gap: clamp(16px, 1.15vw, 22px);
 }
 
-/* Single service panel replaces the grid of individual service cards */
-.myturn-display-service {
+/* The booking code is part of the board, not a passing hint: a visitor should
+   be able to join the queue without finding a member of staff first. */
+.myturn-display-booking {
   display: flex;
   min-width: 0;
+  min-height: 0;
   flex-direction: column;
-  overflow: hidden;
+  justify-content: space-between;
+  gap: clamp(14px, 1vw, 20px);
+  padding: clamp(18px, 1.4vw, 28px);
   border-radius: clamp(18px, 1.25vw, 24px);
   background: var(--color-white);
+}
+
+.myturn-display-booking-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-medium-green);
+  font-size: clamp(15px, 1.025vw, 20px);
+  font-weight: 600;
+  letter-spacing: .06em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.myturn-display-booking-eyebrow svg {
+  width: clamp(17px, 1.1vw, 21px);
+  height: auto;
+  flex-shrink: 0;
+}
+
+.myturn-display-booking h2 {
+  margin-top: 6px;
+  font-size: clamp(27.5px, 2.0625vw, 38.75px);
+  font-weight: 700;
+  letter-spacing: -.025em;
+  line-height: 1.15;
+}
+
+.myturn-display-booking-copy > p:last-child {
+  max-width: 28ch;
+  margin-top: 8px;
+  font-size: clamp(13px, .93vw, 17px);
+  line-height: 1.4;
+  color: var(--display-muted);
+}
+
+.myturn-display-booking-code {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.myturn-display-qr-frame {
+  display: grid;
+  width: min(100%, clamp(170px, 14vw, 248px));
+  aspect-ratio: 1;
+  place-items: center;
+  padding: clamp(8px, .6vw, 12px);
+  border-radius: 16px;
+  background: var(--color-white);
+}
+
+.myturn-display-qr {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.myturn-display-qr-loading {
+  background: var(--color-soft-mint);
+  animation: myturn-display-skeleton 1.8s ease-in-out infinite;
+}
+
+.myturn-display-booking-url {
+  width: 100%;
+  min-height: 2.7em;
+  max-width: 100%;
+  color: var(--color-medium-green);
+  font-family: var(--font-mono);
+  font-size: clamp(10px, .7vw, 13px);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+.myturn-display-booking-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-medium-green);
+  font-size: clamp(12px, .82vw, 15px);
+  font-weight: 600;
+}
+
+.myturn-display-booking-note svg {
+  width: clamp(16px, 1.05vw, 20px);
+  height: auto;
+  flex-shrink: 0;
+}
+
+/* Skeleton and loaded booking content share one component and text geometry. */
+.myturn-display-booking-skeleton .myturn-display-booking-copy span,
+.myturn-display-booking-skeleton .myturn-display-booking-note span,
+.myturn-display-booking-skeleton .myturn-display-booking-url span {
+  border-radius: 4px;
+  background: var(--color-soft-mint);
+  color: transparent;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.myturn-display-booking-skeleton .myturn-display-booking-url span {
+  display: block;
+  width: 100%;
+  min-height: 2.7em;
+}
+
+.myturn-display-booking-skeleton .myturn-display-booking-eyebrow svg,
+.myturn-display-booking-skeleton .myturn-display-booking-note svg {
+  visibility: hidden;
+}
+
+/* Calls and the ordered waiting preview remain separate, even with no call. */
+.myturn-display-queue-board {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1.3fr) minmax(240px, 1fr);
+  gap: clamp(16px, 1.15vw, 22px);
+}
+
+.myturn-display-current-content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 0 clamp(18px, 1.4vw, 26px) 26px;
+  scrollbar-gutter: stable;
+}
+
+.myturn-display-current-content > .myturn-display-idle {
+  flex: 1;
+  justify-content: center;
+  min-height: 280px;
+  text-align: center;
+}
+
+.myturn-display-current-list {
+  display: grid;
+  gap: 28px;
+}
+
+.myturn-display-current-service {
+  min-width: 0;
+  padding: clamp(16px, 1.4vw, 26px);
+  border-radius: 18px;
+  background: var(--color-soft-mint);
+}
+
+.myturn-display-current-service[data-fresh="true"] {
+  background: var(--color-light-lime);
+}
+
+.myturn-display-current-service-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.myturn-display-current-service-head h3 {
+  min-width: 0;
+  font-size: clamp(18px, 1.3vw, 25px);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.myturn-display-arrival {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-top: 24px;
+}
+
+.myturn-display-arrival-seconds {
+  font-size: clamp(38px, 3vw, 58px);
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.myturn-display-arrival p {
+  max-width: 24ch;
+  font-size: clamp(13px, .9vw, 17px);
+  line-height: 1.4;
+  color: var(--display-muted);
+}
+
+.myturn-display-arrival[data-ended="true"] {
+  color: #884000;
 }
 
 /* The panel reads every service's queue from the same public state as the cards.
    The small count is a total; the API only supplies the next eight labels. */
 .myturn-display-waiting-panel {
-  display: none; /* Hidden - single service panel replaces this */
+  display: flex;
   min-width: 0;
   min-height: 0;
   flex-direction: column;
@@ -199,11 +395,10 @@
   justify-content: space-between;
   gap: 12px;
   padding: 22px 24px;
-  border-bottom: 1px solid var(--display-line);
 }
 
 .myturn-display-waiting-panel-head p {
-  margin-bottom: 4px;
+  margin-top: 6px;
   font-size: 14px;
   color: var(--color-medium-green);
 }
@@ -241,7 +436,6 @@
 
 .myturn-display-waiting-group {
   padding-block: 20px;
-  border-bottom: 1px solid var(--display-line);
 }
 
 .myturn-display-waiting-group:last-child { border-bottom: 0; }
@@ -331,7 +525,6 @@
   align-items: center;
   gap: 8px;
   padding: clamp(6px, .4vw, 8px) clamp(12px, .93vw, 18px);
-  border: 1px solid transparent;
   border-radius: 999px;
   font-size: clamp(13px, .88vw, 17px);
   font-weight: 600;
@@ -376,7 +569,6 @@
   align-items: center;
   justify-content: center;
   padding: clamp(16px, 1vw, 19px) 18px 22px;
-  border-top: 1px solid var(--display-line);
   text-align: center;
 }
 
@@ -478,7 +670,6 @@
   justify-content: space-between;
   gap: 12px;
   padding: 12px clamp(16px, 1.4vw, 26px);
-  border-top: 1px solid var(--display-line);
   font-size: clamp(13px, .92vw, 18px);
   color: var(--display-muted);
 }
@@ -526,7 +717,6 @@
 
 .myturn-display-footer p > span {
   padding-left: clamp(16px, 1.57vw, 30px);
-  border-left: 1px solid var(--display-line);
 }
 
 .myturn-display-footer svg {
@@ -723,7 +913,23 @@
   }
 
   .myturn-display-board-content {
-    grid-template-columns: minmax(0, 1fr) 285px;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .myturn-display-booking {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .myturn-display-booking-code {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    width: 230px;
+    max-width: 230px;
+  }
+
+  .myturn-display-current-content {
+    max-height: 75svh;
   }
 
   .myturn-display-services {
@@ -763,6 +969,10 @@
   .myturn-display { height: auto; }
 
   .myturn-display-board-content { grid-template-columns: minmax(0, 1fr); }
+
+  .myturn-display-queue-board { grid-template-columns: minmax(0, 1fr); }
+
+  .myturn-display-current-content { overflow: visible; }
 
   .myturn-display-services {
     overflow: visible;

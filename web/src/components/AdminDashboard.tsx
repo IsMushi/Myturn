@@ -480,7 +480,8 @@ function Administration({ session }: { session: Extract<SessionState, { status: 
           </DialogHeader>
           <form onSubmit={(event) => { event.preventDefault(); void deleteAccount(); }} className="space-y-4">
             <Field label={`Type ${deleting?.email ?? "the account email"} to confirm`} id="delete-account-email">
-              <TextInput id="delete-account-email" type="email" autoComplete="off" value={confirmEmail}
+              <TextInput id="delete-account-email" type="email" autoComplete="off"
+                value={confirmEmail} placeholder={deleting?.email ?? "account@example.com"}
                 onChange={(event) => setConfirmEmail(event.target.value)} />
             </Field>
             {deleteError && <Alert tone="error" focus>{deleteError}</Alert>}
@@ -515,6 +516,7 @@ function Administration({ session }: { session: Extract<SessionState, { status: 
           <form onSubmit={(event) => { event.preventDefault(); void applyBulk("delete"); }} className="space-y-4">
             <Field label={`Type DELETE ${selected.length} to confirm`} id="bulk-delete-confirm">
               <TextInput id="bulk-delete-confirm" value={bulkConfirm} autoComplete="off"
+                placeholder={`DELETE ${selected.length}`}
                 onChange={(event) => setBulkConfirm(event.target.value)} />
             </Field>
             {bulkError && <Alert tone="error" focus>{bulkError}</Alert>}

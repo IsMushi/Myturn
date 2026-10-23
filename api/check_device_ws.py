@@ -180,7 +180,8 @@ def verify(app, origin, database, key, key2, password):
 
         channel = subscribe()
         try:
-            ack = sent(ws, 1, chip_id="ab12", mac="aa:bb:cc:dd:ee:ff", approach=True)
+            ack = sent(ws, 1, chip_id="ab12", mac="aa:bb:cc:dd:ee:ff", approach=True,
+                       led_state="red+yellow")
             assert ack["server_time"]
             channel.get(timeout=1)
         finally:
@@ -189,6 +190,8 @@ def verify(app, origin, database, key, key2, password):
         assert dashboard["device"]["distance_cm"] == 160
         assert dashboard["device"]["chip_id"] == "ab12" and dashboard["device"]["approach"]
         passed("Socket telemetry is acknowledged, committed and broadcast to browser dashboards")
+        assert dashboard["device"]["led_state"] == "red+yellow"
+        passed("Combined red/yellow fault indication is preserved in dashboard telemetry")
         before = sql("select count(*) from device_reports")[0][0]
         sent(ws, 1, distance_cm=5, occupied=True)
         assert sql("select count(*) from device_reports")[0][0] == before

@@ -326,7 +326,7 @@ def main():
     check("the full hold is reported while occupied",
           occupied["effective_hold_seconds"], config.HOLD_SECONDS)
     check("the reason names the occupied counter",
-          occupied["hold_reason"], "the counter is occupied")
+          occupied["hold_reason"], "the service point is occupied")
 
     # With the counter verifiably empty, the same call may end at the floor
     # instead of the full hold - but only after the grace period.
@@ -348,7 +348,7 @@ def main():
     check("the shortened hold is the configured floor",
           empty["effective_hold_seconds"], config.MIN_CALL_SECONDS)
     check("the reason names the empty counter",
-          empty["hold_reason"], "the counter is empty")
+          empty["hold_reason"], "the service point is empty")
 
     # Past the shortened limit, a plain read is enough to recover the queue:
     # nobody has to press Call next.
@@ -377,7 +377,7 @@ def main():
           (5, "waiting"))
 
     check("the early requeue says why it happened",
-          "counter empty" in (reason["detail"] or "") if reason else False, True)
+          "service point empty" in (reason["detail"] or "") if reason else False, True)
 
     status, next_up = call("POST", "/api/staff/call-next", opener=staff)
     check("the desk calls the next number after the early requeue",
@@ -483,7 +483,7 @@ def main():
     status, blocked = call("POST", "/api/staff/call-next", opener=staff)
     check("an approach keeps the counter occupied", status, 409)
     check("the refusal names the counter", blocked.get("error"),
-          "the counter is occupied; wait for it to clear")
+          "the service point is occupied; wait for it to clear")
 
     _, approach_state = call("GET", "/api/staff/queue", opener=staff)
     check("an approaching visitor is not called an obstruction",
@@ -495,7 +495,7 @@ def main():
     status, moved = call("POST", "/api/staff/call-next", opener=staff)
     check("something that moved keeps the counter occupied", status, 409)
     check("the refusal still names the counter", moved.get("error"),
-          "the counter is occupied; wait for it to clear")
+          "the service point is occupied; wait for it to clear")
 
     # Leave the run the way it was found: no number left called, the ticket
     # numbers where they were, and a board that reads an empty counter.
@@ -539,6 +539,8 @@ def main():
     admin_token = signed_in["csrf_token"]
     status, who = call("GET", "/api/auth/me", opener=admin)
     check("me reports the account", (status, who["user"]["role"]), (200, "admin"))
+    check("me names an administrator to contact",
+          who.get("administrator", {}).get("email"), config.ADMIN_EMAIL)
 
     status, listing = call("GET", "/api/auth/users", opener=admin)
     check("the administrator can list accounts", status, 200)

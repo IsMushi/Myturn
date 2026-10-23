@@ -29,7 +29,7 @@ from security import (
     staff_required,
 )
 from util import local_date, local_midnight, local_sql, now, seconds_since, soon
-from sms import notify_called
+from notifications import notify_called
 
 bp = Blueprint("staff", __name__)
 
@@ -530,7 +530,7 @@ def _clear_expired_call(conn, desk_id):
     requeue(
         conn,
         called,
-        "counter empty; hold ended early" if shortened else "hold time ended",
+        "service point empty; hold ended early" if shortened else "hold time ended",
     )
     return None
 
@@ -567,7 +567,7 @@ def call_next():
     occupied = _desk_occupied(conn, desk_id)
     if occupied is True:
         return (
-            jsonify(error="the counter is occupied; wait for it to clear"),
+            jsonify(error="the service point is occupied; wait for it to clear"),
             409,
         )
 
@@ -720,7 +720,7 @@ def call_chosen():
 
     if _desk_occupied(conn, desk_id) is True:
         return (
-            jsonify(error="the counter is occupied; wait for it to clear"),
+            jsonify(error="the service point is occupied; wait for it to clear"),
             409,
         )
 

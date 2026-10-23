@@ -137,6 +137,7 @@ export default function RegisterPage() {
             <TextInput
               id="full_name"
               autoComplete="name"
+              placeholder="e.g. Leah NIYODUHORANA"
               error={Boolean(form.formState.errors.full_name)}
               {...form.register("full_name")}
             />
@@ -151,6 +152,7 @@ export default function RegisterPage() {
             <PasswordInput
               id="password"
               autoComplete="new-password"
+              placeholder="At least 8 characters"
               error={Boolean(form.formState.errors.password)}
               {...form.register("password")}
             />
@@ -165,6 +167,7 @@ export default function RegisterPage() {
               id="confirm_password"
               visibilityName="confirmation password"
               autoComplete="new-password"
+              placeholder="Repeat the password"
               error={Boolean(form.formState.errors.confirm_password)}
               {...form.register("confirm_password")}
             />

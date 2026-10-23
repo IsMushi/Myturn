@@ -40,7 +40,7 @@ person moves
   │    over a 200 ms window, so about 40 ms        PIR_SAMPLE_MS
   ├─ the approach latches                         APPROACH_MS (10 s)
   │    and is reported at the fast rate           FAST_MS (1 s)
-  └─ after 10 s with nobody at the counter        the approach is written
+  └─ after 10 s with nobody at the service point  the approach is written
                                                    off as a walk-past
 ```
 
@@ -62,7 +62,7 @@ The PIR has **no distance reading at all**. It is a binary signal: motion
 inside its cone, or no motion. So the "sensitivity" of the PIR is entirely
 the `Sx` knob, and it decides two things:
 
-- whether somebody at the counter is detected at all;
+- whether somebody at the service point is detected at all;
 - whether people walking across the room are detected too.
 
 Detecting people in the room is harmless - an approach is only ever treated
@@ -71,8 +71,8 @@ report rate instead of the five-second one, so the log scrolls faster and the
 server receives more readings.
 
 **For a desk, turn `Sx` clockwise** until the range is about 1 to 1.5 m:
-close enough for the visitor at the counter, short enough that the aisle
-behind does not trigger it. Mount the module **facing the counter**, not down
+close enough for the visitor at the service point, short enough that the aisle
+behind does not trigger it. Mount the module **facing the service point**, not down
 the room, because its field is a cone.
 
 ---
@@ -89,14 +89,14 @@ changing one means editing the file, recompiling and flashing the board.
 | `APPROACH_MS` | 10000 (10 s) | How long one approach is remembered before it is written off as a walk-past | Longer keeps "somebody is coming" true for longer, which also keeps the fast report rate on for longer |
 
 **How the pin is read.** The module's output flickers when somebody is
-standing at the counter, so the pin is not read as a level. It is read as a
+standing at the service point, so the pin is not read as a level. It is read as a
 **duty cycle** over a 200 ms window: the pin is sampled every 20 ms, and three
 of the last ten samples being HIGH is taken as motion.
 
 That matters more than it looks. A filter that waits for the pin to *hold*
 one value freezes on whichever level it happened to catch, and a frozen LOW is
 a PIR that has stopped working rather than one that is slower. The duty cycle
-cannot freeze: a flicker reads as motion, which is what a flicker at a counter
+cannot freeze: a flicker reads as motion, which is what a flicker at a service point
 is, and the answer comes in about 40 ms.
 
 A single electrical glitch is still rejected, and an idle sensor produces no
@@ -106,9 +106,9 @@ readings at all.
 
 | Setting | Where | Value | What it does |
 |---|---|---|---|
-| `MYTURN_APPROACH_WINDOW_SECONDS` | `api/.env` | 10 | How long an approach report still counts as "movement at the counter now" on the dashboard. The stored flag is old news after this. It says movement, not a person: the PIR cannot tell a visitor from anyone else who walks past |
+| `MYTURN_APPROACH_WINDOW_SECONDS` | `api/.env` | 10 | How long an approach report still counts as "movement at the service point now" on the dashboard. The stored flag is old news after this. It says movement, not a person: the PIR cannot tell a visitor from anyone else who walks past |
 | `MYTURN_HOLD_SECONDS` | `api/.env` | 60 | How long a called number keeps its place. An approach seen since the call keeps the **full** hold, never the shortened one |
-| `MYTURN_MIN_CALL_SECONDS` | `api/config.py` | 25 | The floor the hold may be shortened to. Only reached when the counter is verifiably empty **and** no approach was seen |
+| `MYTURN_MIN_CALL_SECONDS` | `api/config.py` | 25 | The floor the hold may be shortened to. Only reached when the service point is verifiably empty **and** no approach was seen |
 
 ---
 
@@ -129,12 +129,12 @@ on the fast rate. That is what filled the log with a reading every 25 ms.
 | What you see | Cause | Fix |
 |---|---|---|
 | **Motion is not detected at all for the first minute after a flash** | The PIR is in its warm-up. `PIR_WARMUP_MS` is 60 s, and until it passes the module reports nothing, so the board reports nothing | Wait a minute. The log says `pir: warmup` while it is happening, and `pir: LOW` or `pir: HIGH` afterwards |
-| **Motion is not detected, long after the warm-up** | `Sx` is not sensitive enough, or the module faces away from the counter | Turn `Sx` counter-clockwise a little at a time. Check the module faces the counter and not down the room |
+| **Motion is not detected, long after the warm-up** | `Sx` is not sensitive enough, or the module faces away from the service point | Turn `Sx` counter-clockwise a little at a time. Check the module faces the service point and not down the room |
 | **Motion is detected but feels late** | The module's own `Tx` is not the cause - the firmware answers in about 40 ms - so the delay is in the module or the wiring | Check the module is powered from `VIN` and not `3V3`, and that the output reaches GPIO 19 |
 | **The approach stays "on" long after the person has gone** | `APPROACH_MS` is 10 s, and the ten seconds only run out if the person stops moving | Lower `APPROACH_MS` if the queue should recover faster |
 | A reading every 25 ms, `pir` alternating HIGH and LOW | The PIR output is chattering and the raw pin was believed as it arrived | **Turn `Tx` clockwise to 3-5 s** - the module then holds the output high and the chatter cannot get through |
 | `pir: HIGH` that never comes back to `LOW` | The pin is stuck high, so the approach never clears and the board stays on the one-second rate | Turn `Tx` up. If it persists, the output is being held high by the module, not by noise |
-| The PIR fires for people walking past | `Sx` is too sensitive | Turn `Sx` clockwise until the range is about 1-1.5 m, and face the module at the counter |
+| The PIR fires for people walking past | `Sx` is too sensitive | Turn `Sx` clockwise until the range is about 1-1.5 m, and face the module at the service point |
 | The approach is reported, but the queue still moves on | The approach only ever *keeps* the full hold; it never calls anyone | This is by design. The approach is evidence, not authority |
 
 ---
@@ -145,14 +145,14 @@ The occupancy side, which the PIR has no part in.
 
 | Constant | Where | Value | What it does |
 |---|---|---|---|
-| `OCCUPIED_CM` | `config.h` | 100.0 | The median distance below which the counter is occupied. A person at the counter is about 40-70 cm |
+| `OCCUPIED_CM` | `config.h` | 100.0 | The median distance below which the service point is occupied. A person at the service point is about 40-70 cm |
 | `MIN_CM` | `config.h` | 12.0 | Below this the module is ringing, not a person. Those readings are ignored |
 | `MAX_CM` | `config.h` | 400.0 | Beyond this the module's own timeout pulse means "nothing in range" |
 | `MEASURE_GAP_MS` | `config.h` | 250 | How often a measurement is taken |
 | `SAMPLES` / `MIN_SAMPLES` | `config.h` | 5 / 3 | The median window, and how many readings are needed before the median is trusted |
 | `HOLD_MS` | `config.h` | 2000 | A change of occupancy must last this long before it is believed |
 
-**How long that takes, end to end.** From an object arriving at the counter to
+**How long that takes, end to end.** From an object arriving at the service point to
 the LED turning red:
 
 | Step | Time |
@@ -164,7 +164,7 @@ the LED turning red:
 | **Total** | **about 2.75 s** |
 
 It is the same **2.75 s** in reverse: an object that leaves is not released
-until it has been gone that long, so a person stepping back from the counter
+until it has been gone that long, so a person stepping back from the service point
 for a moment does not flicker the light.
 
 The median is what makes this slow on purpose: a burst of noise cannot flip

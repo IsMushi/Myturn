@@ -5,9 +5,8 @@ import type { LiveStatus } from "@/lib/useLive";
 /** What the board should call the connection right now. Shared with the live region. */
 export function connectionLabel(status: LiveStatus, offline: boolean): string {
   if (offline) return "Connection lost";
-  // "Up to date", not how it gets there: a television says nothing about
-  // sockets or refresh rates to the people waiting in front of it.
-  if (status === "live" || status === "polling") return "Up to date";
+  // Both the event stream and its successful polling fallback show live data.
+  if (status === "live" || status === "polling") return "Live data";
   return "Connecting…";
 }
 

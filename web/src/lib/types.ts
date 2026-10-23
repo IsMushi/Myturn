@@ -24,6 +24,11 @@ export interface SessionInfo {
   staff?: string;
   shared: boolean;
   csrf_token: string;
+  /** The active administrator a staff member can ask about an address change. */
+  administrator?: {
+    full_name: string;
+    email: string;
+  } | null;
 }
 
 /** What a successful sign in returns. */

@@ -167,7 +167,7 @@ export function AnalyticsDashboard() {
       <section className="rounded-2xl bg-white p-5">
         <h2 className="text-lg font-semibold text-deep-green">Desk performance</h2>
         <p className="mt-1 text-sm text-medium-green">
-          Every counter side by side, for today.
+          Every service point side by side, for today.
         </p>
         <div className="mt-4 overflow-x-auto">
           {desks.length > 0 ? (
@@ -178,7 +178,7 @@ export function AnalyticsDashboard() {
         </div>
         <p className="mt-3 text-xs text-medium-green">
           Sorted by tickets served today. Waiting is counted for the whole service, which its
-          desks share, so the same figure can appear at two counters. Nothing here is scored.
+          desks share, so the same figure can appear at two service points. Nothing here is scored.
         </p>
       </section>
 

@@ -25,19 +25,11 @@ static unsigned long lastSend = 0;
 static unsigned long lastWdtFeed = 0;
 static Net::Setting deskSetting;   // last state read from the server; "paused" until then
 
-static bool startupSequenceDone = false;
-
 static Light chooseLight(const Net::Setting &s, bool occupied) {
-  // Yellow is the safe state: the desk is not known to be open. The board
-  // starts yellow and falls back to yellow when the server cannot be reached,
-  // so it never claims a desk is open that nobody has said is open.
-  if (!s.valid || s.state == "closed") {
-    if (!s.valid && !startupSequenceDone) {
-      Indicators::runStartupSequence();
-      startupSequenceDone = true;
-    }
-    return Light::Yellow;
-  }
+  // A missing authoritative state is a connection fault, not an ordinary
+  // pause. Never show green or a stale blue call while disconnected.
+  if (!s.valid) return Light::Fault;
+  if (s.state == "closed") return Light::Yellow;
   // Blue is the call light and only the call light: a visitor is being called,
   // between call-next and served/no-show. Nothing else may use this colour, or
   // a closed desk would look like a number waiting to be collected.
@@ -153,6 +145,7 @@ static void logReport(float cm) {
     case Light::Red:    strcpy(note, "someone is at the counter"); break;
     case Light::Yellow: strcpy(note, "the desk is paused, closed or not known yet"); break;
     case Light::Blue:   strcpy(note, "a visitor is being called"); break;
+    case Light::Fault:  strcpy(note, "connection unavailable; red and yellow are on together"); break;
     default:            strcpy(note, "no light is on"); break;
   }
   Net::logRow("led", value, note);
@@ -302,16 +295,21 @@ static void logConnection(const Net::Connection &c) {
 
 static void applyPushedSetting() {
   Net::Setting fresh;
-  if (Net::takeSetting(fresh)) {
+  bool pushed = Net::takeSetting(fresh);
+  bool ready = Net::ready();
+  // Only a transition starts/stops the fault pattern. Silencing on every
+  // offline pass would cut off its first beep and prevent the second one.
+  Indicators::connectionFault(!ready);
+  if (!ready) {
+    deskSetting = Net::Setting();
+    return;
+  }
+  if (pushed) {
     deskSetting = fresh;
     if (fresh.valid) {
       if (fresh.baseline || fresh.state != "active") Indicators::baselineCall(fresh.callId);
       else Indicators::announceCall(fresh.callId, fresh.callEvent, fresh.callAge);
     }
-  }
-  if (!Net::ready()) {
-    deskSetting = Net::Setting();
-    Indicators::silence();
   }
 }
 
@@ -363,6 +361,7 @@ void setup() {
   Net::serialUnlock();
 
   Indicators::begin();
+  Indicators::runStartupSequence();
   Sensor::begin();
   Pir::begin();
   Net::begin();

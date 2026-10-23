@@ -61,6 +61,30 @@ def find_user(conn, email):
     ).fetchone()
 
 
+def administrator_contact(conn, exclude_user_id=None):
+    """An active administrator a staff member can ask about an address change.
+
+    The account page owns the name, but the address is the identity and stays
+    with the administrator. The page needs somewhere to send that request, so
+    the session carries the first active administrator. When the signed-in
+    person is the only administrator, the answer is their own account rather
+    than ``None``: the page then says who the administrator is without
+    pretending there is somebody else to ask.
+    """
+    row = conn.execute(
+        "select full_name, email from users "
+        "where role = 'admin' and is_active = 1 and user_id <> ? "
+        "order by user_id limit 1",
+        (exclude_user_id or -1,),
+    ).fetchone()
+    if row is None:
+        row = conn.execute(
+            "select full_name, email from users "
+            "where role = 'admin' and is_active = 1 order by user_id limit 1"
+        ).fetchone()
+    return dict(row) if row is not None else None
+
+
 def log_account_event(conn, event_type, email, actor, detail=None):
     """One line in the account history, which is what the activity page reads.
 
@@ -220,7 +244,12 @@ def me():
     """
     user = current_user()
     if user is not None:
-        return jsonify(user=user, csrf_token=ensure_csrf(), shared=False)
+        return jsonify(
+            user=user,
+            csrf_token=ensure_csrf(),
+            shared=False,
+            administrator=administrator_contact(get_db(), user["user_id"]),
+        )
 
     name = session.get("staff")
     if name is None:

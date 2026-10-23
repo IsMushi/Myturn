@@ -6,7 +6,7 @@ export function PublicDisplayFooter() {
     <footer className="myturn-display-footer">
       <p>
         <Ticket size={18} aria-hidden="true" />
-        <span>Take a ticket at the entrance and follow your turn on your phone.</span>
+        <span>Take a ticket here with the code, or at the entrance.</span>
       </p>
       <span>Your Turn, Made Simple.</span>
     </footer>

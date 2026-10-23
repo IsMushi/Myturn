@@ -359,6 +359,7 @@ function ServiceForm({
         <TextInput
           id="name"
           maxLength={60}
+          placeholder="e.g. Registration"
           error={Boolean(form.formState.errors.name)}
           {...form.register("name")}
         />
@@ -374,6 +375,7 @@ function ServiceForm({
           id="description"
           rows={3}
           maxLength={160}
+          placeholder="e.g. New student registration and course changes"
           aria-invalid={Boolean(form.formState.errors.description) || undefined}
           aria-describedby={
             form.formState.errors.description ? "description-error" : undefined
@@ -477,6 +479,7 @@ function AddServiceForm({
           id="new-service-name"
           maxLength={60}
           value={name}
+          placeholder="e.g. Finance"
           onChange={(event) => setName(event.target.value)}
         />
       </Field>
@@ -488,6 +491,7 @@ function AddServiceForm({
           maxLength={160}
           className={`${inputClass} rounded-2xl`}
           value={description}
+          placeholder="e.g. Fees, receipts and refunds"
           onChange={(event) => setDescription(event.target.value)}
         />
       </Field>
@@ -558,6 +562,7 @@ function DeskForm({
           id={`desk-name-${desk.desk_id}`}
           value={name}
           maxLength={60}
+          placeholder="e.g. Desk 1"
           onChange={(event) => setName(event.target.value)}
         />
       </Field>
@@ -636,7 +641,7 @@ function AddDeskForm({
       <DialogHeader>
         <DialogTitle>Add a desk</DialogTitle>
         <DialogDescription>
-          A new counter. It serves one service and starts paused until somebody opens it.
+          A new service point. It serves one service and starts paused until somebody opens it.
         </DialogDescription>
       </DialogHeader>
 

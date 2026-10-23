@@ -37,19 +37,7 @@ export function QueueStatusCard({
   aheadLabels?: string[] | null;
   loading?: boolean;
 }) {
-  if (loading && !service) {
-    return (
-      <div className="grid gap-3 sm:grid-cols-2" aria-busy="true">
-        {Array.from({ length: 4 }, (_, index) => (
-          <div key={index} className="rounded-2xl border border-line bg-white p-4">
-            <Skeleton className="h-3 w-24" />
-            <Skeleton className="mt-3 h-8 w-16" />
-          </div>
-        ))}
-      </div>
-    );
-  }
-
+  if (!service && loading) return <QueueStatusSkeleton />;
   if (!service) return null;
 
   const calls = service.now_serving;
@@ -92,11 +80,11 @@ export function QueueStatusCard({
           }
         />
         <div className="myturn-ticket-stat">
-          <dt className="flex items-center gap-2 text-xs font-medium text-deep-green">
+          <dt>
             <Clock3 className="size-4" aria-hidden="true" />
-            Desk status
+            Service point status
           </dt>
-          <dd className="mt-3">
+          <dd className="myturn-ticket-stat-value">
             <DeskStateBadge state={service.service_state} />
           </dd>
         </div>
@@ -141,12 +129,27 @@ function Stat({
 }) {
   return (
     <div className="myturn-ticket-stat">
-      <dt className="flex items-center gap-2 text-xs font-medium text-deep-green">
+      <dt>
         <Icon className="size-4" aria-hidden="true" />
         {label}
       </dt>
-      <dd className="mt-2 text-2xl leading-tight font-bold text-deep-green">{value}</dd>
-      <dd className="mt-2 text-xs leading-relaxed text-deep-green">{note}</dd>
+      <dd className="myturn-ticket-stat-value">{value}</dd>
+      <dd className="myturn-ticket-stat-note">{note}</dd>
     </div>
+  );
+}
+
+/** Same four rows, label widths and value positions as the loaded list. */
+export function QueueStatusSkeleton() {
+  return (
+    <dl className="myturn-ticket-queue-stats" aria-busy="true" aria-label="Loading queue information">
+      {["Now serving", "Tickets waiting", "Estimated wait", "Service point status"].map((label, index) => (
+        <div className="myturn-ticket-stat" key={label} aria-hidden="true">
+          <dt><Skeleton className="size-4 shrink-0" /><span>{label}</span></dt>
+          <dd className="myturn-ticket-stat-value"><Skeleton className={index === 2 ? "h-5 w-36 max-w-full" : "h-5 w-16"} /></dd>
+          {index < 3 && <dd className="myturn-ticket-stat-note"><Skeleton className="h-4 w-48 max-w-full" /></dd>}
+        </div>
+      ))}
+    </dl>
   );
 }

@@ -99,8 +99,13 @@ CORS_ORIGINS = [
 ]
 
 
-# SMS notifications (openSMS.dev). Optional: when the key is empty the desk
-# still shows the contact link, but no automatic text is sent.
-OPENSMS_API_KEY = os.environ.get("MYTURN_OPENSMS_API_KEY", "")
-OPENSMS_API_URL = os.environ.get("MYTURN_OPENSMS_API_URL", "https://opensms.io")
-OPENSMS_COUNTRY_CODE = os.environ.get("MYTURN_OPENSMS_COUNTRY_CODE", "250")
+# Visitor call notifications. Secrets stay on the API, never in Next.js.
+TEXTBEE_API_KEY = os.environ.get("MYTURN_TEXTBEE_API_KEY", os.environ.get("TEXTBEE_API_KEY", ""))
+TEXTBEE_DEVICE_ID = os.environ.get("MYTURN_TEXTBEE_DEVICE_ID", "")
+SMS_COUNTRY_CODE = os.environ.get("MYTURN_SMS_COUNTRY_CODE", "250")
+SMTP_HOST = os.environ.get("MYTURN_SMTP_HOST", "")
+SMTP_PORT = int(os.environ.get("MYTURN_SMTP_PORT", "587"))
+SMTP_USERNAME = os.environ.get("MYTURN_SMTP_USERNAME", "")
+SMTP_PASSWORD = os.environ.get("MYTURN_SMTP_PASSWORD", "")
+SMTP_FROM = os.environ.get("MYTURN_SMTP_FROM", "")
+SMTP_SECURITY = os.environ.get("MYTURN_SMTP_SECURITY", "starttls").lower()

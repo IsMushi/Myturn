@@ -90,13 +90,13 @@ puzzle over: the dashboard shows the remaining seconds.
 ## 3. Innovation: the board ends an unanswered call early, as built
 
 **The idea.** The hold time is a fixed guess. But the board already knows
-something the server does not: whether anybody is standing at the counter. If a
-number has been called, nobody is at the counter, and the visitor's approach
+something the server does not: whether anybody is standing at the service point. If a
+number has been called, nobody is at the service point, and the visitor's approach
 sensor has been quiet, then calling it again in 60 seconds is 60 seconds of the
 whole queue standing still to prove what the sensor already said.
 
 **The rule.** Shorten the hold to `MIN_CALL_SECONDS` (proposed 25) when, and only
-when, the board is healthy and says the counter has been empty the whole time.
+when, the board is healthy and says the service point has been empty the whole time.
 
 ```
 full      = MYTURN_HOLD_SECONDS            (60)
@@ -108,7 +108,7 @@ def hold_limit(called):
     if now - called.called_at < MIN_GRACE:     # 10 s: the visitor is still walking
         return full
     if any reading said occupied since the call:
-        return full                            # somebody is at the counter, give them time
+        return full                            # somebody is at the service point, give them time
     if any reading said approaching since the call:
         return full                            # they are on their way
     return short
@@ -119,10 +119,10 @@ def hold_limit(called):
 | Situation | What happens |
 |---|---|
 | Board offline, or no reports | Full hold. Absence of data is never treated as absence of a person |
-| Sensor reads occupied | Full hold. Somebody is at the counter |
+| Sensor reads occupied | Full hold. Somebody is at the service point |
 | PIR sees an approach | Full hold. They are walking up |
 | Just called | Full hold until `MIN_GRACE` passes |
-| Board healthy, counter empty, no approach, past the grace | Short hold |
+| Board healthy, service point empty, no approach, past the grace | Short hold |
 
 **Where it runs, as built.** On the server, not on the board, in
 `api/queue_rules.py`. `hold_limit()` returns `(seconds, shortened, reason)`;
@@ -140,7 +140,7 @@ def sweep_queue(conn):
         return
     give it a fresh number, put it back at the back          # event 'requeued'
     write the reason in ticket_events.detail:
-        "counter empty; hold ended early" or "hold time ended"
+        "service point empty; hold ended early" or "hold time ended"
 ```
 
 The requeue is re-checked inside a `begin immediate` transaction, because two
@@ -153,10 +153,10 @@ hardware, by posting synthetic `/api/device/readings` with the device key and
 back-dating `called_at`:
 
 1. Fresh board, occupied reading, past the grace -> full hold; the queue reports
-   `hold_shortened = false` and "the counter is occupied".
+   `hold_shortened = false` and "the service point is occupied".
 2. Fresh board, empty reading, past the grace but under the floor -> effective
    hold 25 s; the queue read alone (no button) requeues it, with a higher number
-   and a detail of "counter empty".
+   and a detail of "service point empty".
 3. Same, but the board has not reported for `DEVICE_ONLINE_SECONDS` -> full hold;
    "the board is not reporting".
 4. Called two seconds ago -> full hold during the grace, "the visitor is still
@@ -170,7 +170,7 @@ the team can run, and it is the clearest evidence that the IoT part improves the
 queue rather than decorating it.
 
 **The limitation to write down honestly.** Occupancy says *somebody* is at the
-counter, not *the right somebody*. A bystander keeps the call alive longer. The
+service point, not *the right somebody*. A bystander keeps the call alive longer. The
 error goes in the safe direction: the visitor does not lose their turn.
 
 ## 4. The waiting estimate
@@ -197,7 +197,7 @@ fields from `/api/public/state`, so they can never disagree.
 2. **It ignores what is happening now.** A desk that has just got faster is still
    reported at yesterday's speed until 20 old rows fall out.
 3. **It ignores the service in progress.** If nobody is ahead of you, you still
-   have to wait for the visitor at the counter, but the estimate says zero.
+   have to wait for the visitor at the service point, but the estimate says zero.
 4. **It has no uncertainty.** Three samples and twenty samples are presented
    identically.
 
@@ -308,7 +308,7 @@ paraphrasing them; they are the numbers the hardware was actually flashed with.
 
 | Constant | Value | Meaning |
 |---|---|---|
-| `OCCUPIED_CM` | 100 | Nearer than this counts as somebody at the counter |
+| `OCCUPIED_CM` | 100 | Nearer than this counts as somebody at the service point |
 | `SAMPLES` | 5 | Readings kept for the median filter (a burst of noise cannot flip the state) |
 | `HOLD_MS` | 2000 | A change must last 2 s before it is accepted (debounce) |
 | `INTERVAL_MS` | 5000 | Normal reporting interval |
@@ -334,14 +334,14 @@ The loop, in order:
 4. `approach = PIR high` (once past the warm-up), cleared when it becomes
    occupancy or after 10 seconds. The pin is read as a duty cycle over a
    200 ms window rather than as a level: the module's output flickers when
-   somebody stands at the counter, and a filter that waited for a stable
+   somebody stands at the service point, and a filter that waited for a stable
    value froze on whichever level it caught, which stops the sensor working
    rather than slowing it. The duty cycle cannot freeze, a flicker reads as
    motion, and the answer comes in about 40 ms.
 5. Report every 1 s while approaching, otherwise every 5 s, with three attempts
    per send.
 6. Ask for the desk setting, then set the light: **green** when the desk is open
-   and the counter is free, **red** when open and occupied, **yellow** when the
+   and the service point is free, **red** when open and occupied, **yellow** when the
    desk is paused or closed (and yellow from power-up, so a board that has never
    reached the server does not claim the desk is open), and **blue** while a
    visitor is being called. Blue is reserved for the call, so a closed desk can
@@ -356,7 +356,7 @@ server's intent with the hardware's behaviour rather than trusting either.
 
 ### The static obstruction
 
-The board never decides that something at the counter is a bag. It reports the
+The board never decides that something at the service point is a bag. It reports the
 distance and the two flags, and the server reads the history.
 
 A bag left on the desk reads as occupied for as long as it is there, and a desk
@@ -367,13 +367,13 @@ treats an object as an obstruction when **both** of these hold over the last
 - the distance has not moved - the whole spread is within
   `MYTURN_OBSTRUCTION_TOLERANCE_CM` (15 cm), so it has been sitting there;
 - no approach was reported anywhere in that window - a visitor who came to the
-  counter brought an approach with them, and is never written off as a bag.
+  service point brought an approach with them, and is never written off as a bag.
 
 Anything else - a faulty sensor, a missing reading, an object that only arrived
 during the window, or an approach somewhere in it - means "not enough to say",
-and the counter stays occupied. The rule relaxes one thing only: whether the
+and the service point stays occupied. The rule relaxes one thing only: whether the
 desk may call the next number. The hold is not relaxed at all, because there
-an occupied counter is evidence *for* keeping the number, and shortening a
+an occupied service point is evidence *for* keeping the number, and shortening a
 hold is the generous act.
 
 The board still has the only vote on occupancy. The server is reading two
@@ -386,7 +386,7 @@ The board currently reports whatever it measured, including a reading that is
 obviously broken. A `-1` (no echo) or a distance pinned at the maximum means the
 sensor is unhappy, not that the room is empty. Proposed: the board counts
 consecutive no-echo results and reports `sensor_fault: true`, and the dashboard
-shows "the distance sensor is not answering" instead of "counter free". This
+shows "the distance sensor is not answering" instead of "service point free". This
 matters directly for section 3: the occupancy-assisted requeue must not act on a
 sensor that is quietly failing, which is why it already requires a fresh reading.
 
@@ -396,7 +396,7 @@ The one analysis this project can do that a queue app cannot. `device_reports`
 records occupancy; `tickets` records how long each service took. Joining them by
 time answers a question the report can actually pose:
 
-> Does the desk take longer when the counter is busy?
+> Does the desk take longer when the service point is busy?
 
 ```
 for each completed ticket:
@@ -422,7 +422,7 @@ needs, roughly:
 | `ticks(sensor_fault integer default 0)` or a column on `device_reports` | IOT-09 | Reporting only; nothing reads a person |
 | `notices(message text, created_at text, created_by text, until text)` | DIS-07 | One new table, no change to anything else |
 | `services(letter, name, description, target_seconds, is_active, updated_at, updated_by)` | ADM-14 | **Built**: one row per service, the letter is the prefix of its ticket numbers |
-| `desks(name, service_id, is_active)` | QUE-14 | **Built**: one row per counter, each counter serves exactly one service |
+| `desks(name, service_id, is_active)` | QUE-14 | **Built**: one row per service point, each service point serves exactly one service |
 | `ticket_events.detail text` | QUE-16 | **Built**: one guarded `alter table` in `db.apply_schema()`; records why a requeue happened |
 | `tickets.day text` (or a `queue_days` table) | QUE-18 | Needed for a daily number reset; today the counter only climbs |
 | `shifts` (account, opened_at, closed_at, served, no_shows) | DSK-18, ANL-06 | Derived from `ticket_events` at close time |
@@ -447,7 +447,7 @@ read once, for service A, and is then left alone.
 
 The `counters` table was renamed to `ticket_numbers` after that move. It held
 the next ticket number per service, and the name read as if it described a
-physical counter, which it never did. The rename is a second one-off migration
+physical service point, which it never did. The rename is a second one-off migration
 in `db._rename_counters_table()`: an old file keeps its numbers, because the
 rows are copied across and the larger value wins where both hold the same name,
 so a number is never given out twice.

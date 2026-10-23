@@ -10,7 +10,7 @@ import { ButtonLink } from "@/components/ui/Button";
 
 export const metadata: Metadata = {
   title: "MyTurn — Your Turn, Made Simple.",
-  description: "Take a ticket, follow your place and come to the desk when called. MyTurn connects visitors, staff and the service counter in one queue.",
+  description: "Take a ticket, follow your place and come to the desk when called. MyTurn connects visitors, staff and the service point in one queue.",
 };
 
 const STEPS = [
@@ -28,8 +28,8 @@ const FEATURES = [
 ];
 
 const DEVICES = [
-  { icon: Ruler, title: "Distance", name: "HC-SR04", body: "Measures the counter distance. Only this sensor determines occupancy." },
-  { icon: Radar, title: "Approach", name: "HC-SR501", body: "Detects movement near the desk. It does not decide whether the counter is occupied, and it cannot tell a visitor from anyone else who passes by." },
+  { icon: Ruler, title: "Distance", name: "HC-SR04", body: "Measures the distance at the service point. Only this sensor determines occupancy." },
+  { icon: Radar, title: "Approach", name: "HC-SR501", body: "Detects movement near the desk. It does not decide whether the service point is occupied, and it cannot tell a visitor from anyone else who passes by." },
   { icon: Cpu, title: "Connection", name: "ESP32", body: "Sends sensor readings to the API over Wi-Fi and applies the desk's light setting." },
   { icon: Lightbulb, title: "Desk light", name: "RGB LED", body: "Green when open and free, red when occupied, yellow when paused or closed, and blue while a number is being called." },
 ];
@@ -74,7 +74,7 @@ export default function HomePage() {
       <section id="how" className="myturn-home-section myturn-home-how" aria-labelledby="how-heading">
         <div className="myturn-home-container">
           <div className="myturn-home-section-heading">
-            <div><p className="myturn-home-kicker">From your phone to the counter</p><h2 id="how-heading">Your turn, in four simple steps.</h2></div>
+            <div><p className="myturn-home-kicker">From your phone to the service point</p><h2 id="how-heading">Your turn, in four simple steps.</h2></div>
             <p>A little less standing around.<br />A little more time for your day.</p>
           </div>
           <ol className="myturn-home-steps">
@@ -91,7 +91,7 @@ export default function HomePage() {
       <section id="features" className="myturn-home-section myturn-home-features" aria-labelledby="features-heading">
         <div className="myturn-home-container myturn-home-feature-layout">
           <div className="myturn-home-feature-intro">
-            <p className="myturn-home-kicker">Made for both sides of the counter</p>
+            <p className="myturn-home-kicker">Made for both sides of the service point</p>
             <h2 id="features-heading">Less guessing.<br />More getting things done.</h2>
             <p>Visitors know when to come forward. Staff can focus on the person in front of them.</p>
             <Link href="/ticket" className="myturn-home-text-link">Take your first ticket <ArrowRight size={17} aria-hidden="true" /></Link>
@@ -110,7 +110,7 @@ export default function HomePage() {
       <section className="myturn-home-section myturn-home-hardware" aria-labelledby="hardware-heading">
         <div className="myturn-home-container">
           <div className="myturn-home-section-heading">
-            <div><p className="myturn-home-kicker">The small things behind the service</p><h2 id="hardware-heading">Connected to the counter.</h2></div>
+            <div><p className="myturn-home-kicker">The small things behind the service</p><h2 id="hardware-heading">Connected to the service point.</h2></div>
             <p>The board measures. The server manages the queue.<br />Staff decide who is served.</p>
           </div>
           <div className="myturn-home-device-list">
@@ -133,8 +133,8 @@ export default function HomePage() {
               <h2 id="about-heading">A practical project.<br />An everyday problem.</h2>
             </div>
             <div>
-              <p className="myturn-home-about-text">MyTurn began with a familiar question: &ldquo;Who is next?&rdquo; Our Internet of Things project brings the queue, the service desk and the counter sensors into one system.</p>
-              <p className="myturn-home-about-text">The application runs on our own Flask API, rather than a third-party IoT dashboard. Visitors take a number, staff work the queue, and the ESP32 reports what happens at the counter.</p>
+              <p className="myturn-home-about-text">MyTurn began with a familiar question: &ldquo;Who is next?&rdquo; Our Internet of Things project brings the queue, the service desk and the service point sensors into one system.</p>
+              <p className="myturn-home-about-text">The application runs on our own Flask API, rather than a third-party IoT dashboard. Visitors take a number, staff work the queue, and the ESP32 reports what happens at the service point.</p>
             </div>
           </div>
           <section className="myturn-home-team-section" aria-labelledby="team-heading">

@@ -21,17 +21,38 @@
 
 | Light  | GPIO | Meaning                                                            |
 |--------|------|--------------------------------------------------------------------|
-| Green  | 26   | Desk open, the counter is free                                     |
-| Red    | 25   | Desk open, someone is at the counter (the ultrasonic sensor says so) |
-| Yellow | 27   | Desk paused or closed, or the server cannot be reached - the safe state |
+| Green  | 26   | Desk open, the service point is free                                     |
+| Red    | 25   | Desk open, someone is at the service point (the ultrasonic sensor says so) |
+| Yellow | 27   | Desk paused or closed, while the server connection is healthy |
+| Red + Yellow | 25 + 27 | Connection fault: Wi-Fi/server disconnected, authentication unavailable, or server state expired. Green and blue are off |
 | Blue   | 33   | **A visitor is being called.** Nothing else uses this colour.       |
 
 Blue is the call light, so it needs its own LED on GPIO 33: the other three
 cannot show it. The buzzer on GPIO 32 announces the same call in sound - one
-beep for a new number, two for a recall.
+beep for a new number, two for a recall. A connection fault also sounds two
+beeps once when it starts (including an unavailable connection after startup),
+not continuously while reconnecting. A fresh authenticated connection restores
+the ordinary LEDs and rearms the warning for the next disconnection.
 
 At power-on the board blinks Red, Yellow, Green, Blue and then settles on
-Yellow, so the colours are checked on every start.
+the connection indication, so the colours are checked on every start. Until a
+fresh authenticated server state arrives, red and yellow stay on together.
+
+### Verify the connection warning on hardware
+
+1. Upload the compiled sketch and wait for an authenticated connection. Confirm
+   the normal paused/closed yellow or active service-point indication.
+2. Switch off the PC hotspot. Confirm red and yellow are on together, green and
+   blue are off, and exactly two beeps sound. Leave it disconnected for at least
+   30 seconds: retries must not repeat the beeps.
+3. Restore the hotspot and wait for authentication and a fresh server state.
+   Confirm normal lighting returns without replaying an old call announcement.
+4. With Wi-Fi still up, stop the API. Confirm the same warning once the socket
+   drops or the last authoritative state expires (12 seconds after that state).
+5. Restart the API and reconnect, then disconnect again. Confirm the warning
+   sounds twice again, once for this new fault episode.
+
+The warning is local: it does not change the service point's server-side state.
 
 ## Reading the serial log
 
@@ -80,7 +101,7 @@ without putting the secret in the log.
 
 Every report cycle, the readings and the link in one block with one stamp. The
 sensors and the link belong to the same cycle, so they are printed together:
-what the board saw at the counter, and what it was doing about it.
+what the board saw at the service point, and what it was doing about it.
 
 ```
 [    4658 ms] report :
@@ -98,7 +119,7 @@ what the board saw at the counter, and what it was doing about it.
 ```
 
 `distance` is the median of the last five samples and `raw` is the last single
-sample, so the two together show whether the counter is quiet or in motion.
+sample, so the two together show whether the service point is quiet or in motion.
 `distance: no object` is the sensor's own "nothing within 400 cm" answer, and
 `distance: warming up` means there are not enough samples yet.
 

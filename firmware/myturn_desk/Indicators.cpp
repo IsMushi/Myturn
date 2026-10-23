@@ -9,6 +9,7 @@ bool sawBaseline = false;
 long lastCallId = -1;
 uint8_t pendingBeeps = 0;
 bool sounding = false;
+bool faultActive = false;
 unsigned long phaseAt = 0;
 
 void driveBuzzer(bool on) {
@@ -35,8 +36,8 @@ void begin() {
 void setLight(Light l) {
   if (l == current) return;
   digitalWrite(GREEN_PIN,  l == Light::Green  ? HIGH : LOW);
-  digitalWrite(RED_PIN,    l == Light::Red    ? HIGH : LOW);
-  digitalWrite(YELLOW_PIN, l == Light::Yellow ? HIGH : LOW);
+  digitalWrite(RED_PIN,    (l == Light::Red || l == Light::Fault) ? HIGH : LOW);
+  digitalWrite(YELLOW_PIN, (l == Light::Yellow || l == Light::Fault) ? HIGH : LOW);
   digitalWrite(BLUE_PIN,   l == Light::Blue   ? HIGH : LOW);
   current = l;
 }
@@ -49,6 +50,7 @@ const char *lightName(Light l) {
     case Light::Red:    return "red";
     case Light::Yellow: return "yellow";
     case Light::Blue:   return "blue";
+    case Light::Fault:  return "red+yellow";
     default:            return "off";
   }
 }
@@ -64,6 +66,19 @@ void silence() {
   driveBuzzer(false);
   pendingBeeps = 0;
   sounding = false;
+}
+
+void connectionFault(bool fault) {
+  if (fault == faultActive) return;
+  faultActive = fault;
+  if (fault) {
+    setLight(Light::Fault);
+    beep(2);
+    Net::logEvent("connection fault: red + yellow, two beeps");
+  } else {
+    silence();
+    Net::logEvent("connection restored: normal indicators resumed");
+  }
 }
 
 void update() {

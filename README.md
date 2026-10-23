@@ -5,7 +5,7 @@ Queue management and service desk status for one office.
 A visitor scans the QR code at the door, picks the service they need, takes a
 numbered ticket and follows their turn on their own phone. The person at the
 desk calls the next ticket from a dashboard, an administrator invites the staff
-members, and the ESP32 board measures whether the counter is occupied and shows
+members, and the ESP32 board measures whether the service point is occupied and shows
 the desk state on an RGB light. No names, no telephone numbers, no camera.
 
 The office may run several services (A General Service, B Admissions, C
@@ -81,8 +81,8 @@ the real one is never touched by a test.
 | `GET /api/tickets/<token>` | Visitor page | Number, service, state, the desk serving it, how many tickets are ahead and the next few of them |
 | `GET /api/public/state` | Wall display, visitor page | Every service with its now-serving numbers, the waiting count, the next numbers in that queue and the measured service time |
 | `GET /api/analytics/queue` | Queue analytics | Waiting now, average wait, served today and the busiest hour |
-| `GET /api/analytics/desks` | Queue analytics | Every counter side by side for today: served, no-shows, the queue of its service, recent service time, hours with work and when it last served |
-| `GET /api/analytics/desk/<id>` | Queue analytics | The same figures for one counter |
+| `GET /api/analytics/desks` | Queue analytics | Every service point side by side for today: served, no-shows, the queue of its service, recent service time, hours with work and when it last served |
+| `GET /api/analytics/desk/<id>` | Queue analytics | The same figures for one service point |
 | `GET /api/analytics/trends` | Queue analytics | The last seven days, quiet days included |
 | `POST /api/auth/login` | Sign-in page | Checks an account and starts a session |
 | `POST /api/auth/logout` | Dashboards | Ends the session |
@@ -101,7 +101,7 @@ the real one is never touched by a test.
 | `POST /api/auth/password` | Account page | Changes the password of the account behind the session |
 | `POST /api/auth/profile` | Account page | Changes the name on the account behind the session; the address is the administrator's to change |
 | `GET /api/auth/account/history` | Account page | What has happened to the account behind the session, newest first |
-| `GET /api/auth/account/work` | Account page | The decisions the account behind the session made at the counter, newest first |
+| `GET /api/auth/account/work` | Account page | The decisions the account behind the session made at the service point, newest first |
 | `GET /api/auth/activity` | Activity page | Ticket, desk and account history, newest first (administrators only) |
 | `GET /api/auth/stats` | Statistics page | Counts, service-time distribution, busiest hours and the target comparison (administrators only) |
 | `GET /api/auth/tickets.csv` | Statistics page | Every ticket as a CSV file (administrators only) |
@@ -110,12 +110,12 @@ the real one is never touched by a test.
 | `GET /api/auth/services` | Desk settings page | Every service, including one switched off (administrators only) |
 | `POST /api/auth/services` | Desk settings page | Adds a service, with the next free ticket letter (administrators only) |
 | `POST /api/auth/services/<id>` | Desk settings page | Changes a service's wording, target or availability (administrators only) |
-| `GET /api/auth/desks` | Desk settings page | Every counter, with the service it serves and its live state (administrators only) |
-| `POST /api/auth/desks` | Desk settings page | Adds a counter and points it at one service (administrators only) |
-| `POST /api/auth/desks/<id>` | Desk settings page | Renames a counter, moves it to another service, or retires it (administrators only) |
+| `GET /api/auth/desks` | Desk settings page | Every service point, with the service it serves and its live state (administrators only) |
+| `POST /api/auth/desks` | Desk settings page | Adds a service point and points it at one service (administrators only) |
+| `POST /api/auth/desks/<id>` | Desk settings page | Renames a service point, moves it to another service, or retires it (administrators only) |
 | `POST /api/staff/login` | Demonstration only | The shared classroom password, kept for the defence |
 | `POST /api/staff/logout` | Desk dashboard | Ends the session |
-| `GET /api/staff/desks` | Desk dashboard | The counters of the office, so the dashboard can ask which one this is |
+| `GET /api/staff/desks` | Desk dashboard | The service points of the office, so the dashboard can ask which one this is |
 | `GET /api/staff/queue` | Desk dashboard | The waiting line of **this desk's service**, its state, current call, last report, this session's tally |
 | `POST /api/staff/call-next` | Desk dashboard | Calls the next ticket inside one transaction |
 | `POST /api/staff/tickets/<id>/action` | Desk dashboard | Completes, skips or cancels one ticket |
@@ -154,12 +154,12 @@ address.
   and a closed desk accepts neither tickets nor calls. A pause may carry the
   desk's own short reason and a return time (5 to 240 minutes); the console
   repeats both, opening or closing clears them, and the return time never opens
-  the desk by itself - a counter nobody is standing at must not call.
+  the desk by itself - a service point nobody is standing at must not call.
 * A called ticket that nobody answers goes back to the queue **at the back**,
   with a fresh number, after `MYTURN_HOLD_SECONDS` (60 seconds by default), so
   an absent visitor cannot block the desk. When the board is fresh and has seen
-  nobody at the counter since the call, the server shortens that hold to
-  `MYTURN_MIN_CALL_SECONDS` (25 seconds). An occupied counter, an approach, a
+  nobody at the service point since the call, the server shortens that hold to
+  `MYTURN_MIN_CALL_SECONDS` (25 seconds). An occupied service point, an approach, a
   missing reading or an offline board keeps the full hold.
 * A bag left on the desk reads as occupied for as long as it is there, and a
   desk that cannot call anybody is a desk that has stopped working. So an
@@ -170,7 +170,7 @@ address.
   off as a bag. The hold rule is not relaxed at all; only the call is.
 * The queue recovers without a button: `sweep_queue()` runs when the desk page,
   the public state or the event stream reads the queue, and the requeue records
-  whether the counter was empty in `ticket_events.detail`. Every desk that has
+  whether the service point was empty in `ticket_events.detail`. Every desk that has
   left a call hanging is swept, and a requeued ticket goes to the back of **its
   own** service's queue with a fresh number from that service's counter.
 * The sensor only measures. Every decision about a ticket or the desk state is
@@ -187,7 +187,7 @@ address.
   no administrator can switch off their own account.
 * A decision at the desk (served, no-show, cancelled) can be taken back for ten
   seconds, and only while that desk has not moved on. Once it has, the visitor
-  would be returning to a counter somebody else is standing at, so the route
+  would be returning to a service point somebody else is standing at, so the route
   refuses. Another desk serving the same service does not block the undo.
 * One address may take `MYTURN_TICKET_ATTEMPTS` tickets a minute (20 by
   default), which stops a reload loop or a script from filling the queue. The
@@ -196,7 +196,7 @@ address.
   ahead multiplied by how long the desk has actually taken, worked out from the
   tickets it has closed. Below `MYTURN_ETA_MIN_SAMPLES` served tickets the page
   says the estimate is not available instead of showing a figure.
-* The services the office offers are rows in `services`, and the counters are
+* The services the office offers are rows in `services`, and the service points are
   rows in `desks`. A fresh office is seeded with three services (A General
   Service, B Admissions, C Finance) and one desk for each. An administrator
   edits both on `/admin/settings`, and `GET /api/services` reports them, so the
@@ -225,14 +225,13 @@ npm run dev                          # serves http://localhost:3000
 | Join from an invitation | `/auth/register` | A new staff member, following their invitation link |
 | Forgotten password | `/auth/forgot-password` | Anyone with an account |
 | Choose a new password | `/auth/reset-password` | The same person, following the link |
-| Desk dashboard | `/staff/dashboard` | The person at the desk: which counter they are working, the queue of its service, the board, walk-ins, recall and undo |
+| Desk dashboard | `/staff/dashboard` | The person at the desk: which service point they are working, the queue of its service, the board, walk-ins, recall and undo. An administrator reaches it from the sidebar's **Staff page** |
 | Queue analytics | `/staff/analytics` | The office's numbers: waiting now, every desk side by side for today, and the last seven days |
-| Team & invitations | `/admin/team` | The administrator: accounts, roles and invitations |
-| Administration (existing URL) | `/admin/dashboard` | The same admin-only team page; retained for sign-in redirects and existing links |
+| Administration | `/admin/dashboard` | The administrator's Dashboard: the office summary, accounts, roles and invitations. The old `/admin/team` address still opens the same page |
 | Activity | `/admin/activity` | The administrator: what the queue, the desk and the accounts recorded |
 | Statistics | `/admin/statistics` | The administrator: counts, service times, busiest hours, target comparison, CSV export |
 | Desk settings | `/admin/settings` | The administrator: the services the office offers and the desks that serve them, changed live |
-| Your account | `/account` | Any signed-in account: its details, what its role may do, its own account history, its work at the counter, and its password |
+| Your account | `/account` | Any signed-in account: its details, what its role may do, its own account history, its work at the service point, and its password |
 
 The old addresses `/screen` and `/staff` still work: `next.config.ts` redirects
 them to `/display` and `/staff/dashboard`.
@@ -267,8 +266,15 @@ state), and that service's waiting count. A separate right-hand waiting panel
 groups the next numbers for services with waiting tickets — at most eight for
 each, with a count for the rest — and moves below the cards on narrow screens.
 Each called number
-keeps the counter name returned by the server, including simultaneous calls
-at several counters for one service. On a TV, both regions scroll if there
+keeps the service point name returned by the server, including simultaneous calls
+at several service points for one service. The queue area has two borderless
+parts: **Now calling** on the left and an ordered **Waiting list** on the right,
+with the booking QR alongside. Each called ticket has a 60-second arrival
+countdown derived from `called_at` and `server_time`, advanced locally without
+trusting the device's wall clock. Refreshing does not restart it. At zero it
+shows "Arrival window ended"; only server queue rules can requeue a ticket,
+including a sensor-assisted shortened hold. A connection failure hides the
+countdown rather than presenting stale timing as live. On a TV, both regions scroll if there
 are more services or numbers than fit. A new call draws a ring once and the
 number rises into place; reduced-motion users
 get no animation. If the stream and polls both fail, the board keeps the last
@@ -304,9 +310,14 @@ the real login request; it retains the existing role-based redirect and session.
 
 The console - the desk dashboard, the administration pages and the account page -
 is one frame with a sidebar. The **Dashboard** leads the list on its own, and
-the sections are grouped after it (Administration, Public pages, Your account),
-the current one is highlighted, and the account sits at the foot with a single
-Sign out. On a phone the same list opens as a drawer. Only sections that exist
+the sections are grouped after it (Administration, Service desk, Public pages,
+Your account), the current one is highlighted, and the account sits at the foot
+with a single Sign out. "Dashboard" adapts to the person: the desk opens the
+service point it works, and an administrator opens the administration page. An
+administrator also gets a **Staff page** link to the desk dashboard, and the
+desk's own **Queue analytics** is left to the desk because the administration
+page already carries the fuller **Statistics**; the duplicate is not listed
+twice. On a phone the same list opens as a drawer. Only sections that exist
 are listed, so the menu never offers a page it cannot open, and the
 administration group appears only for an administrator. The account section is
 hidden from the shared classroom password, which has no account behind it and
@@ -324,7 +335,7 @@ with two boxes that ask for a day each.
 The account page is the person's own: the name may be corrected there, the
 address may not; the joined and last-signed-in dates are shown; what the role
 may do is spelled out; and the account's own history and the decisions made at
-the counter are read back to them, which the administration page used to be
+the service point are read back to them, which the administration page used to be
 the only place to see.
 
 Each console page still reads its own data over HTTP and keeps its timer as a
@@ -347,7 +358,7 @@ visible; the toast clears only after recovery or leaving that desk. Expired acce
 uses the same toast with Sign in instead. Initial loading errors still offer their
 inline retry, and ticket-action feedback is unchanged. Device diagnostics
 and service charts expand on request. An offline board's readings are historical,
-not evidence that the counter is currently free. Dashboard styles are scoped in
+not evidence that the service point is currently free. Dashboard styles are scoped in
 `web/src/components/staff-dashboard.css`.
 
 To verify this dashboard without resetting the live office, keep the web server
@@ -364,6 +375,19 @@ who has just scanned the code has one thing to do. The ticket can be printed:
 Following a ticket asks the server every three seconds while the ticket is
 still waiting or called, and stops once the desk is finished with it, so a
 finished ticket is not asked about again.
+
+## Visitor notifications and live ticket summary
+
+Visitor call/recall notifications use **TextBee SMS** for phone contacts and
+**TLS SMTP email** for email contacts. Configure secrets only in `api/.env`;
+see [visitor notifications](docs/visitor-notifications.md) for setup, safe tests,
+and delivery limitations. Unconfigured channels do not send. Provider acceptance
+is not confirmed delivery. Invitation/reset development links are unchanged.
+
+The `/ticket` queue facts use borderless summary rows with a matching request
+skeleton. Both service-choice counts and summary facts follow the live stream,
+with polling and reconnection fallback. Verify without office writes using
+`python tools/check-ticket-summary.py`.
 
 ## Firmware
 
@@ -396,9 +420,12 @@ Desk changes and call events are pushed after committed changes, independently o
 the sensor reporting interval. The server also sends an authoritative snapshot
 every five seconds. The network runs in a separate FreeRTOS task: sensor updates,
 local occupancy lighting and buzzer timing do not wait for TCP/TLS handshakes or
-reconnects. A missing connection or a snapshot older than twelve seconds restores
-the safe **paused/yellow** indication. This is a local safety indication, not a
-change to the desk's server-side availability.
+reconnects. A missing connection or a snapshot older than twelve seconds turns
+**red and yellow on together**, with green and blue off. The buzzer sounds
+**twice once per fault episode**, not on every retry. A fresh authenticated
+connection restores normal lighting and rearms the alert for a later fault.
+Paused and closed desks with a healthy connection remain yellow only. This is a
+local safety indication, not a change to the desk's server-side availability.
 
 The serial log at 115200 baud is where a board that will not connect is
 diagnosed. It is a list in one form throughout: a label, a colon, the value,
@@ -416,7 +443,7 @@ four seconds reconnects the socket. Reconnect delays back off with jitter, up to
 about thirty seconds. There is only a latest-value measurement queue, not an
 offline history: pre-reconnect samples and samples older than six seconds are
 discarded. Sensor faults and old measurements always keep the full visitor hold;
-a live heartbeat alone is not evidence that the counter is empty.
+a live heartbeat alone is not evidence that the service point is empty.
 
 The buzzer is on **GPIO 32**. A 3-pin active module connects VCC to 3V3, GND to
 GND and I/O to GPIO 32; if yours is a bare passive buzzer, set
@@ -477,7 +504,7 @@ Two windows open, one for each server.
    Press **Pause** and it turns yellow; press **Close** and it turns off; a paused
    or closed desk will not call the next visitor until it is opened again.
 6. Press **Call next**: the desk calls the first number of *its* service. Now
-   change the counter to **Desk 2** in the picker, open it and call again. The
+   change the service point to **Desk 2** in the picker, open it and call again. The
    two desks hold two calls at the same time, and the wall display shows both
    numbers with the desk serving each.
 7. Put a hand in front of the sensor: the dashboard shows the approach within a
@@ -487,7 +514,7 @@ Two windows open, one for each server.
 9. Press **Served**, then call the next ticket. Try the keys instead of the
    mouse: **N** calls the next visitor, **S** serves them.
 10. With a number called, press **M** (no-show) and then **Take that back** within
-    ten seconds: the visitor is at the counter again and the shift tally is back
+    ten seconds: the visitor is at the service point again and the shift tally is back
     where it was.
 11. Press **Call again**: the board gives two short beeps (a first call gives one)
     and the number is announced again. Hand a walk-in a ticket with **Give a

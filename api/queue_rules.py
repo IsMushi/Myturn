@@ -157,10 +157,10 @@ def hold_limit(conn, called):
     if any(row["approach"] for row in readings):
         return full, False, "an approach was seen"
     if any(row["occupied"] for row in readings):
-        return full, False, "the counter is occupied"
+        return full, False, "the service point is occupied"
     if short >= full:
-        return full, False, "the counter is empty"
-    return short, True, "the counter is empty"
+        return full, False, "the service point is empty"
+    return short, True, "the service point is empty"
 
 
 def requeue(conn, called, detail):
@@ -254,7 +254,7 @@ def _sweep_one(conn, called):
         requeue(
             conn,
             current,
-            "counter empty; hold ended early" if shortened else "hold time ended",
+            "service point empty; hold ended early" if shortened else "hold time ended",
         )
         conn.execute("commit")
         return True

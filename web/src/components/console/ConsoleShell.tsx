@@ -10,7 +10,6 @@ import {
   MonitorPlay,
   ScrollText,
   Settings2,
-  Users,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -48,12 +47,29 @@ interface NavGroup {
   adminOnly?: boolean;
   /** Sections that need an account behind the session, not the shared password. */
   accountsOnly?: boolean;
+  /**
+   * Sections that belong to the desk rather than the office. An administrator
+   * reaches the desk through "Staff page"; the desk's own figures would only
+   * repeat the office Statistics they already have.
+   */
+  staffOnly?: boolean;
   items: NavItem[];
 }
 
-/** The first link of the console: the page the desk and the office open on. */
-const DASHBOARD: NavItem = {
+/**
+ * The first link of the console: the page the desk and the office open on.
+ *
+ * The desk opens on the counter it works; an administrator opens on the
+ * administration page, so "Dashboard" means the same thing in both menus.
+ */
+const DASHBOARD_STAFF: NavItem = {
   href: "/staff/dashboard",
+  label: "Dashboard",
+  icon: LayoutDashboard,
+};
+
+const DASHBOARD_ADMIN: NavItem = {
+  href: "/admin/dashboard",
   label: "Dashboard",
   icon: LayoutDashboard,
 };
@@ -63,14 +79,25 @@ const GROUPS: NavGroup[] = [
     title: "Administration",
     adminOnly: true,
     items: [
-      { href: "/admin/team", label: "Team & invitations", icon: Users },
       { href: "/admin/activity", label: "Activity", icon: ScrollText },
       { href: "/admin/statistics", label: "Statistics", icon: ChartColumn },
       { href: "/admin/settings", label: "Desk settings", icon: Settings2 },
     ],
   },
   {
+    // The administrator still needs to work a counter, so the desk page is
+    // offered explicitly rather than hidden behind "Dashboard".
+    title: "Service desk",
+    adminOnly: true,
+    items: [
+      { href: "/staff/dashboard", label: "Staff page", icon: LayoutDashboard },
+    ],
+  },
+  {
+    // The desk's live figures are the staff's; an administrator has the fuller
+    // Statistics page and would otherwise see statistics listed twice.
     title: "Analytics",
+    staffOnly: true,
     items: [
       { href: "/staff/analytics", label: "Queue analytics", icon: BarChart3 },
     ],
@@ -99,6 +126,7 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
 
   const signedIn = session.status === "in" ? session.session : null;
   const isAdmin = signedIn?.user?.role === "admin";
+  const dashboard = isAdmin ? DASHBOARD_ADMIN : DASHBOARD_STAFF;
 
   const close = useCallback(() => setDrawer(false), []);
 
@@ -119,9 +147,12 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (session.status !== "in") return;
     const hrefs = [
-      DASHBOARD.href,
+      dashboard.href,
       ...GROUPS.filter(
-        (group) => (!group.adminOnly || isAdmin) && (!group.accountsOnly || hasAccount),
+        (group) =>
+          (!group.adminOnly || isAdmin) &&
+          (!group.accountsOnly || hasAccount) &&
+          (!group.staffOnly || !isAdmin),
       ).flatMap((group) => group.items.map((item) => item.href)),
     ];
     const timer = window.setTimeout(() => {
@@ -130,7 +161,7 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
       }
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [session.status, isAdmin, hasAccount, pathname, router]);
+  }, [session.status, isAdmin, hasAccount, pathname, router, dashboard.href]);
 
   async function signOut() {
     await api.logout();
@@ -138,7 +169,9 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
   }
 
   function renderLink(item: NavItem, onNavigate?: () => void) {
-    const active = pathname === item.href || (item.href === "/admin/team" && pathname === "/admin/dashboard");
+    // /admin/team is the old address of the administration page; the Dashboard
+    // now opens it, so the Dashboard keeps the highlight when the alias is used.
+    const active = pathname === item.href || (item.href === "/admin/dashboard" && pathname === "/admin/team");
     const Icon = item.icon;
     return (
       <li key={item.href}>
@@ -163,10 +196,12 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
     return (
       <nav aria-label="Console" className="flex flex-col gap-6">
         {/* The dashboard leads the console, so it stands on its own. */}
-        <ul className="space-y-1">{renderLink(DASHBOARD, onNavigate)}</ul>
+        <ul className="space-y-1">{renderLink(dashboard, onNavigate)}</ul>
         {GROUPS.filter(
           (group) =>
-            (!group.adminOnly || isAdmin) && (!group.accountsOnly || Boolean(signedIn?.user)),
+            (!group.adminOnly || isAdmin) &&
+            (!group.accountsOnly || Boolean(signedIn?.user)) &&
+            (!group.staffOnly || !isAdmin),
         ).map((group) => (
           <div key={group.title}>
             <p className="px-3 text-xs font-semibold tracking-wide text-medium-green uppercase">

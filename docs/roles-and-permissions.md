@@ -12,7 +12,7 @@ browser suite. Everything under "Backlog" is **not** implemented.
 | **Visitor** | A person at the door with a phone | An opaque ticket token in the tracking URL | None. Never asked for a name, a phone number or an email |
 | **Staff** | The person working the desk | A signed session from `/api/auth/login`, or the shared classroom password from `/api/staff/login` | Yes (invitation), or no when the shared password is used |
 | **Administrator** | The account that manages the team | A session whose user has `role = 'admin'` | Yes; the first one comes from `seed_admin.py` only |
-| **Device** | The ESP32 board at the counter | A device key in the report request | No |
+| **Device** | The ESP32 board at the service point | A device key in the report request | No |
 
 ## Permission matrix
 
@@ -49,7 +49,7 @@ browser suite. Everything under "Backlog" is **not** implemented.
 * `POST /api/tickets` - takes a number from the server counter and returns an opaque `access_token`. Rate-limited (`MYTURN_TICKET_ATTEMPTS`, default 20 per 60 s).
 * `GET /api/tickets/<token>` - the visitor's own view: number, status, people ahead, the desk state, the last update.
 * `GET /api/public/state` and `GET /api/events` - what the wall display and the ticket page watch. The waiting estimate is measured from served tickets and withheld below `MYTURN_ETA_MIN_SAMPLES`.
-* A ticket nobody answers goes to the back of the queue with a fresh number after `MYTURN_HOLD_SECONDS`, so an absent visitor cannot block the desk. When the board is fresh and has seen nobody at the counter since the call, the hold shortens to `MYTURN_MIN_CALL_SECONDS` (25 s); an occupied counter, an approach, a missing reading or an offline board keeps the full hold.
+* A ticket nobody answers goes to the back of the queue with a fresh number after `MYTURN_HOLD_SECONDS`, so an absent visitor cannot block the desk. When the board is fresh and has seen nobody at the service point since the call, the hold shortens to `MYTURN_MIN_CALL_SECONDS` (25 s); an occupied service point, an approach, a missing reading or an offline board keeps the full hold.
 
 ### Staff - the desk
 
@@ -62,7 +62,7 @@ Page `/staff/dashboard` (`StaffDashboard.tsx`), polled every 2 s, every write ca
 * **Take it back** - `POST /api/staff/tickets/<id>/undo` reverses the last decision for `UNDO_SECONDS` (10 s), and only while no other number has been called. It writes an `undone` event rather than deleting the log row.
 * **Announce the number again** - `POST /api/staff/tickets/<id>/recall` rewrites `called_at`, which restarts the hold timer and restarts the measured service time from the last announcement.
 * **Give a walk-in a ticket** - `POST /api/staff/tickets` takes a number from the same counter and writes `source = 'desk'`, so a visitor without a phone joins the same line.
-* **Serving timer** - the call shows how long the visitor has been at the counter and how much of the hold time is left, next to the average the visitor page uses (`average_service_seconds`, `service_samples` in the queue payload).
+* **Serving timer** - the call shows how long the visitor has been at the service point and how much of the hold time is left, next to the average the visitor page uses (`average_service_seconds`, `service_samples` in the queue payload).
 * **Keyboard** - **N** calls the next visitor, **S** serves, **M** logs a no-show, **C** cancels, **R** recalls and **U** takes the last decision back.
 * **Shift tally** - `served` and `no_shows` for the signed-in actor since midnight, counted from the latest event of each ticket so an undone decision stops counting.
 * **Queue alert** - a new visitor raises a one-line notice and puts the waiting count in the window title.
@@ -80,7 +80,7 @@ Pages `/admin/dashboard` (`AdminDashboard.tsx`), `/admin/activity`, `/admin/stat
 * **Delete another account** - `DELETE /api/auth/users/<id>` requires administrator rights, CSRF and the account email for confirmation. It refuses self-deletion; deleting a user revokes their active session and reset links while preserving queue and account event history. The invitation form is in a modal on `/admin/team`.
 * **Act on selected accounts** - `POST /api/auth/users/batch` checks each id and email, applies switch on/off or a confirmed delete inside one transaction, and never includes the signed-in administrator. The table uses checkboxes and a batch toolbar; each other row's actions live behind a three-dot menu. For deletion the confirmation is `DELETE N`, where N is the exact selected count.
 * **Promote or demote** - `POST /api/auth/users/<id>/role`. The route refuses to demote the last active administrator, which is what keeps at least one person able to open the page.
-* **Activity** - `GET /api/auth/activity` merges `ticket_events`, `desk_settings` and `account_events` into one newest-first list, filterable by kind on the page. A requeue now carries the reason it happened (`ticket_events.detail`), including whether the counter was empty.
+* **Activity** - `GET /api/auth/activity` merges `ticket_events`, `desk_settings` and `account_events` into one newest-first list, filterable by kind on the page. A requeue now carries the reason it happened (`ticket_events.detail`), including whether the service point was empty.
 * **Statistics** - `GET /api/auth/stats`: counts, the service-time distribution, tickets per hour and per day. The average is withheld until `MYTURN_ETA_MIN_SAMPLES`, exactly as on the visitor page. If the desk has set a target time, the page reports the share of served tickets that met it.
 * **Describe the office** - `GET` and `POST /api/auth/services`, `GET` and `POST /api/auth/desks`, all administrators only. A change is written to the `services` or `desks` table and read by `service_info()`, so the ticket page and the display pick it up without a restart. `GET` and `POST /api/auth/desk` still work and edit the first service.
 * **Export** - `GET /api/auth/tickets.csv`, every ticket the prototype holds, as a file the statistics page links to.

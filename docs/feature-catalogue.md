@@ -74,7 +74,7 @@ rule, the occupancy-assisted requeue, the waiting estimate - are specified in
 * VIS-17 is the honest alternative to keeping a visitor standing in the hall. It
   needs a notification channel (`COM-05`), because the visitor's browser is
   normally closed by the time their turn comes.
-* VIS-15 is the desk side of the same capability as DSK-17: the counter issues a
+* VIS-15 is the desk side of the same capability as DSK-17: the service point issues a
   ticket from the same counter as the QR code, so a walk-in takes the next number
   in the same line rather than a separate one.
 
@@ -110,10 +110,10 @@ The rules that make the queue trustworthy. This is the part the report defends.
   refused after `UNDO_SECONDS` (10) or once another number has been called.
 * QUE-16 is implemented in `queue_rules.py`, not on the board. A fresh board that
   has seen nobody since the call shortens the hold to
-  `MYTURN_MIN_CALL_SECONDS` (25 s); an occupied counter, an approach, a missing
+  `MYTURN_MIN_CALL_SECONDS` (25 s); an occupied service point, an approach, a missing
   reading or a board that stopped reporting all fall back to the full hold.
   `sweep_queue()` runs on the reads that matter, so the queue recovers even if
-  nobody presses a button, and the event log records that the counter was empty.
+  nobody presses a button, and the event log records that the service point was empty.
 * QUE-12 must stay self-declared. The moment the system guesses who deserves
   priority it is classifying people, which this project does not do.
 * QUE-18 matters for a real desk: ticket numbers that climb forever make the
@@ -133,7 +133,7 @@ The rules that make the queue trustworthy. This is the part the report defends.
 | DSK-07 | Hold countdown on the current call | Built | - |
 | DSK-08 | Waiting list | Built | - |
 | DSK-09 | Sign out | Built | - |
-| DSK-10 | Serving timer for the visitor at the counter | Built | - |
+| DSK-10 | Serving timer for the visitor at the service point | Built | - |
 | DSK-11 | Undo the last action | Built | - |
 | DSK-12 | Recall the current number | Built | - |
 | DSK-13 | Keyboard shortcuts (N, S, M, C, R, U) | Built | - |
@@ -149,21 +149,25 @@ The rules that make the queue trustworthy. This is the part the report defends.
 * The console frame is built: a grouped sidebar
   (`web/src/components/console/ConsoleShell.tsx`) whose first link is the
   **Dashboard**, followed by the groups Administration (administrators only),
-  Public pages and Your account, the current section highlighted, and the
-  account with a single **Sign out** at the foot. On a phone it is a drawer.
-  New sections join that list as their pages are built.
+  Service desk (the administrators' **Staff page**), Public pages and Your
+  account, the current section highlighted, and the account with a single
+  **Sign out** at the foot. The Dashboard adapts: the desk opens
+  `/staff/dashboard`, an administrator opens `/admin/dashboard`, so the
+  administration page is not listed twice and the desk's own analytics stays
+  with the desk. On a phone it is a drawer. New sections join that list as their
+  pages are built.
 * DSK-04 uses the terms the desk actually says: Served, No-show, Cancelled. The
   API keeps the status names `completed`, `skipped`, `cancelled`.
 * DSK-05 lets the person pausing say why and when they expect to be back, in
   their own words and within 5 to 240 minutes. Both live on the `desk_settings`
   row, the console repeats them, and opening or closing clears them. Nothing is
   inferred from the time of day, and a return time that has passed leaves the
-  desk paused: an empty counter must not start calling by itself.
-* DSK-10 shows how long the visitor has been at the counter, next to the same
+  desk paused: an empty service point must not start calling by itself.
+* DSK-10 shows how long the visitor has been at the service point, next to the same
   measured average the visitor page uses, and marks a call that runs past it. The
   page shows the measurement; it does not decide that anything is wrong.
 * DSK-11 is a ten-second window that closes as soon as the next number is called:
-  undoing after that would send a visitor back to a counter somebody else is
+  undoing after that would send a visitor back to a service point somebody else is
   standing at. The undo never deletes the log row; it adds an `undone` event, so
   the history still shows what was pressed.
 * DSK-13 uses one letter per action and only one meaning at a time: **N** calls the
@@ -311,14 +315,14 @@ The rules that make the queue trustworthy. This is the part the report defends.
   described by its average.
 * ANL-08 is the one analysis only this project can do: it joins the sensor's
   measurements to the service durations, so the report can say whether the desk
-  really takes longer when the counter is busy. That is a defensible use of the
+  really takes longer when the service point is busy. That is a defensible use of the
   IoT data that never looks at a person.
 * The Queue analytics page sets the desks side by side in one sheet
-  (`GET /api/analytics/desks`): a row per counter with its served and no-show
+  (`GET /api/analytics/desks`): a row per service point with its served and no-show
   counts for the day, the queue of the service it shares, its recent measured
   service time with the sample count, the hours in which it did work and when it
   last served. It sorts by tickets served but computes no score, and waiting is
-  the service's number, so the same figure can appear at two counters.
+  the service's number, so the same figure can appear at two service points.
 
 ## 9. Accessibility and language (ACC)
 
@@ -418,4 +422,4 @@ These are decisions, not omissions, and the report should say so.
 * **No estimate below three served tickets.** An invented number is worse than the
   words "Not available".
 * **No guessed waiting time from the sensor.** The sensor reports whether someone
-  is at the counter; it does not report how long a service takes.
+  is at the service point; it does not report how long a service takes.

@@ -81,6 +81,7 @@ export default function ResetPasswordPage() {
             <PasswordInput
               id="password"
               autoComplete="new-password"
+              placeholder="At least 8 characters"
               error={Boolean(form.formState.errors.password)}
               {...form.register("password")}
             />
@@ -95,6 +96,7 @@ export default function ResetPasswordPage() {
               id="confirm_password"
               visibilityName="confirmation password"
               autoComplete="new-password"
+              placeholder="Repeat the new password"
               error={Boolean(form.formState.errors.confirm_password)}
               {...form.register("confirm_password")}
             />

@@ -214,7 +214,7 @@ function DeskHeader({ deskId, desks, onPick, refresh, pending, disabled = false,
             <DialogHeader>
               <DialogTitle>Keyboard shortcuts</DialogTitle>
               <DialogDescription>
-                The keys that work the desk, so the mouse is not needed at the counter.
+                The keys that work the desk, so the mouse is not needed at the service point.
               </DialogDescription>
             </DialogHeader>
             <dl className="staff-shortcuts">
@@ -574,7 +574,7 @@ function DeskBoard({ deskId, desks, onPick }: {
                   </strong></div>
               </div>
               <p className="staff-call-explanation">Unanswered calls return to the back of this service&apos;s queue.
-                {data.hold_shortened && ` The hold is shorter because ${data.hold_reason ?? "the counter was empty"}.`}</p>
+                {data.hold_shortened && ` The hold is shorter because ${data.hold_reason ?? "the service point was empty"}.`}</p>
               <div className="staff-ticket-actions">
                 <Button className="staff-serve" size="lg" disabled={disabled} onClick={() => void decide("complete")}>
                   <Check size={20} aria-hidden="true" />Served<Shortcut>S</Shortcut>

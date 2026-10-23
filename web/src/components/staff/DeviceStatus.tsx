@@ -29,8 +29,8 @@ export function DeviceStatus({ device, serverNow, stale }: {
   // and nothing here is allowed to claim otherwise.
   const message = !device ? "No board is assigned to this desk."
     : !current ? "Current occupancy is unknown. Sensor readings are not fresh."
-      : device.obstruction ? "Counter occupied by a still object, so calling is not blocked"
-        : device.occupied ? "Counter occupied" : device.approach ? "Movement detected" : "Counter free";
+      : device.obstruction ? "Service point occupied by a still object, so calling is not blocked"
+        : device.occupied ? "Service point occupied" : device.approach ? "Movement detected" : "Service point free";
 
   return (
     <section className="staff-device">
@@ -40,7 +40,7 @@ export function DeviceStatus({ device, serverNow, stale }: {
       </div>
       <div className="staff-device-content">
         {device ? <>
-          <p className="staff-device-note">{current ? "Latest sensor report" : "Historical report only; these values do not describe the counter now"}
+          <p className="staff-device-note">{current ? "Latest sensor report" : "Historical report only; these values do not describe the service point now"}
             {device.reported_at ? <>: <time dateTime={device.reported_at} title={fullTimestamp(device.reported_at)}>{calendarDate(device.reported_at)} at {clockTime(device.reported_at)}</time>.</> : ". No sensor report has arrived yet."}</p>
           <dl className="staff-device-readings">
             <Reading label={current ? "Occupancy" : "Last reported occupancy"} value={device.reported_at ? device.occupied ? "Occupied" : "Free" : "Not available"} />

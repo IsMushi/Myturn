@@ -18,18 +18,23 @@
 .myturn-ticket-privacy svg { flex-shrink: 0; margin-top: 2px; }
 .myturn-ticket-service-name { overflow-wrap: anywhere; font-size: 17px; line-height: 1.4; }
 .myturn-ticket-service-card { min-height: 132px; }
-.myturn-ticket-queue-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.myturn-ticket-stat { min-width: 0; padding: 18px 16px; border: 1px solid var(--color-line); border-radius: 14px; background: var(--color-white); }
-.myturn-ticket-stat dt { align-items: flex-start; line-height: 1.5; }
+.myturn-ticket-queue-stats { display: grid; gap: 22px; }
+.myturn-ticket-stat { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); column-gap: 18px; row-gap: 6px; min-width: 0; padding: 0; }
+.myturn-ticket-stat dt { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; font-weight: 500; line-height: 1.5; }
 .myturn-ticket-stat dt svg { flex-shrink: 0; margin-top: 1px; }
 .myturn-ticket-stat dd { overflow-wrap: anywhere; }
-.myturn-ticket-stat dd:nth-child(2) { font-size: clamp(19px, 1.9vw, 26px); }
+.myturn-ticket-stat-value { text-align: right; font-size: 17px; font-weight: 600; line-height: 1.4; font-variant-numeric: tabular-nums; }
+.myturn-ticket-stat-value > div { margin-left: auto; }
+.myturn-ticket-stat-note { grid-column: 2; color: var(--color-medium-green); font-size: 12px; line-height: 1.6; text-align: right; }
+.myturn-ticket-stat-note > div { margin-left: auto; }
 .myturn-ticket-stat .inline-flex { max-width: 100%; }
 .myturn-ticket-ahead { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--color-line); }
 .myturn-ticket-ahead-chip { padding: 3px 11px; border: 1px solid var(--color-line); border-radius: 999px; background: var(--color-soft-mint); font-size: 13px; font-weight: 600; line-height: 1.55; color: var(--color-deep-green); font-variant-numeric: tabular-nums; }
 .myturn-ticket-ahead-more { border-style: dashed; background: var(--color-white); color: var(--color-medium-green); font-weight: 500; }
 .myturn-ticket-request-button { min-height: 56px; }
 .myturn-ticket-focused { max-width: 800px; margin-inline: auto; }
+.myturn-ticket-request-skeleton .myturn-ticket-intro p span, .myturn-ticket-request-skeleton .myturn-ticket-intro h1 span { background: var(--color-soft-mint); color: transparent; border-radius: 6px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+@media (prefers-reduced-motion: reduce) { .myturn-ticket-request-skeleton .animate-pulse, .myturn-ticket-queue-stats .animate-pulse { animation: none; } }
 .myturn-ticket-tracking { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
 .myturn-ticket-tracking-banner { padding: 36px 28px; }
 .myturn-ticket-tracking-number { font-size: clamp(76px, 8vw, 120px); letter-spacing: -0.05em; overflow-wrap: anywhere; }
@@ -52,9 +57,9 @@
 @media (max-width: 379px) {
   .myturn-ticket-main, .myturn-ticket-header-inner, .myturn-ticket-footer-inner { width: calc(100% - 32px); }
   .myturn-ticket-summary { padding: 18px; }
-  .myturn-ticket-queue-stats { gap: 10px; }
-  .myturn-ticket-stat { padding: 14px 12px; }
-  .myturn-ticket-stat dt { font-size: 11px; gap: 6px; }
+  .myturn-ticket-stat { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .myturn-ticket-stat-value, .myturn-ticket-stat-note { grid-column: 1; text-align: left; }
+  .myturn-ticket-stat-value > div, .myturn-ticket-stat-note > div { margin-left: 0; }
   .myturn-ticket-service-card { gap: 10px; padding-inline: 14px; }
 }
 @media print {

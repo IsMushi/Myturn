@@ -4,7 +4,7 @@ import { StaffDashboard } from "@/components/StaffDashboard";
 
 export const metadata: Metadata = {
   title: "Service desk — MyTurn",
-  description: "Call the next visitor, record what happened, and watch the board at the counter.",
+  description: "Call the next visitor, record what happened, and watch the board at the service point.",
 };
 
 export default function StaffDashboardPage() {

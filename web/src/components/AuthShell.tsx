@@ -33,7 +33,7 @@ export function AuthShell({
           <p className="myturn-auth-audience">Your service workspace</p>
           <h2>A calmer queue.<br />A clearer day.</h2>
           <p className="myturn-auth-intro">
-            Welcome to the other side of the counter. Everything you need to keep service moving,
+            Welcome to the other side of the service point. Everything you need to keep service moving,
             in one place.
           </p>
           <ul className="myturn-auth-tools">
