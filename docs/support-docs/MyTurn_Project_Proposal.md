@@ -2,7 +2,7 @@
 
 ## IoT Final Project Proposal
 
-**Title:** MyTurn: Design and Implementation of an IoT-Based Queue Management and Service-Desk Status System
+**Title:** MyTurn: Design and Implementation of an IoT-Based Waiting Line Management and Service-Desk Status System
 **Tagline:** Your Turn, Made Simple.
 **Institution:** Institut d’Enseignement Supérieur de Ruhengeri (INES-Ruhengeri)
 **Faculty:** Faculty of Sciences and Information Technology
@@ -26,17 +26,17 @@
 
 ## 1. Project Title
 
-MyTurn: Design and Implementation of an IoT-Based Queue Management and Service-Desk Status System
+MyTurn: Design and Implementation of an IoT-Based Waiting Line Management and Service-Desk Status System
 
 The name MyTurn is short and easy to pronounce, and it sums up what the system does: it tells a visitor when their turn has come and whether the desk is open.
 
-The prototype combines a numbered-ticket queue with sensor-based detection of the visitor position and of an approaching visitor, and a status light that staff control from a web page. It will serve one university service desk, such as registration or finance. If the demonstration uses a real office, the team will ask the responsible staff first.
+The prototype combines a numbered-ticket waiting line with sensor-based detection of the visitor position and of an approaching visitor, and a status light that staff control from a web page. It will serve one university service desk, such as registration or finance. If the demonstration uses a real office, the team will ask the responsible staff first.
 
 ## 2. Problem Statement
 
-University service offices can receive several visitors at the same time. Where service depends on an informal line or on staff calling out names, a visitor may not know who is next, which ticket is being served, or whether the desk has paused. People then crowd around the desk, ask the same questions again, disagree about turns, and interrupt office work. Visitors without smartphones also need a way to join the same queue.
+University service offices can receive several visitors at the same time. Where service depends on an informal line or on staff calling out names, a visitor may not know who is next, which ticket is being served, or whether the desk has paused. People then crowd around the desk, ask the same questions again, disagree about turns, and interrupt office work. Visitors without smartphones also need a way to join the same waiting line.
 
-A light that only shows whether a desk is empty does not fix this on its own. An empty chair says nothing about whether staff are available, and it does not tell anyone who is next. The desk needs a ticket order that everyone can see, a status that staff control, and a signal showing that a visitor has reached the desk. The team has not measured queue lengths or waiting times at any office yet.
+A light that only shows whether a desk is empty does not fix this on its own. An empty chair says nothing about whether staff are available, and it does not tell anyone who is next. The desk needs a ticket order that everyone can see, a status that staff control, and a signal showing that a visitor has reached the desk. The team has not measured waiting line lengths or waiting times at any office yet.
 
 ## 3. Project Objectives
 
@@ -60,17 +60,17 @@ To design, implement, and demonstrate a low-cost IoT prototype that organises vi
 
 ### 4.1 Visitor and Staff Workflow
 
-A visitor scans a QR code, which opens the MyTurn visitor page, and requests a ticket. The server assigns the next number in the queue, for example, A012. Someone without a smartphone can ask a staff member for a ticket, and the number is written down or read out. Both kinds of ticket join the same queue.
+A visitor scans a QR code, which opens the MyTurn visitor page, and requests a ticket. The server assigns the next number in the waiting line, for example, A012. Someone without a smartphone can ask a staff member for a ticket, and the number is written down or read out. Both kinds of ticket join the same waiting line.
 
 The visitor page shows which ticket is being called, the visitor’s own number, how many tickets are ahead of them, and whether the desk is active, paused, or closed. A screen outside the office shows the called number and the desk status, with no visitor names. During the demonstration a laptop browser or a second phone will serve as that screen.
 
-Staff sign in and press the Call next button to take the earliest waiting ticket. One ticket is active at a time, and staff mark it completed or skipped before calling the next. A skipped ticket leaves the queue; if that visitor comes back, staff issue a new ticket at the end. Cancelled tickets are never called. Pausing or closing service keeps the existing tickets and stops new calls; closing also stops new ticket requests.
+Staff sign in and press the Call next button to take the earliest waiting ticket. One ticket is active at a time, and staff mark it completed or skipped before calling the next. A skipped ticket leaves the waiting line; if that visitor comes back, staff issue a new ticket at the end. Cancelled tickets are never called. Pausing or closing service keeps the existing tickets and stops new calls; closing also stops new ticket requests.
 
 ### 4.2 Occupancy and Approach Detection, and Physical Indication
 
-The HC-SR04 sensor will be mounted so that it watches the visitor position and not the whole waiting area. The ESP32 will compare the measured distance with a calibrated threshold and will need several consistent readings before it changes state, so that brief movement does not trigger a change. The distance sensor will show only whether the position is occupied. It will not identify anyone or count the queue.
+The HC-SR04 sensor will be mounted so that it watches the visitor position and not the whole waiting area. The ESP32 will compare the measured distance with a calibrated threshold and will need several consistent readings before it changes state, so that brief movement does not trigger a change. The distance sensor will show only whether the position is occupied. It will not identify anyone or count the waiting line.
 
-A passive infrared sensor will sit beside it and watch the approach to the desk. It reacts to movement, so it cannot take over the measuring job: a visitor who stands still at the counter fades out of its view. Instead it will notice that someone is walking up, and that does two useful things. The device will take distance readings more often while an approach is in progress, so a visitor at the desk is confirmed sooner, and the dashboard will show a short approaching hint before the position is marked as occupied. If no occupancy reading follows an approach within about ten seconds, the event will be stored as a walk-past and the desk state will not change. The module needs about half a minute to settle after it is powered, so its output will be ignored during that warm-up and the approach state will read as unknown. Like the distance sensor, it will not identify anyone.
+A passive infrared sensor will sit beside it and watch the approach to the desk. It reacts to movement, so it cannot take over the measuring job: a visitor who stands still at the service point fades out of its view. Instead it will notice that someone is walking up, and that does two useful things. The device will take distance readings more often while an approach is in progress, so a visitor at the desk is confirmed sooner, and the dashboard will show a short approaching hint before the position is marked as occupied. If no occupancy reading follows an approach within about ten seconds, the event will be stored as a walk-past and the desk state will not change. The module needs about half a minute to settle after it is powered, so its output will be ignored during that warm-up and the approach state will read as unknown. Like the distance sensor, it will not identify anyone.
 
 The status light will show three states:
 
@@ -80,7 +80,7 @@ The status light will show three states:
 
 - Yellow (Paused or closed): staff have turned service off; this state overrides the other two.
 
-Visitors come to the desk when their ticket is called, not whenever the light is green. Staff advance the queue; the sensors never do it on their own.
+Visitors come to the desk when their ticket is called, not whenever the light is green. Staff advance the waiting line; the sensors never do it on their own.
 
 ### 4.3 Communication, Processing, and Remote Control
 
@@ -98,7 +98,7 @@ When staff call a ticket, the public screen and the visitor’s open page will s
 
 MyTurn brings together four things that already exist on their own: anonymous tickets, a way for staff to issue a ticket without a smartphone, occupancy and approach sensing at the desk, and a light that staff control from the dashboard. Putting them in one small self-hosted system is the new part. Visitors should get a clearer idea of when their turn comes, and staff keep control of service decisions.
 
-The first version covers one desk and first-come, first-served service. It will not cover multiple desks, priority queues, waiting-time forecasts, cameras, automatic crowd counting, or visitor identity. Charts and occupancy summaries will be added only if the main workflow works reliably first.
+The first version covers one desk and first-come, first-served service. It will not cover multiple desks, priority waiting lines, waiting-time forecasts, cameras, automatic crowd counting, or visitor identity. Charts and occupancy summaries will be added only if the main workflow works reliably first.
 
 ### 4.6 Development Methodology
 
@@ -170,7 +170,7 @@ The main data flows will be as follows:
 
 5. Remote control: staff pause or resume action → API setting → ESP32 command polling → RGB LED → device-reported applied state.
 
-The database will hold ticket numbers and their states, anonymous access tokens, event times, desk settings, and device readings. Joining the queue will not require a name, telephone number, photograph, or student registration number. Ticket links will use tokens that are hard to guess, and the public pages will show only what the public screen needs. Demonstration records will be kept only for testing and for the report.
+The database will hold ticket numbers and their states, anonymous access tokens, event times, desk settings, and device readings. Joining the waiting line will not require a name, telephone number, photograph, or student registration number. Ticket links will use tokens that are hard to guess, and the public pages will show only what the public screen needs. Demonstration records will be kept only for testing and for the report.
 
 ## 7. Expected Results
 
@@ -200,7 +200,7 @@ Table 2 lists the targets that the tests will check. These are targets, not resu
 
 | State priority | The paused or closed indication overrides occupancy in every tested combination |
 
-| Persistence | Ticket records and queue order remain correct after an application restart |
+| Persistence | Ticket records and waiting line order remain correct after an application restart |
 
 | Connectivity | Device status becomes offline or unknown within 15 seconds without a valid update, and pending commands are not falsely shown as applied |
 
