@@ -349,10 +349,11 @@ function TrendsTable({ trends }: { trends: TrendsData }) {
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   function formatDate(dateStr: string) {
-    const date = new Date(`${dateStr}T00:00:00`);
-    const dayName = days[date.getDay()];
-    const month = date.toLocaleString("en-US", { month: "short" });
-    return `${dayName}, ${month} ${date.getDate()}`;
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const date = new Date(Date.UTC(y, m - 1, d));
+    const dayName = days[date.getUTCDay()];
+    const month = date.toLocaleString("en-US", { month: "short", timeZone: "UTC" });
+    return `${dayName}, ${month} ${date.getUTCDate()}`;
   }
 
   if (trends.trends.length === 0) {

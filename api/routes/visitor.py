@@ -434,3 +434,50 @@ def ticket_state(token):
     if payload is None:
         return jsonify(error="unknown ticket"), 404
     return jsonify(payload)
+
+
+@bp.post("/api/tickets/<token>/give-up")
+def give_up_ticket(token):
+    """Allow a visitor to give up their place in the waiting line.
+
+    Only tickets that are still waiting or currently called can be cancelled
+    by the visitor. Already closed tickets are left unchanged and returned
+    as-is.
+    """
+    conn = get_db()
+    row = conn.execute(
+        "select ticket_id, status, service_id, ticket_no from tickets where access_token = ?",
+        (token,),
+    ).fetchone()
+    if row is None:
+        return jsonify(error="unknown ticket"), 404
+
+    status = row["status"]
+    if status in ("completed", "skipped", "cancelled"):
+        payload = ticket_payload(conn, token)
+        return jsonify(payload), 200
+
+    if status not in ("waiting", "called"):
+        payload = ticket_payload(conn, token)
+        return jsonify(payload), 200
+
+    now_ts = now()
+    try:
+        conn.execute("begin")
+        conn.execute(
+            "update tickets set status = 'cancelled', closed_at = ? where ticket_id = ?",
+            (now_ts, row["ticket_id"]),
+        )
+        conn.execute(
+            "insert into ticket_events (ticket_id, event_type, event_time, actor, detail) "
+            "values (?, 'cancelled', ?, 'visitor', 'visitor gave up place')",
+            (row["ticket_id"], now_ts),
+        )
+        conn.execute("commit")
+    except Exception:
+        conn.execute("rollback")
+        raise
+
+    signal()
+    payload = ticket_payload(conn, token)
+    return jsonify(payload), 200

@@ -164,6 +164,23 @@ export function TicketTrackingStatus({
       </section>
 
       <section className="myturn-ticket-tracking-actions flex flex-wrap gap-4">
+        {ticket.status === "waiting" || ticket.status === "called" ? (
+          <Button
+            variant="quiet"
+            onClick={() => {
+              if (typeof window !== "undefined") {
+                const ok = window.confirm("Give up your place in this queue?");
+                if (!ok) return;
+              }
+              if (typeof window !== "undefined") {
+                window.dispatchEvent(new CustomEvent("myturn:give-up-ticket"));
+              }
+            }}
+            disabled={busy}
+          >
+            Give up my place
+          </Button>
+        ) : null}
         {finished && (
           <Button size="lg" onClick={onAnother} disabled={busy}>
             Take a new ticket

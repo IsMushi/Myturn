@@ -454,7 +454,6 @@ function DeskBoard({ deskId, desks, onPick }: {
 
   if (!data) return (
     <div className="staff-workspace">
-      <DeskHeader deskId={deskId} desks={desks} onPick={pickDesk} refresh={refresh} pending={pending} />
       {error ? <LoadError error={error} retry={refresh} /> : <StaffDashboardSkeleton />}
     </div>
   );

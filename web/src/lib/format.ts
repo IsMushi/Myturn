@@ -18,7 +18,19 @@ export function relative(iso: string | null): string {
   const seconds = Math.max(0, Math.round((Date.now() - then) / 1000));
   if (seconds < 60) return `${seconds} s ago`;
 
-  return `${Math.round(seconds / 60)} min ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+
+  const hours = Math.floor(minutes / 60);
+  const remMin = minutes % 60;
+  if (hours < 24) {
+    return remMin === 0 ? `${hours} h ago` : `${hours} h ${remMin} min ago`;
+  }
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} d ago`;
+
+  return calendarDate(iso);
 }
 
 /**

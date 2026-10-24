@@ -153,6 +153,9 @@ export const api = {
   ticketState: (token: string) =>
     request<TicketState>(`/api/tickets/${encodeURIComponent(token)}`),
 
+  giveUpTicket: (token: string) =>
+    request<TicketState>(`/api/tickets/${encodeURIComponent(token)}/give-up`, { method: "POST" }),
+
   publicState: () => request<PublicState>("/api/public/state"),
 
   /**
