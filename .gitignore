@@ -28,3 +28,4 @@ firmware/**/secrets.h
 .idea/
 Thumbs.db
 desktop.ini
+~$*
