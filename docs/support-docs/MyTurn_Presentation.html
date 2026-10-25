@@ -95,10 +95,21 @@
   }
 
   .sd-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
     font-size: 14px;
     font-weight: 700;
     letter-spacing: 0.3px;
     color: var(--deep);
+  }
+
+  .sd-brand img {
+    width: 17px;
+    height: 17px;
+    border-radius: 5px;
+    display: block;
+    flex: 0 0 auto;
   }
 
   .sd-body {
@@ -230,6 +241,8 @@
 
   .img-frame img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
+  .img-frame svg { width: auto; height: auto; max-width: 100%; max-height: 100%; display: block; }
+
   .caption {
     margin-top: 8px;
     font-size: 11px;
@@ -357,6 +370,8 @@
     margin-top: 14px;
   }
 
+  .title-turn { color: var(--primary); }
+
   .title-rule {
     width: 88px;
     height: 5px;
@@ -467,8 +482,8 @@
   .step p { font-size: 13.5px; line-height: 1.42; color: var(--body); margin-top: 2px; }
   .phone-wrap { display: flex; justify-content: center; padding-top: 18px; }
   .phone {
-    width: 170px;
-    height: 396px;
+    width: 190px;
+    height: 394px;
     border-radius: 20px;
     border: 7px solid #0E3B34;
     background: #0C2B26;
@@ -693,6 +708,45 @@
   .next-list p { font-size: 13px; line-height: 1.42; color: var(--body); display: flex; gap: 8px; }
   .next-list b { color: var(--deep); }
 
+  /* ---------- analysis ---------- */
+  .analysis {
+    display: grid;
+    grid-template-columns: 1fr 350px;
+    gap: 28px;
+    margin-top: 14px;
+    align-items: start;
+  }
+
+  .analysis.even { grid-template-columns: 1fr 1fr; gap: 26px; }
+
+  .analysis .img-frame { padding: 14px 16px 10px; }
+
+  /* Side by side, the two charts are boxed to the same height so their
+     captions sit on one line. */
+  .analysis.even .img-frame { height: 272px; }
+
+  .findings { display: flex; flex-direction: column; gap: 12px; }
+
+  .finding { display: flex; gap: 11px; align-items: flex-start; }
+
+  .finding b {
+    flex: 0 0 72px;
+    font-size: 19px;
+    line-height: 1.2;
+    letter-spacing: -0.5px;
+    color: var(--deep);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .finding h3 {
+    font-size: 13.5px;
+    line-height: 1.3;
+    color: var(--deep);
+    margin-bottom: 2px;
+  }
+
+  .finding p { font-size: 11.5px; line-height: 1.4; color: var(--body); }
+
   /* ---------- navigation ---------- */
   .progress {
     position: fixed; top: 0; left: 0; height: 3px; width: 0;
@@ -739,7 +793,7 @@
     <div class="title-rings" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
     <div>
       <p class="eyebrow">INES-RUHENGERI · Faculty of Sciences and Information Technology</p>
-      <h1>MyTurn</h1>
+      <h1>My<span class="title-turn">Turn</span></h1>
       <div class="title-rule"></div>
       <p class="title-sub">Design and Implementation of an IoT-Based Waiting Line Management and Service-Desk Status System</p>
       <p class="title-tag">Your Turn, Made Simple.</p>
@@ -766,62 +820,63 @@
 
   <!-- 2 · problem -->
   <section class="slide" aria-label="The problem">
-    <header class="sd-head"><span class="eyebrow">01 — The problem</span><span class="sd-brand">MyTurn</span></header>
+    <header class="sd-head"><span class="eyebrow">01 — The problem</span><span class="sd-brand"><img src="assets/myturn-mark.svg" alt=""><span>MyTurn</span></span></header>
     <div class="sd-body">
       <h2>A numbered line is still a line.</h2>
       <span class="accent"></span>
+      <p class="lead">A visitor walks in, takes a number, and is told to wait. The number says where they are in the line, and nothing else: not how long the wait is, not whether the desk is open, not whether the desk is still calling numbers at all.</p>
       <div class="grid-3 problem-cards">
         <div class="card">
           <span class="num-chip">1</span>
-          <h3>Waiting blind</h3>
-          <p>A visitor cannot tell how long the wait is, so they crowd the service point, leave, or come back at the wrong moment.</p>
+          <h3>The wait is invisible</h3>
+          <p>A ticket cannot tell a visitor whether A014 means five minutes or forty. So people crowd the counter, drift away, or come back after their number was called. <b>The line is anxious, and the counter is empty.</b></p>
         </div>
         <div class="card">
           <span class="num-chip">2</span>
-          <h3>One absent visitor</h3>
-          <p>The desk calls a number that is not there. Without a rule that recovers, everyone behind it waits.</p>
+          <h3>One absence stalls the line</h3>
+          <p>The desk calls a number that nobody answers. With no rule to recover it, the service point stands idle while everyone behind that number waits. <b>One visitor who is not there holds up the queue.</b></p>
         </div>
         <div class="card">
           <span class="num-chip">3</span>
-          <h3>No record</h3>
-          <p>A paper list cannot say how long service takes, how many visitors never answered, or who changed the desk.</p>
+          <h3>Nothing is measured</h3>
+          <p>A paper list cannot say how long a service took, how many visitors never answered, or who changed the desk. <b>Without a record, next week repeats this week.</b></p>
         </div>
       </div>
-      <div class="band">The desk needs a number, a live status, and a fair rule for the person who does not answer.</div>
+      <div class="band dark"><b>The problem, stated plainly.</b> A visitor cannot see the state of the line they joined, and the desk has no rule that recovers when the visitor it called does not come. MyTurn closes both gaps: a live status for the visitor, and a queue rule that returns an unanswered call to its own line.</div>
     </div>
-    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">02 / 15</span></footer>
+    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">02 / 17</span></footer>
   </section>
 
   <!-- 3 · solution -->
   <section class="slide" aria-label="The solution">
-    <header class="sd-head"><span class="eyebrow">02 — The solution</span><span class="sd-brand">MyTurn</span></header>
+    <header class="sd-head"><span class="eyebrow">02 — The solution</span><span class="sd-brand"><img src="assets/myturn-mark.svg" alt=""><span>MyTurn</span></span></header>
     <div class="sd-body">
       <div class="two-col">
         <div>
           <h2>A QR code, a number, and a desk that recovers by itself.</h2>
           <span class="accent"></span>
           <div class="steps" style="margin-top:22px">
-            <div class="step"><span class="num-chip">1</span><div><h3>Scan</h3><p>The QR code at the door opens the ticket page. No app, no account.</p></div></div>
+            <div class="step"><span class="num-chip">1</span><div><h3>Scan at the door</h3><p>The QR code opens the ticket page in the visitor's own phone. No app, no account.</p></div></div>
             <div class="step"><span class="num-chip">2</span><div><h3>Choose the service</h3><p>The server issues the next number of that waiting line and a private tracking link.</p></div></div>
-            <div class="step"><span class="num-chip">3</span><div><h3>Follow your turn</h3><p>The page shows the called number, the wait and how many are ahead.</p></div></div>
-            <div class="step"><span class="num-chip">4</span><div><h3>Be called</h3><p>The display and the phone update together, without a refresh.</p></div></div>
+            <div class="step"><span class="num-chip">3</span><div><h3>Leave a way to be called</h3><p>One email address or phone number, so the desk can reach the visitor when their turn comes.</p></div></div>
+            <div class="step"><span class="num-chip">4</span><div><h3>Follow your turn</h3><p>The page shows the called number, the wait and how many are ahead, and it updates on its own.</p></div></div>
           </div>
-          <div style="margin-top:18px"><span class="pill">No name · no phone number · no account</span></div>
+          <div style="margin-top:18px"><span class="pill">No name · no account · one contact, used only for the call</span></div>
         </div>
         <div class="phone-wrap">
           <div>
-            <div class="phone"><img src="assets/figure-visitor-phone.png" alt="The MyTurn ticket page on a phone"></div>
+            <div class="phone"><img src="assets/presentation-ticket.png" alt="The MyTurn ticket page on a phone"></div>
             <p class="caption">The visitor page, built and running</p>
           </div>
         </div>
       </div>
     </div>
-    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">03 / 15</span></footer>
+    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">03 / 17</span></footer>
   </section>
 
   <!-- 4 · architecture -->
   <section class="slide" aria-label="Architecture">
-    <header class="sd-head"><span class="eyebrow">03 — How it is built</span><span class="sd-brand">MyTurn</span></header>
+    <header class="sd-head"><span class="eyebrow">03 — How it is built</span><span class="sd-brand"><img src="assets/myturn-mark.svg" alt=""><span>MyTurn</span></span></header>
     <div class="sd-body">
       <h2>Four parts, one waiting line.</h2>
       <span class="accent"></span>
@@ -841,12 +896,12 @@
         </div>
       </div>
     </div>
-    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">04 / 15</span></footer>
+    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">04 / 17</span></footer>
   </section>
 
   <!-- 5 · hardware -->
   <section class="slide" aria-label="Hardware">
-    <header class="sd-head"><span class="eyebrow">04 — The board</span><span class="sd-brand">MyTurn</span></header>
+    <header class="sd-head"><span class="eyebrow">04 — The board</span><span class="sd-brand"><img src="assets/myturn-mark.svg" alt=""><span>MyTurn</span></span></header>
     <div class="sd-body">
       <h2>What sits at the service point.</h2>
       <span class="accent"></span>
@@ -901,12 +956,12 @@
         </div>
       </div>
     </div>
-    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">05 / 15</span></footer>
+    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">05 / 17</span></footer>
   </section>
 
   <!-- 6 · sensors -->
   <section class="slide" aria-label="What the sensors measure">
-    <header class="sd-head"><span class="eyebrow">05 — Measurement, not identification</span><span class="sd-brand">MyTurn</span></header>
+    <header class="sd-head"><span class="eyebrow">05 — Measurement, not identification</span><span class="sd-brand"><img src="assets/myturn-mark.svg" alt=""><span>MyTurn</span></span></header>
     <div class="sd-body">
       <h2>The sensors measure a place, not a person.</h2>
       <span class="accent"></span>
@@ -925,7 +980,7 @@
           <h3>Never</h3>
           <ul class="check-list">
             <li><span class="mark no">×</span><span>No counting people in a line.</span></li>
-            <li><span class="mark no">×</span><span>No identity, face, phone or name.</span></li>
+            <li><span class="mark no">×</span><span>No identity, no face, no name.</span></li>
             <li><span class="mark no">×</span><span>No camera, no microphone, no tracking.</span></li>
             <li><span class="mark no">×</span><span>No guess about who deserves priority.</span></li>
             <li><span class="mark no">×</span><span>No record of a person, a visit or a conversation.</span></li>
@@ -935,12 +990,12 @@
       <div class="band">A waiting line system does not need to know who you are. The HC-SR04 alone decides occupancy; the PIR only reports that somebody is walking up.</div>
       <div class="band dark"><b>A bag is not a person.</b> An object that has not moved for five minutes, with no approach seen in that window, stops blocking the call. The hold rule is not relaxed: only the call guard is.</div>
     </div>
-    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">06 / 15</span></footer>
+    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">06 / 17</span></footer>
   </section>
 
   <!-- 7 · queue rules -->
   <section class="slide" aria-label="Queue rules">
-    <header class="sd-head"><span class="eyebrow">06 — The rules</span><span class="sd-brand">MyTurn</span></header>
+    <header class="sd-head"><span class="eyebrow">06 — The rules</span><span class="sd-brand"><img src="assets/myturn-mark.svg" alt=""><span>MyTurn</span></span></header>
     <div class="sd-body">
       <h2>One line per service, one call per desk.</h2>
       <span class="accent"></span>
@@ -975,12 +1030,12 @@
         </div>
       </div>
     </div>
-    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">07 / 15</span></footer>
+    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">07 / 17</span></footer>
   </section>
 
   <!-- 8 · innovation 1 -->
   <section class="slide" aria-label="Occupancy-assisted requeue">
-    <header class="sd-head"><span class="eyebrow">07 — Innovation · the board earns its place</span><span class="sd-brand">MyTurn</span></header>
+    <header class="sd-head"><span class="eyebrow">07 — Innovation · the board earns its place</span><span class="sd-brand"><img src="assets/myturn-mark.svg" alt=""><span>MyTurn</span></span></header>
     <div class="sd-body">
       <h2>The board can end an unanswered call early. Only with evidence.</h2>
       <span class="accent"></span>
@@ -1014,12 +1069,12 @@
       <p class="note" style="margin-top:11px">The server decides. The board only reports. An offline board, a missing reading, an occupied service point or an approach keeps the full hold, so absence of data is never treated as absence of a person.</p>
       <p class="note" style="margin-top:8px"><b>Why a floor?</b> A visitor who is walking in needs time to reach the desk. Ten seconds of grace, then a floor of 25, stops the rule from firing before they arrive.</p>
     </div>
-    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">08 / 15</span></footer>
+    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">08 / 17</span></footer>
   </section>
 
   <!-- 9 · innovation 2 -->
   <section class="slide" aria-label="Measured waiting estimate">
-    <header class="sd-head"><span class="eyebrow">08 — Innovation · a number or nothing</span><span class="sd-brand">MyTurn</span></header>
+    <header class="sd-head"><span class="eyebrow">08 — Innovation · a number or nothing</span><span class="sd-brand"><img src="assets/myturn-mark.svg" alt=""><span>MyTurn</span></span></header>
     <div class="sd-body">
       <h2>A wait you can trust, or no number at all.</h2>
       <span class="accent"></span>
@@ -1040,12 +1095,12 @@
         </div>
       </div>
     </div>
-    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">09 / 15</span></footer>
+    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">09 / 17</span></footer>
   </section>
 
   <!-- 10 · consoles -->
   <section class="slide" aria-label="The staff and administration consoles">
-    <header class="sd-head"><span class="eyebrow">09 — The desk and the office</span><span class="sd-brand">MyTurn</span></header>
+    <header class="sd-head"><span class="eyebrow">09 — The desk and the office</span><span class="sd-brand"><img src="assets/myturn-mark.svg" alt=""><span>MyTurn</span></span></header>
     <div class="sd-body">
       <h2>Two views of the same waiting line.</h2>
       <span class="accent"></span>
@@ -1054,12 +1109,12 @@
           <div class="shot-wrap">
             <div class="chrome"><span></span><span></span><span></span><em>localhost:3000/staff/dashboard</em></div>
             <div class="shot" style="height:344px">
-              <img src="assets/figure-staff-dashboard.png" alt="The MyTurn staff dashboard">
+              <img src="assets/presentation-desk.png" alt="The MyTurn staff dashboard">
             </div>
           </div>
           <div class="grid-2" style="margin-top:11px; gap:12px">
-            <p class="note"><b>Staff:</b> call, complete, skip, cancel, walk-in, recall and undo.</p>
-            <p class="note"><b>Live:</b> hold countdown, average service time, keyboard shortcuts, per-desk analytics.</p>
+            <p class="note"><b>Staff:</b> call, served, no-show, cancel, walk-in, recall and undo.</p>
+            <p class="note"><b>Live:</b> hold countdown, the board's readings, keyboard shortcuts, today's tallies.</p>
           </div>
         </div>
         <div>
@@ -1068,19 +1123,19 @@
             <div class="rule-list">
               <div class="rule-row"><span class="num-chip">A</span><div><h3>Team &amp; invitations</h3><p>Invite, promote, switch off; the last administrator cannot be removed.</p></div></div>
               <div class="rule-row"><span class="num-chip">B</span><div><h3>Activity</h3><p>Ticket, desk and account history in one list, with the reason for each requeue.</p></div></div>
-              <div class="rule-row"><span class="num-chip">C</span><div><h3>Statistics</h3><p>Counts, service-time distribution, busiest hours, target comparison and CSV.</p></div></div>
-              <div class="rule-row"><span class="num-chip">D</span><div><h3>Services &amp; desks</h3><p>Add a service with its letter, edit the wording and target, and see each service point's live state.</p></div></div>
+              <div class="rule-row"><span class="num-chip">C</span><div><h3>Statistics</h3><p>Where every ticket went, the busiest hours, how long visitors waited, and the CSV of the period.</p></div></div>
+              <div class="rule-row"><span class="num-chip">D</span><div><h3>Tickets, board and settings</h3><p>Search every ticket, register the sensor board watching a counter, and edit each service and service point.</p></div></div>
             </div>
           </div>
         </div>
       </div>
     </div>
-    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">10 / 15</span></footer>
+    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">10 / 17</span></footer>
   </section>
 
   <!-- 11 · accounts -->
   <section class="slide" aria-label="Accounts and permissions">
-    <header class="sd-head"><span class="eyebrow">10 — Accounts and safety</span><span class="sd-brand">MyTurn</span></header>
+    <header class="sd-head"><span class="eyebrow">10 — Accounts and safety</span><span class="sd-brand"><img src="assets/myturn-mark.svg" alt=""><span>MyTurn</span></span></header>
     <div class="sd-body">
       <h2>Rights are granted, checked and recorded.</h2>
       <span class="accent"></span>
@@ -1088,7 +1143,7 @@
         <div class="actor card">
           <p class="tag">Visitor</p>
           <h3>No account</h3>
-          <p>An opaque ticket token in the link. No name, phone number or email is ever requested.</p>
+          <p>An opaque ticket token in the link, and one contact the visitor types so the desk can call them. No name, no profile.</p>
         </div>
         <div class="actor card">
           <p class="tag">Staff</p>
@@ -1111,24 +1166,24 @@
         <p><b>CSRF on writes.</b> A double-submit token, kept in memory, not in localStorage.</p>
         <p><b>Invitations cannot create admins.</b> Asking for one is a 400.</p>
         <p><b>Guarded last admin.</b> You cannot demote the final administrator or switch off your own account.</p>
-        <p><b>No address leaks.</b> A password reset answers the same whether or not the address exists.</p>
+        <p><b>No address leaks.</b> A password reset answers the same whether or not the address exists, and a visitor's contact never reaches the wall display.</p>
         <p><b>Recorded.</b> Account changes land in the activity history with the actor and the time.</p>
       </div>
-      <div class="band" style="margin-top:20px">A visitor never gets an account. A ticket asks for no name, phone number or email.</div>
+      <div class="band" style="margin-top:20px">A visitor never gets an account: a ticket carries a number, a token, and one way to reach them.</div>
     </div>
-    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">11 / 15</span></footer>
+    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">11 / 17</span></footer>
   </section>
 
   <!-- 12 · demonstration -->
   <section class="slide" aria-label="Demonstration">
-    <header class="sd-head"><span class="eyebrow">11 — The demonstration</span><span class="sd-brand">MyTurn</span></header>
+    <header class="sd-head"><span class="eyebrow">11 — The demonstration</span><span class="sd-brand"><img src="assets/myturn-mark.svg" alt=""><span>MyTurn</span></span></header>
     <div class="sd-body">
       <h2>What we will show on the day.</h2>
       <span class="accent"></span>
       <div class="two-col" style="margin-top:14px; align-items:start">
         <div class="demo-steps" style="margin-top:8px">
-          <div class="demo-step"><span class="num-chip">1</span><div><h3>Take a ticket on a phone</h3><p>Pick a service; the number comes from that waiting line's counter and the tracker opens.</p></div></div>
-          <div class="demo-step"><span class="num-chip">2</span><div><h3>Watch the display change</h3><p>Call next at the desk; the wall screen and the phone update together.</p></div></div>
+          <div class="demo-step"><span class="num-chip">1</span><div><h3>Take a ticket on a phone</h3><p>Pick a service and leave a phone number or an email; the number comes from that line's counter and the tracker opens.</p></div></div>
+          <div class="demo-step"><span class="num-chip">2</span><div><h3>Watch the call arrive</h3><p>Call next at the desk; the wall screen and the phone show the same number, without a refresh.</p></div></div>
           <div class="demo-step"><span class="num-chip">3</span><div><h3>Serve or record a no-show</h3><p>Complete, skip or cancel. Undo is available for ten seconds.</p></div></div>
           <div class="demo-step"><span class="num-chip">4</span><div><h3>Let a call expire</h3><p>The ticket goes to the back of its service with a fresh number, and the reason is logged.</p></div></div>
           <div class="demo-step"><span class="num-chip">5</span><div><h3>Show the board</h3><p>Distance and approach change the LED; the dashboard shows what the board applied.</p></div></div>
@@ -1136,18 +1191,18 @@
         </div>
         <div>
           <div class="img-frame" style="height:320px">
-            <img src="assets/figure-display.png" alt="The MyTurn wall display">
+            <img src="assets/presentation-display.png" alt="The MyTurn wall display">
           </div>
           <p class="caption">The waiting-area display</p>
         </div>
       </div>
     </div>
-    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">12 / 15</span></footer>
+    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">12 / 17</span></footer>
   </section>
 
   <!-- 13 · testing -->
   <section class="slide" aria-label="Testing">
-    <header class="sd-head"><span class="eyebrow">12 — Testing</span><span class="sd-brand">MyTurn</span></header>
+    <header class="sd-head"><span class="eyebrow">12 — Testing</span><span class="sd-brand"><img src="assets/myturn-mark.svg" alt=""><span>MyTurn</span></span></header>
     <div class="sd-body">
       <h2>Tested, not assumed.</h2>
       <span class="accent"></span>
@@ -1169,12 +1224,68 @@
       </div>
       <div class="band">358 automated checks. A feature is only finished when a check proves it.</div>
     </div>
-    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">13 / 15</span></footer>
+    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">13 / 17</span></footer>
   </section>
 
-  <!-- 14 · challenges -->
+  <!-- 14 · analysis: the hold -->
+  <section class="slide" aria-label="Data analysis: the hold">
+    <header class="sd-head"><span class="eyebrow">13 — Data analysis · the hold</span><span class="sd-brand"><img src="assets/myturn-mark.svg" alt=""><span>MyTurn</span></span></header>
+    <div class="sd-body">
+      <h2>The board earns thirty-five seconds.</h2>
+      <span class="accent"></span>
+      <div class="analysis">
+        <div>
+          <div class="img-frame"><svg role="img" aria-label="Bar chart of the time from call to requeue in five evidence scenarios" xmlns="http://www.w3.org/2000/svg" width="700" height="316" viewBox="0 0 700 316"><text x="176.0" y="18.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="9.5" font-weight="700" fill="#2C7A62" text-anchor="start" letter-spacing="1.4">TIME FROM CALL TO REQUEUE</text><line x1="176.0" y1="38.0" x2="176.0" y2="258.0" stroke="#D9E7DF" stroke-width="1"/><text x="176.0" y="274.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10" font-weight="400" fill="#2C7A62" text-anchor="middle">0</text><line x1="240.3" y1="38.0" x2="240.3" y2="258.0" stroke="#D9E7DF" stroke-width="1"/><text x="240.3" y="274.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10" font-weight="400" fill="#2C7A62" text-anchor="middle">10</text><line x1="304.6" y1="38.0" x2="304.6" y2="258.0" stroke="#D9E7DF" stroke-width="1"/><text x="304.6" y="274.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10" font-weight="400" fill="#2C7A62" text-anchor="middle">20</text><line x1="368.9" y1="38.0" x2="368.9" y2="258.0" stroke="#D9E7DF" stroke-width="1"/><text x="368.9" y="274.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10" font-weight="400" fill="#2C7A62" text-anchor="middle">30</text><line x1="433.1" y1="38.0" x2="433.1" y2="258.0" stroke="#D9E7DF" stroke-width="1"/><text x="433.1" y="274.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10" font-weight="400" fill="#2C7A62" text-anchor="middle">40</text><line x1="497.4" y1="38.0" x2="497.4" y2="258.0" stroke="#D9E7DF" stroke-width="1"/><text x="497.4" y="274.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10" font-weight="400" fill="#2C7A62" text-anchor="middle">50</text><line x1="561.7" y1="38.0" x2="561.7" y2="258.0" stroke="#D9E7DF" stroke-width="1"/><text x="561.7" y="274.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10" font-weight="400" fill="#2C7A62" text-anchor="middle">60</text><line x1="626.0" y1="38.0" x2="626.0" y2="258.0" stroke="#D9E7DF" stroke-width="1"/><text x="626.0" y="274.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10" font-weight="400" fill="#2C7A62" text-anchor="middle">70</text><line x1="336.7" y1="32.0" x2="336.7" y2="258.0" stroke="#2C7A62" stroke-width="1.2" stroke-dasharray="5 4"/><text x="336.7" y="289.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="9.5" font-weight="700" fill="#2C7A62" text-anchor="middle">floor 25 s</text><line x1="561.7" y1="32.0" x2="561.7" y2="258.0" stroke="#2C7A62" stroke-width="1.2" stroke-dasharray="5 4"/><text x="561.7" y="289.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="9.5" font-weight="700" fill="#2C7A62" text-anchor="middle">hold 60 s</text><text x="162.0" y="62.5" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="500" fill="#17564B" text-anchor="end">no board</text><rect x="176.0" y="46.0" width="385.7" height="24.0" rx="5" fill="#00594F"/><text x="571.7" y="62.5" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#00594F" text-anchor="start">60 s</text><text x="162.0" y="106.5" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="500" fill="#17564B" text-anchor="end">board silent</text><rect x="176.0" y="90.0" width="385.7" height="24.0" rx="5" fill="#00594F"/><text x="571.7" y="106.5" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#00594F" text-anchor="start">60 s</text><text x="162.0" y="150.5" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="500" fill="#17564B" text-anchor="end">counter empty</text><rect x="176.0" y="134.0" width="160.7" height="24.0" rx="5" fill="#B9F477"/><text x="346.7" y="150.5" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#06302B" text-anchor="start">25 s</text><text x="162.0" y="194.5" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="500" fill="#17564B" text-anchor="end">approach seen</text><rect x="176.0" y="178.0" width="385.7" height="24.0" rx="5" fill="#00594F"/><text x="571.7" y="194.5" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#00594F" text-anchor="start">60 s</text><text x="162.0" y="238.5" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="500" fill="#17564B" text-anchor="end">counter occupied</text><rect x="176.0" y="222.0" width="385.7" height="24.0" rx="5" fill="#00594F"/><text x="571.7" y="238.5" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#00594F" text-anchor="start">60 s</text><line x1="176.0" y1="258.0" x2="626.0" y2="258.0" stroke="#B9CEC2" stroke-width="1"/></svg></div>
+          <p class="caption">Measured from ticket_events: requeue time minus call time, five calls at five desks, same moment</p>
+        </div>
+        <div class="findings">
+          <div class="finding">
+            <b>60 s</b>
+            <div><h3>Four scenarios, no shortening</h3><p>No board at all, a board that went quiet before the call, a visitor approaching, a visitor standing at the counter.</p></div>
+          </div>
+          <div class="finding">
+            <b>25 s</b>
+            <div><h3>One scenario, shortened</h3><p>A report after the call, the counter empty, and nothing approaching for the whole window.</p></div>
+          </div>
+          <div class="finding">
+            <b>35 s</b>
+            <div><h3>What the waiting line gains</h3><p>The next number is called 35 seconds earlier, and no desk ever has to trust a silent sensor.</p></div>
+          </div>
+          <div class="finding">
+            <b>1 desk</b>
+            <div><h3>Evidence is per counter</h3><p>A board only shortens the call at its own desk; a reading from the counter next door never counts.</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="band">One case in five: only a fresh reading of an empty counter shortens the hold. Every other case keeps the full minute.</div>
+    </div>
+    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">14 / 17</span></footer>
+  </section>
+
+  <!-- 15 · analysis: estimate and response -->
+  <section class="slide" aria-label="Data analysis: estimate and response">
+    <header class="sd-head"><span class="eyebrow">14 — Data analysis · the estimate and the response</span><span class="sd-brand"><img src="assets/myturn-mark.svg" alt=""><span>MyTurn</span></span></header>
+    <div class="sd-body">
+      <h2>No guess, no wait.</h2>
+      <span class="accent"></span>
+      <div class="analysis even">
+        <div>
+          <div class="img-frame"><svg role="img" aria-label="Bar chart of six visits with the visitor-facing average drawn over them" xmlns="http://www.w3.org/2000/svg" width="620" height="306" viewBox="0 0 620 306"><rect x="46.0" y="14.0" width="12.0" height="12.0" rx="3" fill="#E4F4EE" stroke="#9FC9B8" stroke-width="1"/><text x="65.0" y="24.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#17564B" text-anchor="start">each visit, as the server timed it</text><line x1="260.0" y1="20.0" x2="290.0" y2="20.0" stroke="#00594F" stroke-width="2.6"/><circle cx="275" cy="20" r="3.6" fill="#FFFFFF" stroke="#00594F" stroke-width="2"/><text x="297.0" y="24.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#17564B" text-anchor="start">the average the visitor sees</text><line x1="46.0" y1="254.0" x2="602.0" y2="254.0" stroke="#D9E7DF" stroke-width="1"/><text x="36.0" y="258.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10" font-weight="400" fill="#2C7A62" text-anchor="end">0</text><line x1="46.0" y1="205.0" x2="602.0" y2="205.0" stroke="#D9E7DF" stroke-width="1"/><text x="36.0" y="209.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10" font-weight="400" fill="#2C7A62" text-anchor="end">15</text><line x1="46.0" y1="156.0" x2="602.0" y2="156.0" stroke="#D9E7DF" stroke-width="1"/><text x="36.0" y="160.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10" font-weight="400" fill="#2C7A62" text-anchor="end">30</text><line x1="46.0" y1="107.0" x2="602.0" y2="107.0" stroke="#D9E7DF" stroke-width="1"/><text x="36.0" y="111.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10" font-weight="400" fill="#2C7A62" text-anchor="end">45</text><line x1="46.0" y1="58.0" x2="602.0" y2="58.0" stroke="#D9E7DF" stroke-width="1"/><text x="36.0" y="62.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10" font-weight="400" fill="#2C7A62" text-anchor="end">60</text><text x="36.0" y="46.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="9.5" font-weight="400" fill="#2C7A62" text-anchor="end">seconds</text><rect x="69.3" y="205.0" width="46.0" height="49.0" rx="4" fill="#E4F4EE" stroke="#9FC9B8" stroke-width="1"/><text x="92.3" y="197.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10.5" font-weight="700" fill="#2C7A62" text-anchor="middle">15</text><text x="92.3" y="274.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#17564B" text-anchor="middle">visit 1</text><rect x="162.0" y="87.4" width="46.0" height="166.6" rx="4" fill="#E4F4EE" stroke="#9FC9B8" stroke-width="1"/><text x="185.0" y="79.4" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10.5" font-weight="700" fill="#2C7A62" text-anchor="middle">51</text><text x="185.0" y="274.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#17564B" text-anchor="middle">visit 2</text><rect x="254.7" y="182.1" width="46.0" height="71.9" rx="4" fill="#E4F4EE" stroke="#9FC9B8" stroke-width="1"/><text x="277.7" y="174.1" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10.5" font-weight="700" fill="#2C7A62" text-anchor="middle">22</text><text x="277.7" y="274.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#17564B" text-anchor="middle">visit 3</text><rect x="347.3" y="107.0" width="46.0" height="147.0" rx="4" fill="#E4F4EE" stroke="#9FC9B8" stroke-width="1"/><text x="370.3" y="99.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10.5" font-weight="700" fill="#2C7A62" text-anchor="middle">45</text><text x="370.3" y="274.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#17564B" text-anchor="middle">visit 4</text><rect x="440.0" y="221.3" width="46.0" height="32.7" rx="4" fill="#E4F4EE" stroke="#9FC9B8" stroke-width="1"/><text x="463.0" y="213.3" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10.5" font-weight="700" fill="#2C7A62" text-anchor="middle">10</text><text x="463.0" y="274.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#17564B" text-anchor="middle">visit 5</text><rect x="532.7" y="116.8" width="46.0" height="137.2" rx="4" fill="#E4F4EE" stroke="#9FC9B8" stroke-width="1"/><text x="555.7" y="108.8" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10.5" font-weight="700" fill="#2C7A62" text-anchor="middle">42</text><text x="555.7" y="274.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#17564B" text-anchor="middle">visit 6</text><rect x="46.0" y="50.0" width="181.3" height="204.0" rx="0" fill="#06302B" opacity="0.03"/><text x="136.7" y="160.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10.5" font-weight="600" fill="#2C7A62" text-anchor="middle">no estimate</text><path d="M277.7 159.3 L370.3 146.2 L463.0 159.3 L555.7 152.7" fill="none" stroke="#00594F" stroke-width="2.6"/><circle cx="277.7" cy="159.3" r="4" fill="#FFFFFF" stroke="#00594F" stroke-width="2.2"/><circle cx="370.3" cy="146.2" r="4" fill="#FFFFFF" stroke="#00594F" stroke-width="2.2"/><circle cx="463.0" cy="159.3" r="4" fill="#FFFFFF" stroke="#00594F" stroke-width="2.2"/><circle cx="555.7" cy="152.7" r="4" fill="#FFFFFF" stroke="#00594F" stroke-width="2.2"/><text x="557.7" y="140.7" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="11" font-weight="700" fill="#00594F" text-anchor="middle">31 s</text><line x1="46.0" y1="254.0" x2="602.0" y2="254.0" stroke="#B9CEC2" stroke-width="1"/></svg></div>
+          <p class="caption">Six visits of 15 to 51 seconds. Nothing is offered until three are served; from the third, the figure tracks the mean to within half a second.</p>
+        </div>
+        <div>
+          <div class="img-frame"><svg role="img" aria-label="Bar chart of median and 95th percentile response times for four endpoints" xmlns="http://www.w3.org/2000/svg" width="560" height="250" viewBox="0 0 560 250"><rect x="128.0" y="12.0" width="12.0" height="12.0" rx="3" fill="#00594F"/><text x="147.0" y="22.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#17564B" text-anchor="start">median</text><rect x="220.0" y="12.0" width="12.0" height="12.0" rx="3" fill="#B9F477"/><text x="239.0" y="22.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10.5" font-weight="400" fill="#17564B" text-anchor="start">95th percentile</text><text x="484.0" y="22.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="9.5" font-weight="400" fill="#2C7A62" text-anchor="end">milliseconds</text><line x1="128.0" y1="46.0" x2="128.0" y2="212.0" stroke="#D9E7DF" stroke-width="1"/><text x="128.0" y="228.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10" font-weight="400" fill="#2C7A62" text-anchor="middle">0</text><line x1="217.0" y1="46.0" x2="217.0" y2="212.0" stroke="#D9E7DF" stroke-width="1"/><text x="217.0" y="228.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10" font-weight="400" fill="#2C7A62" text-anchor="middle">5</text><line x1="306.0" y1="46.0" x2="306.0" y2="212.0" stroke="#D9E7DF" stroke-width="1"/><text x="306.0" y="228.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10" font-weight="400" fill="#2C7A62" text-anchor="middle">10</text><line x1="395.0" y1="46.0" x2="395.0" y2="212.0" stroke="#D9E7DF" stroke-width="1"/><text x="395.0" y="228.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10" font-weight="400" fill="#2C7A62" text-anchor="middle">15</text><line x1="484.0" y1="46.0" x2="484.0" y2="212.0" stroke="#D9E7DF" stroke-width="1"/><text x="484.0" y="228.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="10" font-weight="400" fill="#2C7A62" text-anchor="middle">20</text><text x="114.0" y="71.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="12" font-weight="500" fill="#17564B" text-anchor="end">Wall display</text><rect x="128.0" y="54.0" width="202.9" height="13.0" rx="4" fill="#00594F"/><rect x="128.0" y="70.0" width="288.4" height="13.0" rx="4" fill="#B9F477"/><text x="426.4" y="69.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#06302B" text-anchor="start">16 ms</text><text x="114.0" y="113.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="12" font-weight="500" fill="#17564B" text-anchor="end">Ticket page</text><rect x="128.0" y="96.0" width="197.6" height="13.0" rx="4" fill="#00594F"/><rect x="128.0" y="112.0" width="291.9" height="13.0" rx="4" fill="#B9F477"/><text x="429.9" y="111.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#06302B" text-anchor="start">16 ms</text><text x="114.0" y="155.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="12" font-weight="500" fill="#17564B" text-anchor="end">Desk console</text><rect x="128.0" y="138.0" width="217.2" height="13.0" rx="4" fill="#00594F"/><rect x="128.0" y="154.0" width="247.4" height="13.0" rx="4" fill="#B9F477"/><text x="385.4" y="153.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#06302B" text-anchor="start">14 ms</text><text x="114.0" y="197.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="12" font-weight="500" fill="#17564B" text-anchor="end">Board report</text><rect x="128.0" y="180.0" width="249.2" height="13.0" rx="4" fill="#00594F"/><rect x="128.0" y="196.0" width="284.8" height="13.0" rx="4" fill="#B9F477"/><text x="422.8" y="195.0" font-family="Google Sans, Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#06302B" text-anchor="start">16 ms</text><line x1="128.0" y1="212.0" x2="484.0" y2="212.0" stroke="#B9CEC2" stroke-width="1"/></svg></div>
+          <p class="caption">Forty requests per endpoint against the running API. Every read a page or a board makes answers in 11 to 14 ms at the median, under 17 ms at the 95th percentile.</p>
+        </div>
+      </div>
+      <div class="band"><b>One controlled run.</b> Eleven tickets in a disposable office, the shipped timings, nothing live touched; latency measured on this machine serving itself, not on a school network.</div>
+    </div>
+    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">15 / 17</span></footer>
+  </section>
+
+  <!-- 16 · challenges -->
   <section class="slide" aria-label="Challenges and limitations">
-    <header class="sd-head"><span class="eyebrow">13 — Challenges and limitations</span><span class="sd-brand">MyTurn</span></header>
+    <header class="sd-head"><span class="eyebrow">15 — Challenges and limitations</span><span class="sd-brand"><img src="assets/myturn-mark.svg" alt=""><span>MyTurn</span></span></header>
     <div class="sd-body">
       <h2>What it does not do yet.</h2>
       <span class="accent"></span>
@@ -1200,9 +1311,9 @@
           <span class="now">Not built</span>
         </div>
         <div class="limit card">
-          <h3>No mail server</h3>
-          <p>Invitation and reset links are shown in the app and logged in development, not emailed. A production deployment needs SMTP.</p>
-          <span class="now">Prototype</span>
+          <h3>Notifications not yet delivered</h3>
+          <p>Email and SMS calls are wired to SMTP and TextBee and tested with mocked transports, but no provider is configured, so nothing has left this machine.</p>
+          <span class="now">Unverified</span>
         </div>
         <div class="limit card">
           <h3>Single process</h3>
@@ -1210,14 +1321,14 @@
           <span class="now">Deployment</span>
         </div>
       </div>
-      <p class="note" style="margin-top:15px">Also not built: spoken announcements and SMS alerts.</p>
+      <p class="note" style="margin-top:15px">Also not built: spoken announcements. Invitation and reset links still appear in the app rather than an inbox.</p>
     </div>
-    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">14 / 15</span></footer>
+    <footer class="sd-foot"><span>Your Turn, Made Simple.</span><span class="sd-num">16 / 17</span></footer>
   </section>
 
-  <!-- 15 · closing -->
+  <!-- 17 · closing -->
   <section class="slide" aria-label="Delivered and next">
-    <header class="sd-head"><span class="eyebrow">14 — Delivered and next</span><span class="sd-brand">MyTurn</span></header>
+    <header class="sd-head"><span class="eyebrow">16 — Delivered and next</span><span class="sd-brand"><img src="assets/myturn-mark.svg" alt=""><span>MyTurn</span></span></header>
     <div class="sd-body top" style="display:flex; flex-direction:column;">
       <h2>Delivered, and what comes next.</h2>
       <span class="accent"></span>
@@ -1248,14 +1359,14 @@
         <span>Your Turn, Made Simple.</span>
       </div>
     </div>
-    <footer class="sd-foot"><span>MyTurn · Internet of Things · 23 October 2026</span><span class="sd-num">15 / 15</span></footer>
+    <footer class="sd-foot"><span>MyTurn · Internet of Things · 23 October 2026</span><span class="sd-num">17 / 17</span></footer>
   </section>
 
 </div>
 
 <div class="nav">
   <button id="prev" aria-label="Previous slide">←</button>
-  <span id="counter">1 / 15</span>
+  <span id="counter">1 / 17</span>
   <button id="next" aria-label="Next slide">→</button>
 </div>
 

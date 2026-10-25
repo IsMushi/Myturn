@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="MyTurn">
+  <rect width="32" height="32" rx="9" fill="#00594f"/>
+  <circle cx="8.5" cy="16" r="3.4" fill="#80ef24"/>
+  <circle cx="16" cy="16" r="3.4" fill="#b9f477"/>
+  <circle cx="23.5" cy="16" r="3.4" fill="#ffffff" fill-opacity="0.45"/>
+</svg>
