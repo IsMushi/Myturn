@@ -96,6 +96,16 @@ create table if not exists devices (
     mac_address     text
 );
 
+create table if not exists device_reports (
+    report_id   integer primary key autoincrement,
+    device_id   integer not null references devices (device_id),
+    distance_cm real,
+    occupied    integer not null default 0,
+    approach    integer not null default 0,
+    led_state   text,
+    reported_at text    not null
+);
+
 create table if not exists device_self_test (
     device_id       integer primary key references devices (device_id),
     distance_cm     real,
