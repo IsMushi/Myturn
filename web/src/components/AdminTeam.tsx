@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/Button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Alert, Field, TextInput } from "@/components/ui/Field";
+import { Alert, Field, Select, SelectItem, TextInput, inputClass } from "@/components/ui/Field";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { api } from "@/lib/api";
 import { focusFirstError } from "@/lib/forms";
@@ -58,6 +58,8 @@ export function AdminTeam() {
 function TeamPanel({ session }: { session: Extract<SessionState, { status: "in" }> }) {
   const load = useCallback(() => api.accounts(), []);
   const { data, error, refresh } = usePolling<AccountsListing>(load, 15000);
+  const loadDesks = useCallback(() => api.deskList(), []);
+  const desks = usePolling(loadDesks, 30000);
   const [failure, setFailure] = useState<string | null>(null);
   const [invited, setInvited] = useState<string | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -73,6 +75,8 @@ function TeamPanel({ session }: { session: Extract<SessionState, { status: "in" 
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkConfirm, setBulkConfirm] = useState("");
   const [bulkError, setBulkError] = useState<string | null>(null);
+  const [noticeText, setNoticeText] = useState("");
+  const [noticeBusy, setNoticeBusy] = useState(false);
   const selectAllRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<InviteValues>({
@@ -80,11 +84,25 @@ function TeamPanel({ session }: { session: Extract<SessionState, { status: "in" 
     defaultValues: { email: "" },
   });
 
+  async function postNotice() {
+    if (!noticeText.trim()) return;
+    setNoticeBusy(true);
+    try {
+      await api.postNotice(noticeText.trim());
+      toast.success("Notice posted to the display.", { id: ADMIN_NOTICE });
+      setNoticeText("");
+    } catch (e) {
+      setFailure(e instanceof Error ? e.message : "The notice could not be posted");
+    } finally {
+      setNoticeBusy(false);
+    }
+  }
+
   async function invite(values: InviteValues) {
     setFailure(null);
     setInvited(null);
     try {
-      const created = await api.invite(values.email);
+      const created = await api.invite(values.email, values.desk_id ? Number(values.desk_id) : null);
       setInvited(created.register_path ?? null);
       confirm(
         created.replaced
@@ -278,6 +296,21 @@ function TeamPanel({ session }: { session: Extract<SessionState, { status: "in" 
               <TextInput id="invite-email" type="email" autoComplete="off" placeholder="colleague@example.com"
                 error={Boolean(form.formState.errors.email)} {...form.register("email")} />
             </Field>
+            <Field label="Works at" id="invite-desk" hint="Leave empty for any desk.">
+              <Select
+                id="invite-desk"
+                value={form.watch("desk_id") ?? ""}
+                onValueChange={(v) => form.setValue("desk_id", v)}
+                className={inputClass}
+              >
+                <SelectItem value="">Any desk</SelectItem>
+                {(desks.data?.desks ?? []).map((desk) => (
+                  <SelectItem key={desk.desk_id} value={String(desk.desk_id)}>
+                    {desk.name} · {desk.service_letter}
+                  </SelectItem>
+                ))}
+              </Select>
+            </Field>
             {failure && <Alert tone="error" focus>{failure}</Alert>}
             <p className="text-xs text-medium-green">This prototype has no mail server. You can copy the registration link after creating the invitation.</p>
             <DialogFooter>
@@ -327,6 +360,7 @@ function TeamPanel({ session }: { session: Extract<SessionState, { status: "in" 
                   <th className="py-2 pr-4 font-semibold">Name</th>
                   <th className="py-2 pr-4 font-semibold">Email</th>
                   <th className="py-2 pr-4 font-semibold">Role</th>
+                  <th className="py-2 pr-4 font-semibold">Desk</th>
                   <th className="py-2 pr-4 font-semibold">Last sign in</th>
                   <th className="py-2 pr-4 font-semibold">State</th>
                   <th className="py-2 font-semibold">Actions</th>
@@ -348,6 +382,11 @@ function TeamPanel({ session }: { session: Extract<SessionState, { status: "in" 
                       <span className={user.role === "admin" ? "font-semibold text-deep-green" : "text-medium-green"}>
                         {user.role}
                       </span>
+                    </td>
+                    <td className="py-3 pr-4 text-medium-green">
+                      {user.desk_id
+                        ? (desks.data?.desks ?? []).find((d) => d.desk_id === user.desk_id)?.name ?? `Desk ${user.desk_id}`
+                        : "Any desk"}
                     </td>
                     <td className="py-3 pr-4 text-medium-green">{relative(user.last_login_at)}</td>
                     <td className="py-3 pr-4">

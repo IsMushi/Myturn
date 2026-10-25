@@ -13,6 +13,7 @@ export interface Account {
   full_name: string;
   email: string;
   role: Role;
+  desk_id: number | null;
   is_active: boolean;
   created_at: string;
   last_login_at: string | null;
@@ -196,6 +197,8 @@ export interface PublicState {
   server_time: string;
   /** Latest administrator notice shown on the wall display. */
   notice: { message: string } | null;
+  /** Numbers called but not answered, shown in red for a few seconds. */
+  missed?: string[];
 }
 
 export interface QueueTicket {
@@ -222,6 +225,28 @@ export interface TicketSearchResult {
   closed_at: string | null;
   /** The counter holding or serving it; null while it waits. */
   desk_name: string | null;
+}
+
+export interface TicketsList {
+  tickets: Array<{
+    ticket_id: number;
+    ticket_no: number;
+    label: string;
+    service: string;
+    service_name: string;
+    status: string;
+    source: string;
+    contact: string | null;
+    desk_id: number | null;
+    desk_name: string | null;
+    created_at: string;
+    called_at: string | null;
+    closed_at: string | null;
+    service_seconds: number | null;
+  }>;
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 export interface TicketSearch {
@@ -430,13 +455,32 @@ export interface ActivityFeed {
 
 /** What GET /api/auth/stats returns. */
 export interface Stats {
+  /** The period counted, as Kigali days. Null ends mean "all of history". */
+  window: { from: string | null; to: string | null; days: number | null };
+  /** The filter that was applied, so the page can tell stale figures from fresh. */
+  filter: { service: string | null };
   totals: {
     issued: number;
     served: number;
     no_shows: number;
     cancelled: number;
     waiting: number;
+    /** Served + no-shows + cancelled: the tickets that are no longer waiting. */
+    decided: number;
+    /** Turns given back to the queue after a call nobody answered. */
+    requeued: number;
+    /** Served and no-show shares, both taken over `decided`, never over `issued`. */
+    served_percent: number;
     no_show_percent: number;
+  };
+  /** How long visitors stood in line, measured from taking a number to being called. */
+  wait: {
+    average_seconds: number | null;
+    median_seconds: number | null;
+    samples: number;
+    histogram: { label: string; count: number }[];
+    /** Wait plus service: what a visitor actually spent in the office. */
+    average_total_seconds: number | null;
   };
   per_day: { day: string; issued: number; served: number }[];
   hours: { hour: number; issued: number }[];
@@ -452,7 +496,30 @@ export interface Stats {
     is_active: boolean;
     issued: number;
     served: number;
+    no_shows: number;
     waiting: number;
+    decided: number;
+    served_percent: number;
+    no_show_percent: number;
+    average_wait_seconds: number | null;
+    wait_samples: number;
+    average_service_seconds: number | null;
+    service_samples: number;
+    target_seconds: number | null;
+    within_target_percent: number | null;
+  }[];
+  /** Each counter, because a counter is where a service actually happens. */
+  per_desk: {
+    id: number;
+    name: string;
+    letter: string;
+    service_name: string;
+    issued: number;
+    served: number;
+    waiting: number;
+    decided: number;
+    average_wait_seconds: number | null;
+    wait_samples: number;
     average_service_seconds: number | null;
     service_samples: number;
   }[];

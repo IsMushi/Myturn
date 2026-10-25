@@ -164,16 +164,29 @@ export function TicketTrackingStatus({
       </section>
 
       <section className="myturn-ticket-tracking-actions flex flex-wrap gap-4">
-        {ticket.status === "waiting" || ticket.status === "called" ? (
+        {(ticket.status === "waiting" || ticket.status === "called") ? (
           <Button
             variant="quiet"
-            onClick={() => {
+            onClick={async () => {
               if (typeof window !== "undefined") {
                 const ok = window.confirm("Give up your place in this queue?");
                 if (!ok) return;
               }
-              if (typeof window !== "undefined") {
-                window.dispatchEvent(new CustomEvent("myturn:give-up-ticket"));
+              try {
+                const { api } = await import("@/lib/api");
+                // Try to get token from URL
+                if (typeof window !== "undefined") {
+                  const parts = window.location.pathname.split("/");
+                  const token = parts[parts.length - 1];
+                  if (token && token !== "ticket") {
+                    await api.giveUpTicket(token);
+                    window.location.reload();
+                    return;
+                  }
+                }
+                window.location.reload();
+              } catch (e) {
+                // ignore
               }
             }}
             disabled={busy}

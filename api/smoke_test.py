@@ -989,6 +989,59 @@ def main():
     check("the statistics measure how often the target was met",
           isinstance(numbers["within_target_percent"], int), True)
 
+    check("the statistics say which period they count",
+          numbers["window"], {"from": None, "to": None, "days": None})
+    check("the shares are taken over the tickets that were decided",
+          numbers["totals"]["decided"],
+          numbers["totals"]["served"] + numbers["totals"]["no_shows"]
+          + numbers["totals"]["cancelled"])
+    decided = numbers["totals"]["decided"]
+    check("the served share is the served tickets over the decided ones",
+          numbers["totals"]["served_percent"],
+          round(numbers["totals"]["served"] * 100 / decided) if decided else 0)
+    check("the statistics carry the wait distribution",
+          [bucket["label"] for bucket in numbers["wait"]["histogram"]],
+          ["under 2 min", "2-5 min", "5-10 min", "10-20 min", "20 min or more"])
+    check("every waited turn falls in exactly one band",
+          sum(bucket["count"] for bucket in numbers["wait"]["histogram"]),
+          numbers["wait"]["samples"])
+    check("a wait is withheld only while there is too little to measure",
+          numbers["wait"]["average_seconds"] is None,
+          numbers["wait"]["samples"] < config.ETA_MIN_SAMPLES)
+    check("the wait and the service add up to the whole visit",
+          numbers["wait"]["average_total_seconds"],
+          (numbers["wait"]["average_seconds"] + numbers["average_service_seconds"]
+           if numbers["wait"]["average_seconds"] is not None
+           and numbers["average_service_seconds"] is not None else None))
+    check("every counter reports its own figures",
+          len(numbers["per_desk"]) > 0
+          and all(isinstance(row["id"], int) and row["decided"] >= 0
+                  for row in numbers["per_desk"]), True)
+    check("one counter never counts more than the whole office",
+          all(row["served"] <= numbers["totals"]["served"]
+              for row in numbers["per_desk"]), True)
+
+    status, one_day = call("GET", "/api/auth/stats?days=1", opener=admin)
+    check("a period narrows the figures", (status, one_day["window"]["days"]), (200, 1))
+    check("a one-day period is drawn as one day", len(one_day["per_day"]), 1)
+    check("the chart and the totals count the same tickets",
+          one_day["per_day"][0]["issued"], one_day["totals"]["issued"])
+
+    letter = numbers["per_service"][0]["letter"]
+    status, narrowed = call("GET", "/api/auth/stats?service=%s" % letter, opener=admin)
+    check("a waiting list narrows the figures",
+          (status, narrowed["filter"]["service"]), (200, letter))
+    check("the narrowed totals are that waiting list's own",
+          narrowed["totals"]["issued"],
+          next(row["issued"] for row in numbers["per_service"]
+               if row["letter"] == letter))
+    check("narrowing to a waiting list narrows its counters too",
+          sorted(row["letter"] for row in narrowed["per_desk"]), [letter])
+
+    status, fallback = call("GET", "/api/auth/stats?days=abc", opener=admin)
+    check("an unreadable period counts everything rather than failing",
+          (status, fallback["window"]["days"]), (200, None))
+
     with admin.open(urllib.request.Request(BASE + "/api/auth/tickets.csv")) as response:
         export = response.read().decode()
         export_type = response.headers.get("Content-Type", "")

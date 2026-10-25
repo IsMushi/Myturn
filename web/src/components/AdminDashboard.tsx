@@ -109,7 +109,7 @@ export function AdminDashboard() {
           value={totals ? String(totals.totals.served) : "—"}
           note={
             totals
-              ? `${totals.totals.issued} issued · ${totals.totals.no_show_percent}% no-shows`
+              ? `${totals.totals.issued} issued · ${totals.totals.no_show_percent}% of decided missed`
               : "counting…"
           }
         />

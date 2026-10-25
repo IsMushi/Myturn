@@ -145,7 +145,7 @@ The occupancy side, which the PIR has no part in.
 
 | Constant | Where | Value | What it does |
 |---|---|---|---|
-| `OCCUPIED_CM` | `config.h` | 100.0 | The median distance below which the service point is occupied. A person at the service point is about 40-70 cm |
+| `OCCUPIED_CM` | `config.h` | 50.0 | The median distance below which the service point is occupied. A person at the service point is about 40-70 cm |
 | `MIN_CM` | `config.h` | 12.0 | Below this the module is ringing, not a person. Those readings are ignored |
 | `MAX_CM` | `config.h` | 400.0 | Beyond this the module's own timeout pulse means "nothing in range" |
 | `MEASURE_GAP_MS` | `config.h` | 250 | How often a measurement is taken |

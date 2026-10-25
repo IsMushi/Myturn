@@ -52,7 +52,7 @@ export const resetSchema = z
     path: ["confirm_password"],
   });
 
-export const inviteSchema = z.object({ email: emailField });
+export const inviteSchema = z.object({ email: emailField, desk_id: z.string().optional() });
 
 /** The shared classroom password: a name for the shift tally and the password. */
 export const sharedPasswordSchema = z.object({

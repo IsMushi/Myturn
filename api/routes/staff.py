@@ -54,8 +54,13 @@ def _desk_id(conn):
 
     The dashboard sends the chosen counter; a command line or an older client
     that sends nothing gets the first counter, which is what the single-desk
-    prototype used to be.
+    prototype used to be. A staff member pinned to one desk may only work that
+    desk, so any other choice is refused.
     """
+    from security import current_user as _cu
+    user = _cu()
+    assigned = user.get("desk_id") if isinstance(user, dict) else None
+
     data = request.get_json(silent=True) or {}
     raw = data.get("desk", request.args.get("desk"))
     if raw not in (None, ""):
@@ -63,8 +68,16 @@ def _desk_id(conn):
             wanted = int(raw)
         except (TypeError, ValueError):
             return None
+        if assigned is not None and wanted != assigned:
+            return None
         row = conn.execute(
             "select desk_id from desks where desk_id = ?", (wanted,)
+        ).fetchone()
+        return row["desk_id"] if row is not None else None
+
+    if assigned is not None:
+        row = conn.execute(
+            "select desk_id from desks where desk_id = ? and is_active = 1", (assigned,)
         ).fetchone()
         return row["desk_id"] if row is not None else None
 
@@ -812,6 +825,20 @@ def ticket_action(ticket_id):
             return jsonify(error="that ticket is not being called"), 409
 
         outcome = ACTIONS[action]
+        # A ticket skipped (no-show) is a missed call: remember it so the wall
+        # display can flash it in red before it drops out of "Now serving".
+        if outcome == "skipped":
+            try:
+                info = conn.execute(
+                    "select t.ticket_no, s.letter from tickets t "
+                    "join services s on s.service_id = t.service_id "
+                    "where t.ticket_id = ?", (ticket_id,),
+                ).fetchone()
+                if info is not None:
+                    from queue_rules import record_missed
+                    record_missed(ticket_label(info["letter"], info["ticket_no"]))
+            except Exception:
+                pass
         conn.execute(
             "update tickets set status = ?, closed_at = ? where ticket_id = ?",
             (outcome, now(), ticket_id),

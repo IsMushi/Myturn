@@ -50,7 +50,7 @@ export function clockTime(iso: string | null | undefined): string {
   if (!iso) return "—";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleTimeString([], {
+  return date.toLocaleTimeString("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
     timeZone: TIME_ZONE,
@@ -62,7 +62,7 @@ export function calendarDate(iso: string | null | undefined): string {
   if (!iso) return "—";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString([], { timeZone: TIME_ZONE });
+  return date.toLocaleDateString("en-GB", { timeZone: TIME_ZONE });
 }
 
 /** A date and a time of day, for the moments a person has to place. */
@@ -70,7 +70,7 @@ export function fullTimestamp(iso: string | null | undefined): string {
   if (!iso) return "—";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleString([], { timeZone: TIME_ZONE });
+  return date.toLocaleString("en-GB", { timeZone: TIME_ZONE });
 }
 
 /**

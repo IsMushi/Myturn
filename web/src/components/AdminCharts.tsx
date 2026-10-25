@@ -15,10 +15,11 @@
  * leaves those readers out.
  */
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -152,7 +153,7 @@ function EmptyChart({
  * of a working day is not silently cropped. The busiest hour is the only bar in
  * the darkest green: it is the one fact the chart exists to show.
  */
-export function HourlyTicketsChart({ hours }: { hours: HourPoint[] }) {
+export function HourlyTicketsChart({ hours, scope }: { hours: HourPoint[]; scope?: string }) {
   const rows = Array.from({ length: 24 }, (_, hour) => ({
     hour,
     issued: hours.find((point) => point.hour === hour)?.issued ?? 0,
@@ -168,7 +169,7 @@ export function HourlyTicketsChart({ hours }: { hours: HourPoint[] }) {
         Busiest hours
       </h2>
       <p className="mt-1 text-xs leading-relaxed text-medium-green">
-        Every ticket, counted by the hour of the Kigali day it was taken.
+        {scope ?? "Every ticket, counted by the hour of the Kigali day it was taken."}
       </p>
 
       {total === 0 ? (
@@ -189,7 +190,13 @@ export function HourlyTicketsChart({ hours }: { hours: HourPoint[] }) {
             }
           >
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={rows} margin={{ top: 8, right: 4, bottom: 0, left: -4 }}>
+              <AreaChart data={rows} margin={{ top: 8, right: 4, bottom: 0, left: -4 }}>
+                <defs>
+                  <linearGradient id="hourFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={INK} stopOpacity={0.5} />
+                    <stop offset="100%" stopColor={INK} stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid stroke={LINE} strokeDasharray="3 4" vertical={false} />
                 <XAxis
                   dataKey="hour"
@@ -207,7 +214,7 @@ export function HourlyTicketsChart({ hours }: { hours: HourPoint[] }) {
                   width={34}
                 />
                 <Tooltip
-                  cursor={{ fill: MINT }}
+                  cursor={{ stroke: GREEN, strokeWidth: 1, strokeDasharray: "3 3" }}
                   content={({ active, payload, label }) => {
                     if (!active || !payload?.length) return null;
                     return (
@@ -224,12 +231,18 @@ export function HourlyTicketsChart({ hours }: { hours: HourPoint[] }) {
                     );
                   }}
                 />
-                <Bar dataKey="issued" name="Tickets" radius={[4, 4, 0, 0]} isAnimationActive={false}>
-                  {rows.map((row) => (
-                    <Cell key={row.hour} fill={busiest?.hour === row.hour ? INK : GREEN} />
-                  ))}
-                </Bar>
-              </BarChart>
+                <Area
+                  type="monotone"
+                  dataKey="issued"
+                  name="Tickets"
+                  stroke={INK}
+                  strokeWidth={2}
+                  fill="url(#hourFill)"
+                  isAnimationActive={false}
+                  dot={{ r: 2.5, fill: INK, strokeWidth: 0 }}
+                  activeDot={{ r: 5, fill: INK, stroke: "#ffffff", strokeWidth: 2 }}
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
 
@@ -259,24 +272,51 @@ export function HourlyTicketsChart({ hours }: { hours: HourPoint[] }) {
 }
 
 /**
- * Tickets issued and served for each of the most recent days that had any.
+ * Tickets issued and served, day by day.
  *
- * Issued and served sit side by side rather than one on top of the other: the
- * gap between them is the part of the day the desk did not get to, and a
- * stacked bar would hide it.
+ * Two bars side by side rather than one on top of the other: the gap between
+ * them is the part of the day the desk did not get to, and stacking would hide
+ * exactly the thing the chart exists to show. A day with no ticket is still
+ * drawn, at zero, when a period is chosen — a gap in the line is information,
+ * and dropping it would silently close the office for a quiet day.
+ *
+ * The chart is a bar chart of the days it is given. It used to be a two-slice
+ * ring of the two totals, which answered "how many" a second time and never
+ * answered "on which day".
  */
-export function DailyTicketsChart({ perDay }: { perDay: DayPoint[] }) {
+export function DailyTicketsChart({
+  perDay,
+  scope,
+}: {
+  perDay: DayPoint[];
+  /** What the days cover, in the page's own words. */
+  scope?: string;
+}) {
+  const issued = perDay.reduce((sum, day) => sum + day.issued, 0);
+  const served = perDay.reduce((sum, day) => sum + day.served, 0);
   const busiest = perDay.reduce((best, day) => Math.max(best, day.issued), 0);
+  // A month of days under one another does not fit under a chart; every other
+  // tick keeps the labels readable without dropping the first or the last.
+  const tickGap = Math.max(0, Math.ceil(perDay.length / 8) - 1);
 
   return (
     <section aria-labelledby="daily-tickets-heading" className="rounded-2xl bg-white p-5">
-      <h2 id="daily-tickets-heading" className="text-sm font-semibold text-deep-green">
-        Tickets per day
-      </h2>
-      <p className="mt-1 text-xs leading-relaxed text-medium-green">
-        The fourteen most recent days that had tickets, at most. Days without a ticket are not
-        drawn.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 id="daily-tickets-heading" className="text-sm font-semibold text-deep-green">
+            Tickets per day
+          </h2>
+          <p className="mt-1 text-xs leading-relaxed text-medium-green">
+            {scope ?? "Issued and served, day by day."}
+          </p>
+        </div>
+        {perDay.length > 0 && (
+          <p className="text-xs tabular-nums text-medium-green">
+            <span className="font-semibold text-deep-green">{served}</span> of{" "}
+            <span className="font-semibold text-deep-green">{issued}</span> served
+          </p>
+        )}
+      </div>
 
       {perDay.length === 0 ? (
         <EmptyChart
@@ -289,18 +329,23 @@ export function DailyTicketsChart({ perDay }: { perDay: DayPoint[] }) {
           <div
             className="mt-4 h-52"
             role="img"
-            aria-label={`Tickets issued and served per day for ${perDay.length} ${perDay.length === 1 ? "day" : "days"}. The busiest day issued ${busiest}.`}
+            aria-label={`Tickets issued and served across ${perDay.length} ${perDay.length === 1 ? "day" : "days"}. ${issued} issued, ${served} served, busiest day ${busiest}.`}
           >
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={perDay} margin={{ top: 8, right: 4, bottom: 0, left: -4 }} barGap={2}>
+              <BarChart
+                data={perDay}
+                margin={{ top: 8, right: 4, bottom: 0, left: -4 }}
+                barCategoryGap="22%"
+                barGap={2}
+              >
                 <CartesianGrid stroke={LINE} strokeDasharray="3 4" vertical={false} />
                 <XAxis
                   dataKey="day"
                   tickFormatter={shortDay}
+                  interval={tickGap}
                   tick={{ fontSize: 10, fill: GREEN }}
                   axisLine={{ stroke: LINE }}
                   tickLine={false}
-                  minTickGap={10}
                 />
                 <YAxis
                   allowDecimals={false}
@@ -313,22 +358,18 @@ export function DailyTicketsChart({ perDay }: { perDay: DayPoint[] }) {
                   cursor={{ fill: MINT }}
                   content={({ active, payload, label }) => {
                     if (!active || !payload?.length) return null;
+                    const row = payload[0]?.payload as DayPoint | undefined;
                     return (
                       <ChartTip
-                        label={String(label)}
+                        label={label === undefined ? "" : shortDay(String(label))}
                         rows={[
-                          { name: "Issued", value: Number(payload[0]?.value ?? 0), colour: LIME },
-                          {
-                            name: "Served",
-                            value: Number(payload[1]?.value ?? 0),
-                            colour: INK,
-                          },
+                          { name: "Issued", value: row?.issued ?? 0, colour: LIME },
+                          { name: "Served", value: row?.served ?? 0, colour: INK },
                         ]}
                       />
                     );
                   }}
                 />
-
                 <Bar
                   dataKey="issued"
                   name="Issued"
@@ -359,11 +400,7 @@ export function DailyTicketsChart({ perDay }: { perDay: DayPoint[] }) {
               Issued
             </span>
             <span className="flex items-center gap-1.5">
-              <span
-                className="size-2.5 rounded-sm"
-                style={{ background: INK }}
-                aria-hidden="true"
-              />
+              <span className="size-2.5 rounded-sm" style={{ background: INK }} aria-hidden="true" />
               Served
             </span>
           </div>

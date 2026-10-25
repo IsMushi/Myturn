@@ -11,6 +11,7 @@ import {
   MonitorPlay,
   ScrollText,
   Settings2,
+  Ticket,
   Users,
   X,
 } from "lucide-react";
@@ -84,6 +85,7 @@ const GROUPS: NavGroup[] = [
       { href: "/admin/team", label: "Team", icon: Users },
       { href: "/admin/activity", label: "Activity", icon: ScrollText },
       { href: "/admin/statistics", label: "Statistics", icon: ChartColumn },
+      { href: "/admin/tickets", label: "Tickets", icon: Ticket },
       { href: "/admin/board", label: "Board", icon: Cpu },
       { href: "/admin/settings", label: "Desk settings", icon: Settings2 },
     ],

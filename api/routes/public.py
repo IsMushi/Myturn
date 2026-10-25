@@ -6,7 +6,7 @@ screen shows every service, because one office may run several queues.
 from flask import Blueprint, jsonify
 
 from db import get_db
-from queue_rules import sweep_queue
+from queue_rules import recent_missed, sweep_queue
 from routes.visitor import service_info
 from util import now
 
@@ -67,6 +67,7 @@ def state_payload(conn):
         service_samples=first["service_samples"] if first else 0,
         server_time=now(),
         notice=_notice_cache,
+        missed=recent_missed(),
     )
 
 

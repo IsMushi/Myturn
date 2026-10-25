@@ -23,6 +23,7 @@ import type {
   Stats,
   TicketCreated,
   TicketSearch,
+  TicketsList,
   TicketState,
 } from "./types";
 
@@ -156,6 +157,9 @@ export const api = {
   giveUpTicket: (token: string) =>
     request<TicketState>(`/api/tickets/${encodeURIComponent(token)}/give-up`, { method: "POST" }),
 
+  postNotice: (message: string) =>
+    request<{ ok: boolean }>("/api/auth/notices", { method: "POST", body: { message } }),
+
   publicState: () => request<PublicState>("/api/public/state"),
 
   /**
@@ -246,14 +250,14 @@ export const api = {
   // ---- administrator ----------------------------------------------------
   accounts: () => request<AccountsListing>("/api/auth/users"),
 
-  invite: (email: string) =>
+  invite: (email: string, deskId?: number | null) =>
     request<{
       email: string;
       role: Role;
       replaced: boolean;
       expires_in_hours: number;
       register_path?: string;
-    }>("/api/auth/invitations", { method: "POST", body: { email, role: "staff" } }),
+    }>("/api/auth/invitations", { method: "POST", body: { email, role: "staff", desk_id: deskId ?? null } }),
 
   revokeInvitation: (invitationId: number) =>
     request<{ revoked: number; email: string }>(
@@ -379,11 +383,44 @@ export const api = {
   retireDevice: (deviceId: number) =>
     request<{ ok: boolean }>(`/api/auth/devices/${deviceId}`, { method: "DELETE" }),
 
-  stats: (service?: string) =>
-    request<Stats>(service ? `/api/auth/stats?service=${encodeURIComponent(service)}` : "/api/auth/stats"),
+  /**
+   * The office's figures. `service` narrows them to one waiting list, and the
+   * period narrows them to a stretch of Kigali days — empty means all of it.
+   */
+  stats: (options: {
+    service?: string;
+    days?: number | null;
+    from?: string;
+    to?: string;
+  } = {}) => {
+    const qs = new URLSearchParams();
+    if (options.service) qs.set("service", options.service);
+    // One period or the other: a custom range is more specific than a length, so
+    // it wins rather than being mixed into a range nobody asked for.
+    if (options.from && options.to) {
+      qs.set("from", options.from);
+      qs.set("to", options.to);
+    } else if (options.days) {
+      qs.set("days", String(options.days));
+    }
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return request<Stats>(`/api/auth/stats${suffix}`);
+  },
 
   /** The address the browser downloads the day's tickets from. */
   ticketsCsvUrl: "/api/auth/tickets.csv",
+
+  /** All tickets, paginated, with optional filters. */
+  ticketsList: (params?: { service?: string; status?: string; q?: string; limit?: number; offset?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.service) qs.set("service", params.service);
+    if (params?.status) qs.set("status", params.status);
+    if (params?.q) qs.set("q", params.q);
+    if (params?.limit) qs.set("limit", String(params.limit));
+    if (params?.offset) qs.set("offset", String(params.offset));
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return request<TicketsList>(`/api/auth/tickets${suffix}`);
+  },
 
   changePassword: (values: {
     current_password: string;

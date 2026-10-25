@@ -125,12 +125,17 @@ function LoadingDesk() {
 }
 
 function DeskPicker() {
+  const session = useSession();
+  const assignedDeskId = session.status === "in" ? session.session.user?.desk_id ?? null : null;
   const load = useCallback(() => api.desks(), []);
   const { data, error, refresh } = usePolling(load, 15000);
   useLiveRefresh(refresh, 10000);
-  const [picked, setPicked] = useState<number | null>(rememberedDesk);
+  const [picked, setPicked] = useState<number | null>(assignedDeskId ?? rememberedDesk);
   const desks = data?.desks ?? [];
-  const chosen = desks.find((desk) => desk.desk_id === picked) ?? desks[0];
+  const availableDesks = assignedDeskId
+    ? desks.filter((desk) => desk.desk_id === assignedDeskId)
+    : desks;
+  const chosen = availableDesks.find((desk) => desk.desk_id === picked) ?? availableDesks[0] ?? desks[0];
 
   if (!chosen) {
     if (!data && !error) return <LoadingDesk />;
@@ -231,6 +236,7 @@ function DeskHeader({ deskId, desks, onPick, refresh, pending, disabled = false,
           </DialogContent>
         </Dialog>
 
+        {desks.length > 1 && (
         <div className="staff-desk-picker">
           <label htmlFor="desk-picker">Working at</label>
           <Select id="desk-picker" value={String(deskId)} disabled={disabled}
@@ -242,6 +248,7 @@ function DeskHeader({ deskId, desks, onPick, refresh, pending, disabled = false,
             ))}
           </Select>
         </div>
+        )}
       </div>
     </header>
   );

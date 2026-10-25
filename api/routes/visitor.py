@@ -157,7 +157,58 @@ def waiting_labels(conn, service_id, letter, before=None):
     return [ticket_label(letter, row["ticket_no"]) for row in conn.execute(sql, params)]
 
 
-def service_time(conn, service_id=None):
+# How many served tickets a service time rests on. Small on purpose: the office
+# changes pace through the day, and a week of history would describe a different
+# desk from the one the visitor is standing in front of.
+SERVICE_SAMPLE_LIMIT = 20
+
+
+def service_durations(conn, service_id=None, since=None, until=None, desk_id=None):
+    """The service times the pages measure, newest first, made plausible.
+
+    Called to closed, over the most recent completed tickets, with the ones that
+    cannot be right dropped rather than allowed to drag the mean: a short service
+    is real (the desk can close a ticket in the second it called it), a negative
+    one or one longer than a working day is not.
+
+    `since` / `until` are stored UTC timestamps that bound the tickets the office
+    *took*, not the ones it closed, so every figure on a period-scoped page
+    describes the same set of visitors. Both are optional, and a caller that
+    passes neither gets the whole history, which is what the visitor page and the
+    desk use to estimate the next wait.
+    """
+    sql = (
+        "select called_at, closed_at from tickets t "
+        "where status = 'completed' and called_at is not null and closed_at is not null "
+    )
+    params = []
+    if service_id is not None:
+        sql += "and t.service_id = ? "
+        params.append(service_id)
+    if desk_id is not None:
+        sql += "and t.desk_id = ? "
+        params.append(desk_id)
+    if since is not None:
+        sql += "and t.created_at >= ? "
+        params.append(since)
+    if until is not None:
+        sql += "and t.created_at < ? "
+        params.append(until)
+    sql += "order by t.closed_at desc limit ?"
+    params.append(SERVICE_SAMPLE_LIMIT)
+
+    durations = []
+    for row in conn.execute(sql, params):
+        called, closed = parse(row["called_at"]), parse(row["closed_at"])
+        if called is None or closed is None:
+            continue
+        seconds = (closed - called).total_seconds()
+        if 0 <= seconds <= LONGEST_SERVICE_SECONDS:
+            durations.append(seconds)
+    return durations
+
+
+def service_time(conn, service_id=None, since=None, until=None, desk_id=None):
     """How long one service usually takes, and how many tickets say so.
 
     Measured from the moment a ticket was called to the moment it was closed,
@@ -165,29 +216,7 @@ def service_time(conn, service_id=None):
     enough history for the number to mean anything, which is what the interface
     needs in order to say "not available" instead of guessing.
     """
-    sql = (
-        "select called_at, closed_at from tickets "
-        "where status = 'completed' and called_at is not null and closed_at is not null "
-    )
-    params = ()
-    if service_id is not None:
-        sql += "and service_id = ? "
-        params = (service_id,)
-    sql += "order by closed_at desc limit 20"
-
-    rows = conn.execute(sql, params).fetchall()
-
-    durations = []
-    for row in rows:
-        called, closed = parse(row["called_at"]), parse(row["closed_at"])
-        if called is None or closed is None:
-            continue
-        seconds = (closed - called).total_seconds()
-        # A short service is a real service: the desk can finish a ticket in the
-        # same second it called it, and counting only the long ones would make
-        # the average read far higher than the desk really is.
-        if 0 <= seconds <= LONGEST_SERVICE_SECONDS:
-            durations.append(seconds)
+    durations = service_durations(conn, service_id, since, until, desk_id)
 
     if len(durations) < current_app.config["ETA_MIN_SAMPLES"]:
         return None, len(durations)
@@ -433,6 +462,8 @@ def ticket_state(token):
     payload = ticket_payload(get_db(), token)
     if payload is None:
         return jsonify(error="unknown ticket"), 404
+    payload = dict(payload)
+    payload["access_token"] = token
     return jsonify(payload)
 
 

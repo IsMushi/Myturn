@@ -14,13 +14,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Alert, Field, TextInput } from "@/components/ui/Field";
+import { Alert, Field, Select, SelectItem, TextInput, inputClass } from "@/components/ui/Field";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { api } from "@/lib/api";
 import { calendarDate, clockTime, fullTimestamp, plural } from "@/lib/format";
 import { focusFirstError } from "@/lib/forms";
 import type { AccountWork } from "@/lib/types";
 import { usePolling } from "@/lib/usePolling";
+import { toast } from "sonner";
 import { announceSessionChange, useSession } from "@/lib/useSession";
 import { changePasswordSchema, type ChangePasswordValues } from "@/lib/validation";
 import { z } from "zod";
@@ -308,10 +309,6 @@ function WorkHistory({
 
 export function AccountSettings() {
   const session = useSession();
-  const [done, setDone] = useState<string | null>(null);
-  const [failure, setFailure] = useState<string | null>(null);
-  const [nameDone, setNameDone] = useState<string | null>(null);
-  const [nameFailure, setNameFailure] = useState<string | null>(null);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [historyQuery, setHistoryQuery] = useState("");
@@ -369,22 +366,17 @@ export function AccountSettings() {
   );
 
   async function submit(values: ChangePasswordValues) {
-    setDone(null);
-    setFailure(null);
     try {
       const result = await api.changePassword(values);
       form.reset();
-      setFailure(null);
-      setDone(result.message);
       setPasswordOpen(false);
+      toast.success(result.message, { id: "password-change" });
     } catch (e) {
-      setFailure(e instanceof Error ? e.message : "The password could not be changed");
+      toast.error(e instanceof Error ? e.message : "The password could not be changed", { id: "password-change" });
     }
   }
 
   async function saveName(values: NameValues) {
-    setNameDone(null);
-    setNameFailure(null);
     try {
       const payload: { full_name: string; email?: string; current_password?: string } = {
         full_name: values.full_name,
@@ -395,10 +387,10 @@ export function AccountSettings() {
       }
       const result = await api.updateProfile(payload);
       nameForm.reset({ full_name: result.user.full_name, email: result.user.email, current_password: "" });
-      setNameDone(result.message);
+      toast.success(result.message, { id: "profile" });
       announceSessionChange();
     } catch (e) {
-      setNameFailure(e instanceof Error ? e.message : "The name could not be changed");
+      toast.error(e instanceof Error ? e.message : "The profile could not be changed", { id: "profile" });
     }
   }
 
@@ -564,16 +556,7 @@ export function AccountSettings() {
               </a>
             </p>
           )}
-          {nameDone && (
-            <div className="mt-3 max-w-md">
-              <Alert tone="success">{nameDone}</Alert>
-            </div>
-          )}
-          {nameFailure && (
-            <div className="mt-3 max-w-md">
-              <Alert tone="error" focus>{nameFailure}</Alert>
-            </div>
-          )}
+
         </section>
       )}
 
@@ -647,18 +630,19 @@ export function AccountSettings() {
                 className="min-w-0 flex-1 rounded-full border border-line bg-white px-4 py-2 text-sm text-deep-green placeholder:text-medium-green/60 focus:outline-none focus:ring-2 focus:ring-deep-green/30"
                 aria-label="Search account history"
               />
-              <select
+              <Select
+                id="history-filter"
                 value={historyFilter}
-                onChange={(e) => { setHistoryFilter(e.target.value); setHistoryPage(1); }}
-                className="rounded-full border border-line bg-white px-3 py-2 text-sm text-deep-green focus:outline-none focus:ring-2 focus:ring-deep-green/30"
+                onValueChange={(v) => { setHistoryFilter(v); setHistoryPage(1); }}
+                className={inputClass}
                 aria-label="Filter by event type"
               >
                 {historyEventTypes.map((type) => (
-                  <option key={type} value={type}>
+                  <SelectItem key={type} value={type}>
                     {type === "all" ? "All events" : spoken(type, ACCOUNT_EVENTS)}
-                  </option>
+                  </SelectItem>
                 ))}
-              </select>
+              </Select>
               <button
                 type="button"
                 onClick={() => setHistorySort((s) => (s === "newest" ? "oldest" : "newest"))}
@@ -667,16 +651,17 @@ export function AccountSettings() {
               >
                 {historySort === "newest" ? "Newest first" : "Oldest first"}
               </button>
-              <select
-                value={historyPageSize}
-                onChange={(e) => { setHistoryPageSize(Number(e.target.value)); setHistoryPage(1); }}
-                className="rounded-full border border-line bg-white px-3 py-2 text-sm text-deep-green focus:outline-none focus:ring-2 focus:ring-deep-green/30"
+              <Select
+                id="history-page-size"
+                value={String(historyPageSize)}
+                onValueChange={(v) => { setHistoryPageSize(Number(v)); setHistoryPage(1); }}
+                className={inputClass}
                 aria-label="Rows per page"
               >
                 {[10, 25, 50].map((n) => (
-                  <option key={n} value={n}>{n} rows</option>
+                  <SelectItem key={n} value={String(n)}>{n} rows</SelectItem>
                 ))}
-              </select>
+              </Select>
             </div>
 
             {filteredHistory.length === 0 ? (
@@ -787,8 +772,6 @@ export function AccountSettings() {
           <Button
             type="button"
             onClick={() => {
-              setDone(null);
-              setFailure(null);
               setPasswordOpen(true);
             }}
           >
@@ -797,19 +780,12 @@ export function AccountSettings() {
           </Button>
         </div>
 
-        {done && (
-          <div className="mt-4 max-w-md">
-            <Alert tone="success">{done}</Alert>
-          </div>
-        )}
-
         <Dialog
           open={passwordOpen}
           onOpenChange={(open) => {
             setPasswordOpen(open);
             if (!open) {
               form.reset();
-              setFailure(null);
             }
           }}
         >
@@ -872,7 +848,6 @@ export function AccountSettings() {
                 />
               </Field>
 
-              {failure && <Alert tone="error" focus>{failure}</Alert>}
 
               <DialogFooter>
                 <Button type="button" variant="quiet" onClick={() => setPasswordOpen(false)}>

@@ -50,8 +50,10 @@ export function ActiveTicketDisplay({ calls, serverTime, offline = false }: {
               <div className="myturn-display-arrival" data-ended={remaining === 0}>
                 {offline ? <p>Timer unavailable while disconnected</p> : remaining === null ? <p>Arrival time unavailable</p> : (
                   <>
-                    <span role="timer" aria-live="off" aria-label={`Arrival countdown for ${call.label}`} className="myturn-display-arrival-seconds">{remaining}s</span>
-                    <p>{remaining === 0 ? "Arrival window ended" : "Time to reach your service point"}</p>
+                    {remaining > 0 && (
+                      <span role="timer" aria-live="off" aria-label={`Arrival countdown for ${call.label}`} className="myturn-display-arrival-seconds">{remaining}s</span>
+                    )}
+                    <p>{remaining === 0 ? "Missed — requeued with a new number" : "Time to reach your service point"}</p>
                   </>
                 )}
               </div>

@@ -160,6 +160,12 @@ def _migrate_queue(conn, desk_name, desk_description):
     if "mac_address" not in _column_names(conn, "devices"):
         conn.execute("alter table devices add column mac_address text")
 
+    # A staff member may be assigned to one desk. Null means any desk.
+    if "desk_id" not in _column_names(conn, "users"):
+        conn.execute("alter table users add column desk_id integer references desks (desk_id)")
+    if "desk_id" not in _column_names(conn, "invitations"):
+        conn.execute("alter table invitations add column desk_id integer references desks (desk_id)")
+
     _ensure_desk_states(conn)
     _sync_ticket_numbers(conn)
 

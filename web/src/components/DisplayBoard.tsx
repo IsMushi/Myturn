@@ -121,6 +121,16 @@ export function DisplayBoard() {
                 .map((service) => service.id)
               }
             />
+            {data.missed && data.missed.length > 0 && (
+              <div className="myturn-display-missed" role="status" aria-live="polite">
+                <span className="myturn-display-missed-label">Missed</span>
+                <div className="myturn-display-missed-numbers">
+                  {data.missed.map((label) => (
+                    <span key={label} className="myturn-display-missed-number">{label}</span>
+                  ))}
+                </div>
+              </div>
+            )}
             <DisplayBookingPanel />
           </div>
         </>

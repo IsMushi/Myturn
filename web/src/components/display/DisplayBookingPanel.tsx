@@ -68,7 +68,18 @@ export function DisplayBookingPanel({ loading = false }: { loading?: boolean }) 
           <div className="myturn-display-qr-frame myturn-display-qr-loading" aria-hidden="true" />
         )}
         <p className="myturn-display-booking-url">
-          <span>{!loading && bookingUrl ? bookingUrl.replace(/^https?:\/\//, "") : "Preparing the code…"}</span>
+          {!loading && bookingUrl ? (
+            <a
+              href={bookingUrl}
+              className="myturn-display-booking-link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {bookingUrl.replace(/^https?:\/\//, "")}
+            </a>
+          ) : (
+            <span>Preparing the code…</span>
+          )}
         </p>
       </div>
 

@@ -113,6 +113,7 @@ create table if not exists users (
     email         text    collate nocase not null unique,
     password_hash text    not null,
     role          text    not null check (role in ('admin', 'staff')),
+    desk_id       integer references desks (desk_id),
     is_active     integer not null default 1,
     created_at    text    not null,
     last_login_at text
@@ -122,6 +123,7 @@ create table if not exists invitations (
     invitation_id integer primary key autoincrement,
     email         text    collate nocase not null,
     role          text    not null check (role in ('staff', 'admin')),
+    desk_id       integer references desks (desk_id),
     token_hash    text    not null unique,
     invited_by    text    not null,
     created_at    text    not null,

@@ -18,7 +18,36 @@ from flask import current_app
 
 from broadcast import signal
 from journal import log_event
-from util import seconds_since
+from util import now, seconds_since
+
+
+# A short-lived record of numbers that were called but not answered. The wall
+# display reads this so a missed number can flash red before it drops out of
+# "Now serving". Kept in process memory, like the notice cache.
+_MISSED_WINDOW = 10
+_missed: list = []
+
+
+def record_missed(label):
+    """Remember a missed number for a short time so the display can show it."""
+    _missed.append({"label": label, "at": now()})
+    # Prune entries older than the window.
+    cutoff = None
+    try:
+        from util import seconds_since
+        _missed[:] = [m for m in _missed if (seconds_since(m["at"]) or 9999) <= _MISSED_WINDOW]
+    except Exception:
+        pass
+
+
+def recent_missed():
+    """Labels missed within the last few seconds."""
+    try:
+        from util import seconds_since
+        return [m["label"] for m in _missed
+                if (seconds_since(m["at"]) or 9999) <= _MISSED_WINDOW]
+    except Exception:
+        return []
 
 
 def counter_occupied(conn, desk_id, apply_obstruction=True):
@@ -190,6 +219,7 @@ def requeue(conn, called, detail):
     # says which number was given up as well as which one was issued. The page
     # reads that back to explain a number that changed under the visitor.
     previous = "%s%03d" % (row["letter"], called["ticket_no"])
+    record_missed(previous)
     conn.execute(
         "update tickets set ticket_no = ?, status = 'waiting', called_at = null, "
         "desk_id = null where ticket_id = ?",

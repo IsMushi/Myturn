@@ -4,6 +4,8 @@ A visitor never needs any of this. These routes exist so a staff member signs in
 as a person and an administrator can invite the next one, instead of everybody
 sharing one password that cannot be traced and cannot be taken back.
 """
+from datetime import date, datetime, time, timedelta, timezone
+
 from flask import Blueprint, current_app, jsonify, request, session
 
 from broadcast import signal
@@ -12,6 +14,7 @@ from routes.visitor import (
     LONGEST_SERVICE_SECONDS,
     desk_state,
     service_by_key,
+    service_durations,
     service_state,
     service_time,
     ticket_label,
@@ -33,7 +36,17 @@ from security import (
     token_digest,
     verify_password,
 )
-from util import is_future, local_iso, local_sql, now, parse, seconds_since, soon
+from util import (
+    KIGALI,
+    is_future,
+    local_date,
+    local_iso,
+    local_sql,
+    now,
+    parse,
+    seconds_since,
+    soon,
+)
 
 bp = Blueprint("auth", __name__)
 
@@ -50,6 +63,7 @@ def public_user(row):
         "full_name": row["full_name"],
         "email": row["email"],
         "role": row["role"],
+        "desk_id": row["desk_id"],
         "is_active": bool(row["is_active"]),
         "created_at": row["created_at"],
         "last_login_at": row["last_login_at"],
@@ -469,9 +483,9 @@ def register():
     conn.execute("begin immediate")
     try:
         cursor = conn.execute(
-            "insert into users (full_name, email, password_hash, role, created_at) "
-            "values (?, ?, ?, ?, ?)",
-            (full_name, row["email"], hash_password(data["password"]), role, now()),
+            "insert into users (full_name, email, password_hash, role, desk_id, created_at) "
+            "values (?, ?, ?, ?, ?, ?)",
+            (full_name, row["email"], hash_password(data["password"]), role, row["desk_id"], now()),
         )
         conn.execute(
             "update invitations set accepted_at = ? where invitation_id = ?",
@@ -624,7 +638,7 @@ def list_users():
         "select * from users order by role, full_name"
     ).fetchall()
     pending = get_db().execute(
-        "select invitation_id, email, role, created_at, expires_at from invitations "
+        "select invitation_id, email, role, desk_id, created_at, expires_at from invitations "
         "where accepted_at is null order by created_at desc"
     ).fetchall()
     return jsonify(
@@ -650,6 +664,21 @@ def create_invitation():
                   "administrator rights are granted inside the application"
         ), 400
 
+    # An invitation may pin the new staff member to one desk. Null means any.
+    desk_id = None
+    raw_desk = data.get("desk_id")
+    if raw_desk not in (None, ""):
+        try:
+            desk_id = int(raw_desk)
+        except (TypeError, ValueError):
+            return jsonify(error="unknown desk"), 400
+        exists = conn if False else None
+        desk_row = get_db().execute(
+            "select desk_id from desks where desk_id = ? and is_active = 1", (desk_id,)
+        ).fetchone()
+        if desk_row is None:
+            return jsonify(error="unknown desk"), 400
+
     conn = get_db()
     if find_user(conn, email) is not None:
         return jsonify(error="an account already exists for that address"), 409
@@ -664,9 +693,9 @@ def create_invitation():
     ).rowcount
 
     conn.execute(
-        "insert into invitations (email, role, token_hash, invited_by, created_at, expires_at) "
-        "values (?, 'staff', ?, ?, ?, ?)",
-        (email, token_digest(token), current_user()["email"], now(), soon(days * 60 * 60)),
+        "insert into invitations (email, role, desk_id, token_hash, invited_by, created_at, expires_at) "
+        "values (?, 'staff', ?, ?, ?, ?, ?)",
+        (email, desk_id, token_digest(token), current_user()["email"], now(), soon(days * 60 * 60)),
     )
     log_account_event(
         conn, "invitation replaced" if replaced else "invited", email,
@@ -1687,23 +1716,204 @@ def public_notices():
     return jsonify(notices=notices[-1:] if notices else [])
 
 
+# --- What the office left behind -------------------------------------------
+#
+# One definition of each distribution, in the order the page stacks it. Both are
+# fixed here rather than in the browser, so the shape of a chart does not move
+# when the data underneath it does, and so a band that nobody landed in is still
+# reported as a zero instead of quietly disappearing.
+
+SERVICE_BUCKETS = (
+    ("under 30 s", 0, 30),
+    ("30-60 s", 30, 60),
+    ("1-2 min", 60, 120),
+    ("2-5 min", 120, 300),
+    ("5 min or more", 300, None),
+)
+
+WAIT_BUCKETS = (
+    ("under 2 min", 0, 120),
+    ("2-5 min", 120, 300),
+    ("5-10 min", 300, 600),
+    ("10-20 min", 600, 1200),
+    ("20 min or more", 1200, None),
+)
+
+
+def _histogram(durations, buckets):
+    """How many measurements fall in each band, the empty bands included."""
+    return [
+        {
+            "label": label,
+            "count": sum(
+                1
+                for seconds in durations
+                if seconds >= low and (high is None or seconds < high)
+            ),
+        }
+        for label, low, high in buckets
+    ]
+
+
+def _median(values):
+    """The middle measurement of a sorted list, or None when there is none."""
+    return values[len(values) // 2] if values else None
+
+
+def _share(part, whole):
+    """A percentage that counts nothing rather than dividing by zero."""
+    return round(part * 100 / whole) if whole else 0
+
+
+def _kigali_day_start(day):
+    """The instant a Kigali calendar day begins, in the UTC the rows carry."""
+    midnight = datetime.combine(day, time.min, tzinfo=KIGALI)
+    return midnight.astimezone(timezone.utc).isoformat(timespec="seconds")
+
+
+def stats_period():
+    """The period the statistics count, and the days it covers as a person reads them.
+
+    Three shapes, in the order the page offers them: an explicit `from`/`to` pair
+    of Kigali days, `days` for "the last N days, today included", or neither for
+    the whole history. The boundaries are the office's midnights, because a day of
+    this office is a Kigali day, and they are turned into UTC before they meet a
+    stored timestamp. An unreadable or absurd period is treated as no period at
+    all rather than as an error, so a hand-edited address still shows a page.
+    """
+    today = local_date()
+    first = (request.args.get("from") or "").strip()
+    last = (request.args.get("to") or "").strip()
+    days = (request.args.get("days") or "").strip()
+
+    if first and last:
+        try:
+            start, end = date.fromisoformat(first), date.fromisoformat(last)
+        except ValueError:
+            start = end = None
+        if start is not None and end is not None:
+            if end < start:
+                start, end = end, start
+            # Longer than a year is a mistake rather than a request.
+            if (end - start).days <= 366:
+                return (
+                    _kigali_day_start(start),
+                    _kigali_day_start(end + timedelta(days=1)),
+                    {
+                        "from": start.isoformat(),
+                        "to": end.isoformat(),
+                        "days": (end - start).days + 1,
+                    },
+                )
+
+    if days.isdigit() and int(days) > 0:
+        length = min(int(days), 366)
+        start = today - timedelta(days=length - 1)
+        return (
+            _kigali_day_start(start),
+            _kigali_day_start(today + timedelta(days=1)),
+            {"from": start.isoformat(), "to": today.isoformat(), "days": length},
+        )
+
+    return None, None, {"from": None, "to": None, "days": None}
+
+
+def _stats_where(service_id=None, since=None, until=None, desk_id=None):
+    """The SQL that narrows every count on the page to the same set of tickets.
+
+    One filter, used by every query below, is what keeps the totals, the
+    distribution and the per-service rows describing the same visitors. A page
+    whose figures are counted over different sets is a page that cannot be read.
+    """
+    clauses, params = [], []
+    if service_id is not None:
+        clauses.append("t.service_id = ?")
+        params.append(service_id)
+    if desk_id is not None:
+        clauses.append("t.desk_id = ?")
+        params.append(desk_id)
+    if since is not None:
+        clauses.append("t.created_at >= ?")
+        params.append(since)
+    if until is not None:
+        clauses.append("t.created_at < ?")
+        params.append(until)
+    return (" where " + " and ".join(clauses)) if clauses else "", tuple(params)
+
+
+def _stats_and(service_id=None, since=None, until=None, desk_id=None):
+    """The same filter, for a query that already has a `where` of its own."""
+    where, params = _stats_where(service_id, since, until, desk_id)
+    return (where.replace(" where ", " and ", 1) if where else ""), params
+
+
+def wait_durations(conn, service_id=None, since=None, until=None, desk_id=None):
+    """How long visitors stood in line: from taking a number to being called.
+
+    A ticket that was called and not answered comes back with a fresh number and
+    no call of its own, so its wait is measured to the call that finally ended
+    it. That is what the visitor actually stood there for, missed turn included,
+    and it is the number the office is really promising when it speaks of a wait.
+    """
+    sql = "select created_at, called_at from tickets t where t.called_at is not null "
+    params = []
+    if service_id is not None:
+        sql += "and t.service_id = ? "
+        params.append(service_id)
+    if desk_id is not None:
+        sql += "and t.desk_id = ? "
+        params.append(desk_id)
+    if since is not None:
+        sql += "and t.created_at >= ? "
+        params.append(since)
+    if until is not None:
+        sql += "and t.created_at < ? "
+        params.append(until)
+
+    waited = []
+    for row in conn.execute(sql, params):
+        taken, called = parse(row["created_at"]), parse(row["called_at"])
+        if taken is None or called is None:
+            continue
+        seconds = (called - taken).total_seconds()
+        if 0 <= seconds <= LONGEST_SERVICE_SECONDS:
+            waited.append(seconds)
+    return waited
+
+
+def _measured(values):
+    """The mean of a set of measurements, withheld until it means something.
+
+    The same threshold the visitor page uses, for the same reason: below it the
+    number would be a guess dressed as a measurement, and the page says "not
+    available" instead.
+    """
+    if len(values) < current_app.config["ETA_MIN_SAMPLES"]:
+        return None
+    return round(sum(values) / len(values))
+
+
 @bp.get("/api/auth/stats")
 @role_required("admin")
 def stats():
     """What the office has done: issued, served, missed, and how long it took.
 
     Every number here is counted from rows the prototype already writes. Nothing
-    is estimated, and the service-time measurement is the same one the visitor
-    page shows, so the two can never disagree. `?service=A` narrows the page to
-    one queue; without it the figures are for the whole office.
+    is estimated, a share is taken over the tickets that have been decided rather
+    than over every ticket ever taken, and the service time is measured the way
+    the visitor page measures it, so the two cannot disagree.
+
+    `?service=A` narrows the page to one waiting list; `?days=7` or
+    `?from=&to=` narrows it to a period of Kigali days. Without either the
+    figures are the whole office over all of its history, and `window` says so.
     """
     conn = get_db()
     wanted = request.args.get("service")
     service = service_by_key(conn, wanted) if wanted not in (None, "") else None
     service_id = service["service_id"] if service is not None else None
 
-    where = " where t.service_id = ?" if service_id is not None else ""
-    params = (service_id,) if service_id is not None else ()
+    since, until, window = stats_period()
+    where, params = _stats_where(service_id, since, until)
 
     totals = conn.execute(
         "select count(*) as issued, "
@@ -1718,22 +1928,68 @@ def stats():
     issued = totals["issued"] or 0
     served = totals["served"] or 0
     no_shows = totals["no_shows"] or 0
+    cancelled = totals["cancelled"] or 0
+    waiting = totals["waiting"] or 0
 
-    per_day = [
-        {"day": row["day"], "issued": row["issued"], "served": row["served"] or 0}
+    # What the office has decided, as opposed to what is still standing in the
+    # line. Every share below is taken over this: counted over every ticket ever
+    # taken, the served rate would fall simply because more people arrived and
+    # were still waiting, which says nothing about the desk.
+    decided = served + no_shows + cancelled
+
+    # A turn that was given back is not a no-show — the visitor came back for it
+    # under a new number — so it is counted from the events rather than from a
+    # status that no longer shows it.
+    requeued_and, requeued_params = _stats_and(service_id, since, until)
+    requeued = conn.execute(
+        "select count(*) as c from ticket_events e "
+        "join tickets t on t.ticket_id = e.ticket_id "
+        "where e.event_type = 'requeued'" + requeued_and,
+        requeued_params,
+    ).fetchone()["c"]
+
+    counted = {
+        row["day"]: row
         for row in conn.execute(
             "select substr(" + local_sql("t.created_at") + ", 1, 10) as day, "
             "count(*) as issued, "
             "  sum(case when t.status = 'completed' then 1 else 0 end) as served "
-            "from tickets t" + where + " group by day order by day desc limit 14",
+            "from tickets t" + where + " group by day",
             params,
         )
-    ]
-    per_day.reverse()
+    }
 
-    # The hours of the Kigali day, not of the UTC one: the office opens at
-    # eight in the morning, and a chart that called that hour sixteen would be
-    # a chart of the night before.
+    if window["days"] is not None and window["days"] <= 62:
+        # A chosen period is drawn as it was, quiet days included: a gap in the
+        # line is information, and dropping it would silently close the office on
+        # a day that simply had no visitors.
+        per_day = []
+        day = date.fromisoformat(window["from"])
+        last_day = date.fromisoformat(window["to"])
+        while day <= last_day:
+            key = day.isoformat()
+            row = counted.get(key)
+            per_day.append(
+                {
+                    "day": key,
+                    "issued": row["issued"] if row else 0,
+                    "served": (row["served"] or 0) if row else 0,
+                }
+            )
+            day += timedelta(days=1)
+    else:
+        per_day = [
+            {
+                "day": key,
+                "issued": counted[key]["issued"],
+                "served": counted[key]["served"] or 0,
+            }
+            for key in sorted(counted)[-14:]
+        ]
+
+    # The hours of the Kigali day, not of the UTC one: the office opens at eight
+    # in the morning, and a chart that called that hour sixteen would be a chart
+    # of the night before.
     hours = [
         {"hour": int(row["hour"]), "issued": row["issued"]}
         for row in conn.execute(
@@ -1745,66 +2001,119 @@ def stats():
     ]
 
     # The distribution, not only the mean: a desk that serves most visitors in a
-    # minute and one visitor in ten is not described by its average.
-    durations = []
-    for row in conn.execute(
-        "select t.called_at, t.closed_at from tickets t "
-        "where t.status = 'completed' "
-        "and t.called_at is not null and t.closed_at is not null"
-        + (" and t.service_id = ?" if service_id is not None else ""),
-        params,
-    ):
-        called, closed = parse(row["called_at"]), parse(row["closed_at"])
-        if called is None or closed is None:
-            continue
-        seconds = (closed - called).total_seconds()
-        if 0 <= seconds <= LONGEST_SERVICE_SECONDS:
-            durations.append(seconds)
-
-    buckets = (
-        ("under 30 s", 0, 30),
-        ("30-60 s", 30, 60),
-        ("1-2 min", 60, 120),
-        ("2-5 min", 120, 300),
-        ("5 min or more", 300, None),
-    )
-    histogram = [
-        {
-            "label": label,
-            "count": sum(
-                1 for seconds in durations
-                if seconds >= low and (high is None or seconds < high)
-            ),
-        }
-        for label, low, high in buckets
-    ]
-
+    # minute and one visitor in ten is not described by its average. The average
+    # is the same function the visitor page calls, over the same served tickets,
+    # so the estimate the visitor is shown and the figure the office is shown
+    # come from one measurement.
+    durations = service_durations(conn, service_id, since, until)
+    average, samples = service_time(conn, service_id, since, until)
     ordered = sorted(durations)
-    average, samples = service_time(conn, service_id)
+
+    waited = wait_durations(conn, service_id, since, until)
+    ordered_waits = sorted(waited)
+    wait_average = _measured(waited)
+    average_service = average
+
+    # Time in the office is the two halves added up, and it is withheld unless
+    # both halves are known: half a journey presented as the whole is worse than
+    # no figure at all.
+    average_total = (
+        wait_average + average_service
+        if wait_average is not None and average_service is not None
+        else None
+    )
 
     # Each service's own figures, so the office page can compare queues without
     # six more requests.
     per_service = []
     for row in conn.execute("select * from services order by letter"):
+        own_where, own_params = _stats_where(row["service_id"], since, until)
         counts = conn.execute(
             "select count(*) as issued, "
-            "  sum(case when status = 'completed' then 1 else 0 end) as served, "
-            "  sum(case when status = 'waiting' then 1 else 0 end) as waiting "
-            "from tickets where service_id = ?",
-            (row["service_id"],),
+            "  sum(case when t.status = 'completed' then 1 else 0 end) as served, "
+            "  sum(case when t.status = 'skipped' then 1 else 0 end) as no_shows, "
+            "  sum(case when t.status = 'cancelled' then 1 else 0 end) as cancelled, "
+            "  sum(case when t.status = 'waiting' then 1 else 0 end) as waiting "
+            "from tickets t" + own_where,
+            own_params,
         ).fetchone()
-        measured, measured_samples = service_time(conn, row["service_id"])
-        per_service.append({
-            "id": row["letter"],
-            "letter": row["letter"],
-            "name": row["name"],
-            "is_active": bool(row["is_active"]),
-            "issued": counts["issued"] or 0,
-            "served": counts["served"] or 0,
-            "waiting": counts["waiting"] or 0,
-            "average_service_seconds": measured,
-            "service_samples": measured_samples,
-        })
+        own_served = counts["served"] or 0
+        own_decided = own_served + (counts["no_shows"] or 0) + (counts["cancelled"] or 0)
+        measured, measured_samples = service_time(conn, row["service_id"], since, until)
+        own_durations = service_durations(conn, row["service_id"], since, until)
+        own_target = row["target_seconds"]
+        own_waited = wait_durations(conn, row["service_id"], since, until)
+        per_service.append(
+            {
+                "id": row["letter"],
+                "letter": row["letter"],
+                "name": row["name"],
+                "is_active": bool(row["is_active"]),
+                "issued": counts["issued"] or 0,
+                "served": own_served,
+                "no_shows": counts["no_shows"] or 0,
+                "waiting": counts["waiting"] or 0,
+                "decided": own_decided,
+                "served_percent": _share(own_served, own_decided),
+                "no_show_percent": _share(counts["no_shows"] or 0, own_decided),
+                "average_wait_seconds": _measured(own_waited),
+                "wait_samples": len(own_waited),
+                "average_service_seconds": measured,
+                "service_samples": measured_samples,
+                "target_seconds": own_target,
+                "within_target_percent": (
+                    _share(
+                        sum(1 for seconds in own_durations if seconds <= own_target),
+                        len(own_durations),
+                    )
+                    if own_target is not None and own_durations
+                    else None
+                ),
+            }
+        )
+
+    # Each counter, because a counter is where a service actually happens. Two
+    # desks on one service can keep up and fall behind at the same time, and
+    # "the line is slow" is not something anybody can act on.
+    per_desk = []
+    for row in conn.execute(
+        "select d.desk_id, d.name, d.service_id, s.letter, s.name as service_name "
+        "from desks d join services s on s.service_id = d.service_id "
+        "order by s.letter, d.name"
+    ):
+        if service_id is not None and row["service_id"] != service_id:
+            continue
+        desk_where, desk_params = _stats_where(None, since, until, row["desk_id"])
+        counts = conn.execute(
+            "select count(*) as issued, "
+            "  sum(case when t.status = 'completed' then 1 else 0 end) as served, "
+            "  sum(case when t.status = 'skipped' then 1 else 0 end) as no_shows, "
+            "  sum(case when t.status = 'waiting' then 1 else 0 end) as waiting "
+            "from tickets t" + desk_where,
+            desk_params,
+        ).fetchone()
+        desk_served = counts["served"] or 0
+        desk_decided = desk_served + (counts["no_shows"] or 0)
+        measured, measured_samples = service_time(
+            conn, None, since, until, row["desk_id"]
+        )
+        desk_waited = wait_durations(conn, None, since, until, row["desk_id"])
+        per_desk.append(
+            {
+                "id": row["desk_id"],
+                "name": row["name"],
+                "letter": row["letter"],
+                "service_name": row["service_name"],
+                "issued": counts["issued"] or 0,
+                "served": desk_served,
+                "waiting": counts["waiting"] or 0,
+                "decided": desk_decided,
+                "average_wait_seconds": _measured(desk_waited),
+                "wait_samples": len(desk_waited),
+                "average_service_seconds": measured,
+                "service_samples": measured_samples,
+            }
+        )
 
     # The target is a promise the service makes about itself, so the page can say
     # how often it was kept over the same tickets it already measured.
@@ -1814,28 +2123,44 @@ def stats():
     target = profile["target_seconds"] if profile is not None else None
     within_target = None
     if target is not None and durations:
-        within_target = round(
-            sum(1 for seconds in durations if seconds <= target) * 100 / len(durations)
+        within_target = _share(
+            sum(1 for seconds in durations if seconds <= target), len(durations)
         )
 
     return jsonify(
+        window=window,
+        # What was asked for, so the page can tell whether the figures in front of
+        # it belong to the controls it is showing. The `service` below is the
+        # profile the targets describe; this is the filter that was applied.
+        filter={"service": service["letter"] if service is not None else None},
         totals={
             "issued": issued,
             "served": served,
             "no_shows": no_shows,
-            "cancelled": totals["cancelled"] or 0,
-            "waiting": totals["waiting"] or 0,
-            # Only over the tickets that were actually decided, so a queue that
-            # is still standing does not read as a rate of anything.
-            "no_show_percent": round(no_shows * 100 / issued) if issued else 0,
+            "cancelled": cancelled,
+            "waiting": waiting,
+            "decided": decided,
+            "requeued": requeued,
+            # Over the tickets that have been decided, never over every ticket
+            # ever taken: a growing line must not read as a falling rate.
+            "served_percent": _share(served, decided),
+            "no_show_percent": _share(no_shows, decided),
+        },
+        wait={
+            "average_seconds": wait_average,
+            "median_seconds": _median(ordered_waits),
+            "samples": len(waited),
+            "histogram": _histogram(waited, WAIT_BUCKETS),
+            "average_total_seconds": average_total,
         },
         per_day=per_day,
         hours=hours,
-        histogram=histogram,
-        median_service_seconds=ordered[len(ordered) // 2] if ordered else None,
+        histogram=_histogram(durations, SERVICE_BUCKETS),
+        median_service_seconds=_median(ordered),
         average_service_seconds=average,
         service_samples=samples,
         per_service=per_service,
+        per_desk=per_desk,
         desk_name=profile["name"] if profile is not None else "The office",
         service=(
             {"id": profile["letter"], "letter": profile["letter"], "name": profile["name"]}
@@ -1846,6 +2171,84 @@ def stats():
         within_target_percent=within_target,
         server_time=now(),
     )
+
+
+@bp.get("/api/auth/tickets")
+@role_required("admin")
+def list_tickets():
+    """Every ticket the office has issued, as JSON, for the admin portal."""
+    conn = get_db()
+    service = (request.args.get("service") or "").strip().upper() or None
+    status = (request.args.get("status") or "").strip().lower() or None
+    search = (request.args.get("q") or "").strip()
+    try:
+        limit = min(200, max(1, int(request.args.get("limit", 50))))
+    except (TypeError, ValueError):
+        limit = 50
+    try:
+        offset = max(0, int(request.args.get("offset", 0)))
+    except (TypeError, ValueError):
+        offset = 0
+
+    where = []
+    params = []
+    if service:
+        where.append("s.letter = ?")
+        params.append(service)
+    if status:
+        where.append("t.status = ?")
+        params.append(status)
+    if search:
+        where.append("(cast(t.ticket_no as text) like ? or t.contact like ?)")
+        params.extend(["%" + search + "%", "%" + search + "%"])
+    clause = (" where " + " and ".join(where)) if where else ""
+
+    rows = conn.execute(
+        "select t.ticket_id, t.ticket_no, s.letter, s.name as service_name, "
+        "       t.status, t.source, t.contact, t.created_at, t.called_at, "
+        "       t.closed_at, t.desk_id, d.name as desk_name "
+        "from tickets t join services s on s.service_id = t.service_id "
+        "left join desks d on d.desk_id = t.desk_id" + clause +
+        " order by t.created_at desc limit ? offset ?",
+        params + [limit, offset],
+    ).fetchall()
+
+    total = conn.execute(
+        "select count(*) as c from tickets t join services s on s.service_id = t.service_id" + clause,
+        params,
+    ).fetchone()["c"]
+
+    items = []
+    for row in rows:
+        called = row["called_at"]
+        closed = row["closed_at"]
+        seconds = None
+        if called and closed:
+            try:
+                from datetime import datetime
+                def _p(v):
+                    return datetime.fromisoformat(v.replace("Z", "+00:00"))
+                seconds = int((_p(closed) - _p(called)).total_seconds())
+            except Exception:
+                seconds = None
+        items.append({
+            "ticket_id": row["ticket_id"],
+            "ticket_no": row["ticket_no"],
+            "label": ticket_label(row["letter"], row["ticket_no"]),
+            "service": row["letter"],
+            "service_name": row["service_name"],
+            "status": row["status"],
+            "source": row["source"],
+            "contact": row["contact"],
+            "desk_id": row["desk_id"],
+            "desk_name": row["desk_name"],
+            "created_at": row["created_at"],
+            "called_at": row["called_at"],
+            "closed_at": row["closed_at"],
+            "service_seconds": seconds,
+        })
+
+    return jsonify(tickets=items, total=total, limit=limit, offset=offset)
 
 
 @bp.get("/api/auth/tickets.csv")
