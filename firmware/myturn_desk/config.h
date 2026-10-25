@@ -19,7 +19,7 @@ constexpr float         MAX_CM            = 400.0f;
 constexpr float         US_PER_CM         = 58.0f;
 constexpr unsigned long MAX_ECHO_US       = 23200;   // 400 cm; longer = "nothing in range"
 constexpr unsigned long PULSE_TIMEOUT_US  = 100000;  // measured: this module's "no object" pulse is ~70.6 ms
-constexpr float         OCCUPIED_CM       = 50.0f;
+constexpr float         OCCUPIED_CM       = 100.0f;
 constexpr uint8_t       SAMPLES           = 5;       // median window
 constexpr uint8_t       MIN_SAMPLES       = 3;       // need this many before trusting the median
 constexpr unsigned long MEASURE_GAP_MS    = 250;     // > the 70.6 ms no-object pulse; also gives the clone time to recover
@@ -34,10 +34,11 @@ constexpr unsigned long PIR_WARMUP_MS = 60000;
 constexpr unsigned long APPROACH_MS   = 10000;
 // The module's output flickers when somebody is standing at the counter, so
 // the pin is read as a duty cycle over a short window rather than as a
-// level. The window is samples taken every PIR_SAMPLE_MS, and enough
-// samples HIGH is taken as motion. Faster sampling/window for quicker
-// response while still filtering noise.
-constexpr unsigned long PIR_SAMPLE_MS = 15;
+// level. The window is ten samples taken every PIR_SAMPLE_MS, so it covers
+// PIR_SAMPLE_MS * 10 of time, and three of those samples HIGH is taken as
+// motion. The answer comes in about 60 ms, and a flicker is read as motion
+// instead of freezing the reading.
+constexpr unsigned long PIR_SAMPLE_MS = 20;
 constexpr unsigned long INTERVAL_MS   = 5000;
 constexpr unsigned long FAST_MS       = 1000;
 

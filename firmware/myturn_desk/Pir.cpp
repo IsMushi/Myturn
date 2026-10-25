@@ -5,11 +5,19 @@ namespace Pir {
 namespace {
 // The module's output flickers when somebody is standing at the counter.
 //
-// Enhanced filtering: shorter window for faster response while still rejecting
-// noise. Uses majority-like threshold with hysteresis to avoid chattering.
-constexpr uint8_t WINDOW_SAMPLES = 6;
-constexpr uint8_t MIN_HIGH_SAMPLES = 2;  // 1/3 of window to trigger (faster response)
-constexpr uint8_t MAX_LOW_SAMPLES = 1;   // 1/6 to clear (hysteresis)
+// The first filter used here waited for the pin to hold one value for a
+// while before believing it. Against a signal that toggles faster than that,
+// it froze on whichever level it happened to catch - and a frozen LOW is a
+// PIR that has stopped working, not a PIR that is slower.
+//
+// This one counts how much of a short window was HIGH. A flicker reads as
+// motion, which is what a flicker at a counter is, and the answer comes in
+// well under a tenth of a second. Two thresholds, so the reading does not
+// wobble around the line: three HIGH samples to believe there is motion, one
+// to believe it has stopped.
+constexpr uint8_t WINDOW_SAMPLES = 10;
+constexpr uint8_t MIN_HIGH_SAMPLES = 3;
+constexpr uint8_t MAX_LOW_SAMPLES = 1;
 
 bool ring[WINDOW_SAMPLES] = {false};
 uint8_t nextSlot = 0, highCount = 0;
