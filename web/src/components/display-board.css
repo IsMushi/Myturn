@@ -603,9 +603,9 @@
 }
 
 .myturn-display-badge[data-state="closed"] {
-  border-color: #fecdd3;
-  background: #ffe4e6;
-  color: #9f1239;
+  border-color: var(--color-danger-line);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
 }
 
 .myturn-display-service-body {

@@ -86,7 +86,7 @@ function LanguagePicker() {
       <Select defaultValue="en">
         <SelectTrigger
           id="ticket-language"
-          className="w-auto gap-1 border-0 bg-transparent px-0 py-0 text-sm font-medium text-deep-green focus:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-offset-2 focus-visible:outline-deep-green"
+          className="h-auto w-auto gap-1 border-0 bg-transparent px-0 py-0 text-sm font-medium text-deep-green focus:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-offset-2 focus-visible:outline-deep-green"
         >
           <SelectValue />
         </SelectTrigger>

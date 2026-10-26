@@ -53,8 +53,13 @@ const INK = "#134e4a";
 const GREEN = "#2f9e79";
 const SLATE = "#94a3b8";
 const LINE = "#e2e8e6";
-/** A cancelled ticket is the one outcome that is a red, so it reads as one. */
-const RED = "#dc2626";
+/**
+ * A cancelled ticket is the one outcome that is a red, so it reads as one — and
+ * it is the same red as every other cancelled thing on the screen, taken from
+ * the palette rather than picked: `var()` resolves both in the SVG slice and in
+ * the legend's `background`.
+ */
+const RED = "var(--color-danger)";
 /** The ranges the filter offers, in the order they are shown. */
 const RANGES = [
   { key: "1", label: "1 day", days: 1 },

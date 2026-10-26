@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/Button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Alert, Field, Select, SelectItem, TextInput, inputClass } from "@/components/ui/Field";
+import { Alert, Field, Select, SelectItem, TextInput } from "@/components/ui/Field";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { api } from "@/lib/api";
 import { focusFirstError } from "@/lib/forms";
@@ -30,6 +30,16 @@ import { inviteSchema, type InviteValues } from "@/lib/validation";
  * it away as well as let it go.
  */
 const ADMIN_NOTICE = "admin-notice";
+
+/**
+ * The value behind "Any desk" in the invitation dialog.
+ *
+ * A `Select` cannot use `""` for this: Radix treats the empty string as "no
+ * value chosen", so the trigger renders an empty box instead of the label and
+ * collapses to the height of its chevron. The sentinel lives only in the
+ * dropdown; the invitation itself still sends an empty `desk_id` for any desk.
+ */
+const ANY_DESK = "any";
 
 function confirm(title: string, description?: string) {
   toast.success(title, { id: ADMIN_NOTICE, testId: ADMIN_NOTICE, description });
@@ -299,11 +309,10 @@ function TeamPanel({ session }: { session: Extract<SessionState, { status: "in" 
             <Field label="Works at" id="invite-desk" hint="Leave empty for any desk.">
               <Select
                 id="invite-desk"
-                value={form.watch("desk_id") ?? ""}
-                onValueChange={(v) => form.setValue("desk_id", v)}
-                className={inputClass}
+                value={form.watch("desk_id") || ANY_DESK}
+                onValueChange={(v) => form.setValue("desk_id", v === ANY_DESK ? "" : v)}
               >
-                <SelectItem value="">Any desk</SelectItem>
+                <SelectItem value={ANY_DESK}>Any desk</SelectItem>
                 {(desks.data?.desks ?? []).map((desk) => (
                   <SelectItem key={desk.desk_id} value={String(desk.desk_id)}>
                     {desk.name} · {desk.service_letter}
@@ -340,10 +349,10 @@ function TeamPanel({ session }: { session: Extract<SessionState, { status: "in" 
               <strong className="mr-auto text-sm text-deep-green" aria-live="polite">{selected.length} selected</strong>
               <Button type="button" variant="quiet" disabled={bulkBusy} onClick={() => void applyBulk("activate")}>Switch on</Button>
               <Button type="button" variant="quiet" disabled={bulkBusy} onClick={() => void applyBulk("deactivate")}>Switch off</Button>
-              <button type="button" disabled={bulkBusy} onClick={() => { setBulkConfirm(""); setBulkError(null); setBulkOpen(true); }}
-                className="rounded-full border border-danger-line bg-white px-4 py-2.5 text-sm font-semibold text-danger hover:bg-danger-soft disabled:opacity-50">
+              <Button type="button" variant="danger-quiet" disabled={bulkBusy}
+                onClick={() => { setBulkConfirm(""); setBulkError(null); setBulkOpen(true); }}>
                 Delete selected
-              </button>
+              </Button>
               <Button type="button" variant="ghost" disabled={bulkBusy} onClick={() => setSelectedIds([])}>Clear</Button>
             </div>
           )}
@@ -482,10 +491,9 @@ function TeamPanel({ session }: { session: Extract<SessionState, { status: "in" 
             <DialogFooter>
               <Button type="button" variant="quiet" disabled={deletingBusy}
                 onClick={() => { setDeleting(null); setConfirmEmail(""); setDeleteError(null); }}>Cancel</Button>
-              <button type="submit" disabled={deletingBusy || confirmEmail.trim().toLowerCase() !== deleting?.email.toLowerCase()}
-                className="inline-flex items-center justify-center rounded-full bg-danger px-4 py-2.5 text-sm font-semibold text-white hover:bg-danger-strong disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger">
+              <Button type="submit" variant="danger" disabled={deletingBusy || confirmEmail.trim().toLowerCase() !== deleting?.email.toLowerCase()}>
                 {deletingBusy ? "Deleting…" : "Delete account"}
-              </button>
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -516,10 +524,9 @@ function TeamPanel({ session }: { session: Extract<SessionState, { status: "in" 
             {bulkError && <Alert tone="error" focus>{bulkError}</Alert>}
             <DialogFooter>
               <Button type="button" variant="quiet" disabled={bulkBusy} onClick={() => { setBulkOpen(false); setBulkConfirm(""); setBulkError(null); }}>Cancel</Button>
-              <button type="submit" disabled={bulkBusy || selected.length === 0 || bulkConfirm !== `DELETE ${selected.length}`}
-                className="inline-flex items-center justify-center rounded-full bg-danger px-4 py-2.5 text-sm font-semibold text-white hover:bg-danger-strong disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger">
+              <Button type="submit" variant="danger" disabled={bulkBusy || selected.length === 0 || bulkConfirm !== `DELETE ${selected.length}`}>
                 {bulkBusy ? "Deleting…" : `Delete ${selected.length} ${selected.length === 1 ? "account" : "accounts"}`}
-              </button>
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

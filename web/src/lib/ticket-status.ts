@@ -74,7 +74,7 @@ export const TONE_STYLES: Record<StatusTone, string> = {
   called: "bg-primary text-ink ring-medium-green",
   done: "bg-soft-mint text-deep-green ring-line",
   missed: "bg-amber-100 text-amber-900 ring-amber-300",
-  cancelled: "bg-rose-100 text-rose-800 ring-rose-300",
+  cancelled: "bg-danger-soft text-danger ring-danger-line",
 };
 
 /** True once the desk has finished with a ticket and will not change it again. */

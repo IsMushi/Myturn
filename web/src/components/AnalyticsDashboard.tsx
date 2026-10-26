@@ -222,7 +222,7 @@ function LoadError({ retry }: { retry: () => void }) {
       role="alert"
       className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3"
     >
-      <WifiOff size={20} className="text-rose-700" aria-hidden="true" />
+      <WifiOff size={20} className="text-danger" aria-hidden="true" />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-deep-green">Unable to load the analytics</p>
         <p className="text-sm text-medium-green">Check your connection, then try again.</p>

@@ -136,8 +136,8 @@
 .myturn-home-live-state > span { width: 6px; height: 6px; border-radius: 50%; background: var(--color-medium-green); }
 .myturn-home-live-state[data-state="paused"] { background: #fff5d6; color: #785500; }
 .myturn-home-live-state[data-state="paused"] > span { background: #a46f00; }
-.myturn-home-live-state[data-state="closed"] { background: #fff1f2; color: #9f1239; }
-.myturn-home-live-state[data-state="closed"] > span { background: #be123c; }
+.myturn-home-live-state[data-state="closed"] { background: var(--color-danger-soft); color: var(--color-danger); }
+.myturn-home-live-state[data-state="closed"] > span { background: var(--color-danger); }
 .myturn-home-live-state[data-state="offline"], .myturn-home-live-state[data-state="loading"] { background: var(--color-soft-mint); }
 .myturn-home-live-state[data-state="offline"] > span, .myturn-home-live-state[data-state="loading"] > span { background: var(--color-line); }
 .myturn-home-live-service { overflow: hidden; margin-top: 18px; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }

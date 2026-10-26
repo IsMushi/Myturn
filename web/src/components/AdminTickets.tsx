@@ -4,7 +4,7 @@ import { Inbox, RefreshCw, Search, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/Button";
-import { Alert, Select, SelectItem, inputClass } from "@/components/ui/Field";
+import { Alert, Select, SelectItem, singleLineClass } from "@/components/ui/Field";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { api } from "@/lib/api";
 import { calendarDate, clockTime, formatDuration } from "@/lib/format";
@@ -154,7 +154,7 @@ export function AdminTickets() {
               }}
               placeholder="Search by ticket number or contact"
               aria-label="Search tickets"
-              className={`${inputClass} pl-10 pr-10 [&::-webkit-search-cancel-button]:appearance-none`}
+              className={`${singleLineClass} pl-10 pr-10 [&::-webkit-search-cancel-button]:appearance-none`}
             />
             {query && (
               <button

@@ -73,6 +73,7 @@
   --color-warning-strong: #7a350b;
   --color-warning-soft: #fff6e9;
   --color-warning-line: #f3d9ae;
+  --color-warning-custom: #FFCB3D;
 }
 
 /* shadcn/ui semantic tokens (Tailwind v4).
@@ -265,11 +266,13 @@ input, textarea, select, button {
   }
 }
 
-/* Field controls take their radius from `inputClass` / `selectTriggerClass`
-   (`rounded-xl`), so a text input, a textarea and a select trigger line up
-   exactly. Pinning a second radius here would win over the utility — this
-   file is unlayered, utilities are not — and the select, a button, would keep
-   the larger one while the input shrank. */
+/* Field controls take their radius and their height from the classes in
+   `components/ui/field-styles.ts` (`rounded-lg`, and 44 px for the controls
+   that hold one line), so a text input, a textarea and a select trigger line
+   up exactly. Pinning a radius or a height here would win over those
+   utilities — this file is unlayered, utilities are not — and the select, a
+   button, would keep the larger radius while the input shrank, which is
+   exactly the mismatch those classes exist to prevent. */
 
 /* Blocks that fade in as they are scrolled to.
    On screen the animation is a small nicety; on paper, and for a browser with

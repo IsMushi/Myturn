@@ -13,7 +13,7 @@ const LABELS: Record<ServiceState, string> = {
 const STYLES: Record<ServiceState, string> = {
   active: "bg-white text-deep-green ring-medium-green",
   paused: "bg-amber-100 text-amber-900 ring-amber-300",
-  closed: "bg-rose-100 text-rose-800 ring-rose-300",
+  closed: "bg-danger-soft text-danger ring-danger-line",
 };
 
 const DOTS: Record<ServiceState, string> = {

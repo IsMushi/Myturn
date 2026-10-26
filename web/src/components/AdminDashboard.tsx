@@ -159,7 +159,7 @@ export function AdminDashboard() {
                       {service.name}
                       <DeskStateBadge state={service.service_state} />
                       {!service.is_active && (
-                        <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-semibold text-rose-800 ring-1 ring-rose-300">
+                        <span className="rounded-full bg-danger-soft px-2.5 py-0.5 text-xs font-semibold text-danger ring-1 ring-danger-line">
                           switched off
                         </span>
                       )}
@@ -247,7 +247,7 @@ export function AdminDashboard() {
                       {desk.name}
                       <DeskStateBadge state={desk.service_state} />
                       {!desk.is_active && (
-                        <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-semibold text-rose-800 ring-1 ring-rose-300">
+                        <span className="rounded-full bg-danger-soft px-2.5 py-0.5 text-xs font-semibold text-danger ring-1 ring-danger-line">
                           retired
                         </span>
                       )}
@@ -296,7 +296,7 @@ export function AdminDashboard() {
                       className={
                         device.online
                           ? "rounded-full bg-white px-2.5 py-0.5 text-xs font-semibold text-deep-green"
-                          : "rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-semibold text-rose-800 ring-1 ring-rose-300"
+                          : "rounded-full bg-danger-soft px-2.5 py-0.5 text-xs font-semibold text-danger ring-1 ring-danger-line"
                       }
                     >
                       {device.online ? "reporting" : "silent"}

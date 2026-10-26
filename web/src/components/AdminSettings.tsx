@@ -248,8 +248,9 @@ export function AdminSettings() {
                 >
                   Cancel
                 </Button>
-                <button
+                <Button
                   type="button"
+                  variant="danger"
                   disabled={deleteBusy || deleteConfirm !== deletingService.name}
                   onClick={async () => {
                     if (!deletingService) return;
@@ -269,10 +270,9 @@ export function AdminSettings() {
                       setDeleteBusy(false);
                     }
                   }}
-                  className="inline-flex items-center justify-center rounded-full bg-danger px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-danger-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {deleteBusy ? "Deleting." : "Delete the service"}
-                </button>
+                </Button>
               </DialogFooter>
             </div>
           )}
@@ -310,8 +310,9 @@ export function AdminSettings() {
                 >
                   Cancel
                 </Button>
-                <button
+                <Button
                   type="button"
+                  variant="danger"
                   disabled={deleteBusy || deleteConfirm !== deletingDesk.name}
                   onClick={async () => {
                     if (!deletingDesk) return;
@@ -331,10 +332,9 @@ export function AdminSettings() {
                       setDeleteBusy(false);
                     }
                   }}
-                  className="inline-flex items-center justify-center rounded-full bg-danger px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-danger-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {deleteBusy ? "Deleting." : "Delete the desk"}
-                </button>
+                </Button>
               </DialogFooter>
             </div>
           )}
@@ -386,8 +386,9 @@ export function AdminSettings() {
               >
                 Cancel
               </Button>
-              <button
+              <Button
                 type="button"
+                variant="danger"
                 disabled={resetBusy || resetConfirm !== "RESET THE OFFICE"}
                 onClick={async () => {
                   setResetBusy(true);
@@ -406,10 +407,9 @@ export function AdminSettings() {
                     setResetBusy(false);
                   }
                 }}
-                className="inline-flex items-center justify-center rounded-full bg-danger px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-danger-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {resetBusy ? "Resetting." : "Reset the office"}
-              </button>
+              </Button>
             </DialogFooter>
           </div>
         </DialogContent>
@@ -443,7 +443,7 @@ function ServiceRow({
           {service.is_active ? (
             <DeskStateBadge state={service.service_state} />
           ) : (
-            <span className="rounded-full bg-rose-100 px-3 py-1 text-sm font-semibold text-rose-800 ring-1 ring-rose-300">
+            <span className="rounded-full bg-danger-soft px-3 py-1 text-sm font-semibold text-danger ring-1 ring-danger-line">
               Switched off
             </span>
           )}
@@ -472,7 +472,7 @@ function ServiceRow({
       <Button
         variant="quiet"
         onClick={() => onDelete(service)}
-        className="text-rose-700 hover:text-rose-900"
+        className="text-danger hover:text-danger-strong"
       >
         <Trash2 className="size-4" aria-hidden="true" />
         Delete<span className="sr-only"> {service.name}</span>
@@ -497,7 +497,7 @@ function DeskRow({
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-base font-semibold text-deep-green">{desk.name}</h3>
           {!desk.is_active && (
-            <span className="rounded-full bg-rose-100 px-3 py-1 text-sm font-semibold text-rose-800 ring-1 ring-rose-300">
+            <span className="rounded-full bg-danger-soft px-3 py-1 text-sm font-semibold text-danger ring-1 ring-danger-line">
               Retired
             </span>
           )}
@@ -534,7 +534,7 @@ function DeskRow({
       <Button
         variant="quiet"
         onClick={() => onDelete(desk)}
-        className="text-rose-700 hover:text-rose-900"
+        className="text-danger hover:text-danger-strong"
       >
         <Trash2 className="size-4" aria-hidden="true" />
         Delete<span className="sr-only"> {desk.name}</span>
@@ -817,7 +817,6 @@ function DeskForm({
           id={`desk-service-${desk.desk_id}`}
           value={service}
           onValueChange={setService}
-          className={inputClass}
         >
           {services.map((option) => (
             <SelectItem key={option.service_id} value={option.letter}>
@@ -905,7 +904,6 @@ function AddDeskForm({
           id="new-desk-service"
           value={service}
           onValueChange={setService}
-          className={inputClass}
         >
           {services.map((option) => (
             <SelectItem key={option.service_id} value={option.id}>

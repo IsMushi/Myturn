@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Alert, Field, Select, SelectItem, TextInput, inputClass } from "@/components/ui/Field";
+import { Alert, Field, Select, SelectItem, TextInput, singleLineClass } from "@/components/ui/Field";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { api } from "@/lib/api";
 import { calendarDate, clockTime, fullTimestamp, plural } from "@/lib/format";
@@ -627,15 +627,15 @@ export function AccountSettings() {
                 value={historyQuery}
                 onChange={(e) => { setHistoryQuery(e.target.value); setHistoryPage(1); }}
                 placeholder="Search event, detail or actor…"
-                className="min-w-0 flex-1 rounded-xl border border-line bg-white px-4 py-2 text-sm text-deep-green placeholder:text-medium-green/60 focus:outline-none focus:ring-2 focus:ring-deep-green/30"
+                className={`${singleLineClass} min-w-0 flex-1`}
                 aria-label="Search account history"
               />
               <Select
                 id="history-filter"
                 value={historyFilter}
                 onValueChange={(v) => { setHistoryFilter(v); setHistoryPage(1); }}
-                className={inputClass}
                 aria-label="Filter by event type"
+                className="w-auto"
               >
                 {historyEventTypes.map((type) => (
                   <SelectItem key={type} value={type}>
@@ -646,7 +646,7 @@ export function AccountSettings() {
               <button
                 type="button"
                 onClick={() => setHistorySort((s) => (s === "newest" ? "oldest" : "newest"))}
-                className="rounded-full border border-line bg-white px-3 py-2 text-sm font-medium text-deep-green hover:bg-soft-mint"
+                className="h-11 rounded-full border border-line bg-white px-4 text-sm font-medium text-deep-green hover:bg-soft-mint"
                 aria-label="Toggle sort order"
               >
                 {historySort === "newest" ? "Newest first" : "Oldest first"}
@@ -655,8 +655,8 @@ export function AccountSettings() {
                 id="history-page-size"
                 value={String(historyPageSize)}
                 onValueChange={(v) => { setHistoryPageSize(Number(v)); setHistoryPage(1); }}
-                className={inputClass}
                 aria-label="Rows per page"
+                className="w-auto"
               >
                 {[10, 25, 50].map((n) => (
                   <SelectItem key={n} value={String(n)}>{n} rows</SelectItem>

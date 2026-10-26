@@ -107,12 +107,17 @@ export function waitEstimate(
   return { minutes: Math.max(0, Math.round((ahead * averageSeconds) / 60)) };
 }
 
-/** "about 9 minutes", "about 1 minute", or "less than a minute". */
+/**
+ * "about 9 minutes", "about 1 hour", "about 2 h 30 min", or "less than a
+ * minute". Past an hour it leans on formatDuration, so a long estimate is
+ * never shown as a four-figure count of minutes.
+ */
 export function describeWait(estimate: { minutes: number } | null): string | null {
   if (estimate === null) return null;
   if (estimate.minutes <= 0) return "less than a minute";
   if (estimate.minutes === 1) return "about 1 minute";
-  return `about ${estimate.minutes} minutes`;
+  if (estimate.minutes < 60) return `about ${estimate.minutes} minutes`;
+  return `about ${formatDuration(estimate.minutes * 60)}`;
 }
 
 /** A count with its noun, so the page never says "1 tickets". */
@@ -120,10 +125,31 @@ export function plural(count: number, singular: string, pluralForm?: string): st
   return `${count} ${count === 1 ? singular : (pluralForm ?? singular + "s")}`;
 }
 
-/** A measured duration: "42 s", "1 min 20 s", "3 min". */
+/**
+ * A measured duration: "42 s", "1 min 20 s", "3 min", "2 h 5 min", "1 d 4 h".
+ *
+ * The unit grows with the length, so a ticket left waiting overnight reads
+ * "23 h 39 min" rather than "1419 min 39 s". Seconds are dropped once the
+ * duration reaches an hour: they are noise at that scale, and the desk only
+ * needs to know how long somebody has been standing there.
+ */
 export function formatDuration(seconds: number): string {
-  if (seconds < 60) return `${Math.round(seconds)} s`;
-  const minutes = Math.floor(seconds / 60);
-  const rest = Math.round(seconds % 60);
-  return rest === 0 ? `${minutes} min` : `${minutes} min ${rest} s`;
+  const total = Math.max(0, Math.round(seconds));
+  if (total < 60) return `${total} s`;
+
+  const minutes = Math.floor(total / 60);
+  if (minutes < 60) {
+    const rest = total % 60;
+    return rest === 0 ? `${minutes} min` : `${minutes} min ${rest} s`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {
+    const restMinutes = minutes % 60;
+    return restMinutes === 0 ? `${hours} h` : `${hours} h ${restMinutes} min`;
+  }
+
+  const days = Math.floor(hours / 24);
+  const restHours = hours % 24;
+  return restHours === 0 ? `${days} d` : `${days} d ${restHours} h`;
 }

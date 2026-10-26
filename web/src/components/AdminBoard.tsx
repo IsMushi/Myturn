@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Alert, Field, Select, SelectItem, TextInput, inputClass } from "@/components/ui/Field";
+import { Alert, Field, Select, SelectItem, TextInput } from "@/components/ui/Field";
 import { api } from "@/lib/api";
 import { focusFirstError } from "@/lib/forms";
 import { relative } from "@/lib/format";
@@ -161,7 +161,7 @@ export function AdminBoard() {
             and it will appear here as reporting within half a minute.
           </p>
         )}
-        {boards.error && <p className="mt-4 text-sm text-rose-700">{boards.error.message}</p>}
+        {boards.error && <p className="mt-4 text-sm text-danger">{boards.error.message}</p>}
 
         <p className="mt-4 border-t border-line pt-4 text-xs text-medium-green">
           The services and the counters themselves are on{" "}
@@ -221,14 +221,14 @@ export function AdminBoard() {
             <Button type="button" variant="quiet" disabled={busy} onClick={() => setRetiring(null)}>
               Keep it
             </Button>
-            <button
+            <Button
               type="button"
+              variant="danger"
               disabled={busy}
               onClick={() => void retire()}
-              className="inline-flex items-center justify-center rounded-full bg-danger px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-danger-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger disabled:cursor-not-allowed disabled:opacity-50"
             >
               {busy ? "Removing." : "Remove the board"}
-            </button>
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -378,7 +378,6 @@ function RegisterForm({
           id="board-register-desk"
           value={desk}
           onValueChange={setDesk}
-          className={inputClass}
         >
           <SelectItem value="none">No counter yet</SelectItem>
           {free.map((counter) => (
@@ -473,7 +472,7 @@ function BoardRow({
             className={
               board.online
                 ? "rounded-full bg-soft-mint px-3 py-1 text-sm font-semibold text-deep-green"
-                : "rounded-full bg-rose-100 px-3 py-1 text-sm font-semibold text-rose-800 ring-1 ring-rose-300"
+                : "rounded-full bg-danger-soft px-3 py-1 text-sm font-semibold text-danger ring-1 ring-danger-line"
             }
           >
             {board.online ? "Reporting" : "Silent"}
@@ -508,7 +507,6 @@ function BoardRow({
             value={board.desk_id === null ? "none" : String(board.desk_id)}
             onValueChange={(value) => void assign(value)}
             disabled={busy}
-            className={inputClass}
           >
             <SelectItem value="none">No counter</SelectItem>
             {choices.map((desk) => (

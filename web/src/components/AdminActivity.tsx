@@ -14,7 +14,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Alert } from "@/components/ui/Field";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { inputClass } from "@/components/ui/field-styles";
+import { singleLineClass } from "@/components/ui/field-styles";
 import { api } from "@/lib/api";
 import { activityLabel } from "@/lib/activity";
 import { TIME_ZONE, clockTime, fullTimestamp, relative } from "@/lib/format";
@@ -261,7 +261,7 @@ export function AdminActivity() {
               onChange={(event) => setQuery(event.target.value)}
               aria-label="Search the history"
               placeholder="Ticket, service, person or detail"
-              className={`${inputClass} pl-10 pr-10 [&::-webkit-search-cancel-button]:appearance-none`}
+              className={`${singleLineClass} pl-10 pr-10 [&::-webkit-search-cancel-button]:appearance-none`}
             />
             {query && (
               <button

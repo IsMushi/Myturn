@@ -724,7 +724,7 @@ function DeskBoard({ deskId, desks, onPick }: {
               {finding ? "Finding…" : "Find"}
             </Button>
             {findError && (
-              <p className="text-xs font-medium text-rose-700" role="alert">{findError}</p>
+              <p className="text-xs font-medium text-danger" role="alert">{findError}</p>
             )}
             {findResult && findResult.tickets.length === 0 && (
               <p className="text-sm text-medium-green" role="status">
@@ -767,11 +767,11 @@ function DeskBoard({ deskId, desks, onPick }: {
             <DialogTitle>Cancel {cancelTicket?.label}?</DialogTitle>
             <DialogDescription>This ends the ticket without marking it as served. Use No-show instead if the visitor has not arrived.</DialogDescription>
           </DialogHeader>
-          {cancelTicket && called?.ticket_id !== cancelTicket.ticket_id && <p role="alert" className="text-sm text-rose-700">This ticket is no longer the current call. Close this dialog to review the waiting list.</p>}
-          {notice?.tone === "error" && <p role="alert" className="text-sm text-rose-700">{notice.text}</p>}
+          {cancelTicket && called?.ticket_id !== cancelTicket.ticket_id && <p role="alert" className="text-sm text-danger">This ticket is no longer the current call. Close this dialog to review the waiting list.</p>}
+          {notice?.tone === "error" && <p role="alert" className="text-sm text-danger">{notice.text}</p>}
           <DialogFooter>
             <Button ref={keepTicketRef} variant="quiet" onClick={() => setCancelTicket(null)}>Keep ticket</Button>
-            <Button className="bg-rose-700 text-white hover:bg-rose-800" disabled={disabled || called?.ticket_id !== cancelTicket?.ticket_id}
+            <Button variant="danger" disabled={disabled || called?.ticket_id !== cancelTicket?.ticket_id}
               onClick={async () => { if (cancelTicket && await decide("cancel", cancelTicket)) setCancelTicket(null); }}>Confirm cancellation</Button>
           </DialogFooter>
         </DialogContent>

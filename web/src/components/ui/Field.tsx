@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 
-import { inputClass } from "./field-styles";
+import { inputClass, singleLineClass } from "./field-styles";
 import {
   Select as RadixSelect,
   SelectContent,
@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "./Select";
 
-export { inputClass };
+export { inputClass, singleLineClass };
 
 /** A labelled input that says what went wrong, in words and to a screen reader. */
 export function Field({
@@ -53,7 +53,7 @@ export function TextInput({
       id={id}
       aria-invalid={error || undefined}
       aria-describedby={error ? `${id}-error` : undefined}
-      className={`${inputClass} ${className}`}
+      className={`${singleLineClass} ${className}`}
       {...rest}
     />
   );
