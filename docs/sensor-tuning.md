@@ -102,6 +102,12 @@ is, and the answer comes in about 40 ms.
 A single electrical glitch is still rejected, and an idle sensor produces no
 readings at all.
 
+GPIO 19 is configured with the ESP32's internal **pull-down**, not as a bare
+input. If the module's OUT wire comes loose, a floating pin picks up noise and
+the duty cycle reads that noise as motion for as long as the board is powered.
+With the pull-down a disconnected OUT reads LOW, so the log shows no motion and
+the fault stays a wiring fault instead of a permanent approach.
+
 ## 3. The PIR: the delay in the API
 
 | Setting | Where | Value | What it does |
@@ -133,7 +139,7 @@ on the fast rate. That is what filled the log with a reading every 25 ms.
 | **Motion is detected but feels late** | The module's own `Tx` is not the cause - the firmware answers in about 40 ms - so the delay is in the module or the wiring | Check the module is powered from `VIN` and not `3V3`, and that the output reaches GPIO 19 |
 | **The approach stays "on" long after the person has gone** | `APPROACH_MS` is 10 s, and the ten seconds only run out if the person stops moving | Lower `APPROACH_MS` if the waiting line should recover faster |
 | A reading every 25 ms, `pir` alternating HIGH and LOW | The PIR output is chattering and the raw pin was believed as it arrived | **Turn `Tx` clockwise to 3-5 s** - the module then holds the output high and the chatter cannot get through |
-| `pir: HIGH` that never comes back to `LOW` | The pin is stuck high, so the approach never clears and the board stays on the one-second rate | Turn `Tx` up. If it persists, the output is being held high by the module, not by noise |
+| `pir: HIGH` that never comes back to `LOW` for hours, while `distance` says no object | The OUT line is floating, shorted high, or the module is holding its output high | The firmware pulls GPIO 19 down, so a disconnected OUT reads LOW. Check that OUT reaches GPIO 19 and that GND is shared. If the module's own LED is lit with nobody moving, turn `Sx` clockwise and `Tx` counter-clockwise; if it stays lit, replace the module |
 | The PIR fires for people walking past | `Sx` is too sensitive | Turn `Sx` clockwise until the range is about 1-1.5 m, and face the module at the service point |
 | The approach is reported, but the waiting line still moves on | The approach only ever *keeps* the full hold; it never calls anyone | This is by design. The approach is evidence, not authority |
 
@@ -145,7 +151,7 @@ The occupancy side, which the PIR has no part in.
 
 | Constant | Where | Value | What it does |
 |---|---|---|---|
-| `OCCUPIED_CM` | `config.h` | 50.0 | The median distance below which the service point is occupied. A person at the service point is about 40-70 cm |
+| `OCCUPIED_CM` | `config.h` | 100.0 | The median distance below which the service point is occupied. A person at the service point is about 40-70 cm |
 | `MIN_CM` | `config.h` | 12.0 | Below this the module is ringing, not a person. Those readings are ignored |
 | `MAX_CM` | `config.h` | 400.0 | Beyond this the module's own timeout pulse means "nothing in range" |
 | `MEASURE_GAP_MS` | `config.h` | 250 | How often a measurement is taken |

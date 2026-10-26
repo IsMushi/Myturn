@@ -45,7 +45,7 @@ export function TicketRequestSkeleton() {
             <TicketStep number={3} title="Get my ticket">
               <div className="space-y-4" aria-hidden="true">
                 <Skeleton className="h-4 w-44 max-w-full" />
-                <Skeleton className="h-10 w-full rounded-full" />
+                <Skeleton className="h-10 w-full rounded-xl" />
                 <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-3/4" />
                 <Skeleton className="h-14 w-full rounded-full" />

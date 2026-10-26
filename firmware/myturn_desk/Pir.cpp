@@ -26,7 +26,12 @@ unsigned long since = 0, bootMs = 0, lastSampleAt = 0;
 }
 
 void begin() {
-  pinMode(PIR_PIN, INPUT);
+  // A pull-down, not a bare input. If the module's OUT wire comes loose, a
+  // floating GPIO 19 picks up noise and the duty-cycle filter below reads it
+  // as motion for as long as the board is powered - ten hours of "approach"
+  // with nobody at the counter. A disconnected sensor must read LOW, so the
+  // fault shows up as no motion instead of a permanent approach.
+  pinMode(PIR_PIN, INPUT_PULLDOWN);
   bootMs = millis();
 }
 

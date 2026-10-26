@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
-import { Skeleton, SkeletonCard } from "@/components/ui/Skeleton";
 import { Loader2 } from "lucide-react";
 import { useSession } from "@/lib/useSession";
 
@@ -20,9 +19,10 @@ import { useSession } from "@/lib/useSession";
  * The shared session can work the queue, but it has nobody behind it, so it
  * cannot change a password or appear in the account history.
  *
- * While the check is in flight the gate keeps the section's heading and shows
- * placeholder cards for the body. A bare "checking…" line would take the title
- * off screen on a cold load, which reads as the page having gone away.
+ * While the check is in flight the gate keeps the section's heading but draws no
+ * placeholder for the body. The page behind the gate has a skeleton shaped like
+ * its own content; drawing a second, generic one here made the screen flash
+ * through two different loading layouts before the real page appeared.
  */
 export function AccountGate({
   adminOnly = false,
@@ -48,16 +48,11 @@ export function AccountGate({
 
   if (session.status === "loading") {
     return (
-      <div className="space-y-5" data-testid="console-loading">
+      <div className="space-y-5" data-testid="console-loading" aria-busy="true">
         <h1 className="text-2xl font-semibold tracking-tight text-deep-green">{title}</h1>
         <p className="sr-only" role="status">
           Checking your session…
         </p>
-        <div className="grid gap-5 lg:grid-cols-2">
-          <SkeletonCard lines={3} />
-          <SkeletonCard lines={3} />
-        </div>
-        <Skeleton className="h-40 w-full rounded-xl" />
       </div>
     );
   }

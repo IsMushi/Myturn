@@ -40,7 +40,7 @@ def main():
                "MYTURN_UI_DEVICE_KEY": device_key, "MYTURN_HOLD_SECONDS": "600",
                "MYTURN_MIN_CALL_SECONDS": "600", "MYTURN_TICKET_ATTEMPTS": "1000",
                "MYTURN_LOGIN_ATTEMPTS": "100", "MYTURN_SECURE_COOKIES": "0",
-               "MYTURN_SMTP_HOST": "", "MYTURN_TEXTBEE_API_KEY": ""}
+               "MYTURN_SMTP_HOST": "", "MYTURN_OPENSMS_API_KEY": ""}
         startup = """
 import os
 from datetime import datetime, timedelta, timezone

@@ -1,39 +1,47 @@
 # Visitor call notifications
 
 The contact entered on `/ticket` chooses the channel. Email addresses receive
-an email through SMTP; phone numbers receive an SMS through TextBee. Messages
+an email through SMTP; phone numbers receive an SMS through OpenSMS. Messages
 contain the ticket label and destination service point. New calls and recalls
 notify only after the waiting line transaction commits. A refused call never notifies.
 
 This is separate from administrator invitations and password-reset links; those
 retain the prototype's existing development-link flow.
 
-## TextBee
+## OpenSMS
 
-Documentation: https://textbee.dev/docs/sending-sms/sending-sms and
-https://textbee.dev/docs/getting-started/api-keys.
+Documentation: https://opensms.dev/docs and https://opensms.dev/docs/api-reference.
 
-1. Create and verify a TextBee account. Install its app on an Android phone with
-   a working SMS SIM; pair the phone and grant SMS permissions. Keep it online
-   and allow background operation. Carrier/SIM charges and provider limits apply.
-2. Create an API key and place it in the gitignored `api/.env`:
+OpenSMS is a gateway between an HTTP request and an Android phone you own: the
+API queues the message, the phone claims it and sends it from its SIM. The site
+is **opensms.dev**. `opensms.io` is a different, unrelated provider; do not point
+the key at it.
+
+1. Create an OpenSMS account and an API key (`opensms_…`). Install the gateway
+   app on an Android phone with a working SMS SIM, pair it, grant SMS permission,
+   and keep it online with background operation allowed. Without an online
+   gateway the API still accepts the job and it stays `pending`; nothing is sent.
+2. Put the key in the gitignored `api/.env`:
 
    ```dotenv
-   MYTURN_TEXTBEE_API_KEY=your-private-key
-   MYTURN_TEXTBEE_DEVICE_ID=your-optional-device-id
+   MYTURN_OPENSMS_API_KEY=opensms_your-private-key
+   MYTURN_OPENSMS_API_URL=https://opensms.dev
+   MYTURN_OPENSMS_DEVICE_ID=your-optional-gateway-id
    MYTURN_SMS_COUNTRY_CODE=250
    ```
 
-   Omit the device ID to use TextBee's default enabled device. Enter foreign
-   visitor numbers with `+` and the country code. Rwanda local numbers such as
-   `0788 123 456` are normalized to `+250788123456`.
-3. Restart the API. Calls use
-   `POST https://api.textbee.dev/api/v1/gateway/send-sms`, an `x-api-key` header,
-   and `{recipients: [...], message: ..., deviceId?: ...}` JSON.
+   Omit the device ID to use any online gateway. Enter foreign visitor numbers
+   with `+` and the country code. Rwanda local numbers such as `0788 123 456`
+   are normalized to `+250788123456`.
+3. Restart the API. A call posts `{to, message, deviceId?}` as JSON to
+   `POST https://opensms.dev/api/v1/messages` with `Authorization: Bearer …`,
+   and logs the returned job id. A job moves `pending` → `processing` → `sent`
+   (or `failed`); `GET /api/v1/messages/{id}` reads it.
 
-The old openSMS key is not a TextBee key and is no longer used. Do not copy real
-keys into `.env.example`, browser code, screenshots, reports or Git. Rotate any
-key that has been published in an example or committed.
+Provider acceptance is not delivery. A `sent` status means the phone reported
+the message leaving the device; only the recipient confirming receipt makes the
+channel verified. Do not copy real keys into `.env.example`, browser code,
+screenshots, reports or Git. Rotate any key that has been published.
 
 ## Email
 
@@ -55,7 +63,7 @@ password. Restart the API after changing settings.
 
 ## Demonstrating without a provider
 
-Between them, TextBee and SMTP need a paired phone and an authorized sender. When
+Between them, OpenSMS and SMTP need a paired phone and an authorized sender. When
 neither is configured, a call can still be followed end to end:
 
 ```dotenv
@@ -70,7 +78,7 @@ false` with the note `development record: no provider configured, nothing was
 sent`. Nothing leaves the machine.
 
 The sink is off by default and only records for a channel that is **not**
-configured: when `MYTURN_SMTP_HOST` or `MYTURN_TEXTBEE_API_KEY` is set, that
+configured: when `MYTURN_SMTP_HOST` or `MYTURN_OPENSMS_API_KEY` is set, that
 channel is used and the record is not written, so a successful send can never
 also produce a "nothing was sent" line. It is a way to watch the flow, not a
 transport, and it must not be presented as delivery.
@@ -79,7 +87,7 @@ transport, and it must not be presented as delivery.
 
 `api/.venv/Scripts/python.exe api/check_notifications.py` runs fifteen automated
 checks with mocked transports and a disposable database. It sends no real
-messages. It covers TextBee request/authentication, E.164 normalization, missing
+messages. It covers OpenSMS request/authentication, E.164 normalization, missing
 configuration, HTTP failures, SMTP TLS/login/content, header injection, channel
 selection, real Flask call/recall paths, failure containment, and the development
 record above (written when asked for, silent when a provider sent, off by
@@ -87,14 +95,14 @@ default, contact never written whole).
 
 For actual delivery, use an approved test phone/email address, take its ticket,
 then call it from the staff page. Verify the matching ticket and service point
-in the received message. For TextBee, inspect the logged batch ID and its status
-in the TextBee dashboard. SMTP acceptance alone does not prove inbox delivery;
+in the received message. For OpenSMS, inspect the logged job id and its status
+in the OpenSMS dashboard (or `GET /api/v1/messages/{id}`). SMTP acceptance alone does not prove inbox delivery;
 check the mailbox and spam folder. Test recall as well.
 
 Background workers are best effort, not a persistent message queue. Process
 shutdown can lose a pending attempt. Provider failures/timeouts are logged
 without contact details or credentials and are not automatically retried,
-because acceptance may already have occurred. TextBee acceptance and SMTP
+because acceptance may already have occurred. OpenSMS acceptance and SMTP
 acceptance are never reported as confirmed delivery. Missing configuration
 disables that channel and produces a server warning, not a false success.
 

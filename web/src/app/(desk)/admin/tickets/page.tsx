@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function AdminTicketsPage() {
   return (
-    <AccountGate adminOnly title="Tickets">
+    <AccountGate adminOnly title="All tickets">
       <AdminTickets />
     </AccountGate>
   );

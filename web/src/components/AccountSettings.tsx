@@ -627,7 +627,7 @@ export function AccountSettings() {
                 value={historyQuery}
                 onChange={(e) => { setHistoryQuery(e.target.value); setHistoryPage(1); }}
                 placeholder="Search event, detail or actor…"
-                className="min-w-0 flex-1 rounded-full border border-line bg-white px-4 py-2 text-sm text-deep-green placeholder:text-medium-green/60 focus:outline-none focus:ring-2 focus:ring-deep-green/30"
+                className="min-w-0 flex-1 rounded-xl border border-line bg-white px-4 py-2 text-sm text-deep-green placeholder:text-medium-green/60 focus:outline-none focus:ring-2 focus:ring-deep-green/30"
                 aria-label="Search account history"
               />
               <Select

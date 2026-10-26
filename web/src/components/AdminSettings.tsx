@@ -625,7 +625,7 @@ function ServiceForm({
           aria-describedby={
             form.formState.errors.description ? "description-error" : undefined
           }
-          className={`${inputClass} rounded-2xl`}
+          className={inputClass}
           {...form.register("description")}
         />
       </Field>
@@ -734,7 +734,7 @@ function AddServiceForm({
           id="new-service-description"
           rows={2}
           maxLength={160}
-          className={`${inputClass} rounded-2xl`}
+          className={inputClass}
           value={description}
           placeholder="e.g. Fees, receipts and refunds"
           onChange={(event) => setDescription(event.target.value)}

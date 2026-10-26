@@ -1,7 +1,12 @@
-"""Best-effort TextBee SMS via the office's registered Android phone.
+"""Best-effort OpenSMS SMS through the office's paired Android gateway.
 
-API acceptance is not handset delivery. Network work runs off the queue request;
-timeouts are not retried automatically because the phone might already be sending.
+The API queues a job; a phone signed in to the OpenSMS gateway app claims it and
+sends it from its own SIM. Queue acceptance is not delivery: the job is
+``pending`` until a gateway claims it, ``sent`` when that phone reports it left,
+and only the recipient can confirm it arrived.
+
+Network work runs off the queue request. Timeouts are not retried automatically,
+because the phone may already have sent the message.
 """
 import json
 import logging
@@ -14,7 +19,6 @@ from typing import Optional
 import config
 
 logger = logging.getLogger("myturn.sms")
-TEXTBEE_SEND_URL = "https://api.textbee.dev/api/v1/gateway/send-sms"
 
 
 def _normalise_phone(contact: str) -> Optional[str]:
@@ -35,41 +39,53 @@ def _normalise_phone(contact: str) -> Optional[str]:
     return "+" + digits
 
 
+def _endpoint() -> str:
+    return config.OPENSMS_API_URL.rstrip("/") + "/api/v1/messages"
+
+
 def _post(payload: dict) -> None:
-    request = urllib.request.Request(TEXTBEE_SEND_URL,
-        data=json.dumps(payload).encode("utf-8"), method="POST",
-        headers={"x-api-key": config.TEXTBEE_API_KEY, "Content-Type": "application/json"})
+    request = urllib.request.Request(
+        _endpoint(),
+        data=json.dumps(payload).encode("utf-8"),
+        method="POST",
+        headers={
+            "Authorization": "Bearer " + config.OPENSMS_API_KEY,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            # Cloudflare in front of opensms.dev answers urllib's default agent
+            # with 403 "error code: 1010", so the client names itself.
+            "User-Agent": "MyTurn/1.0 (desk queue prototype)",
+        },
+    )
     try:
         with urllib.request.urlopen(request, timeout=10) as response:
-            result = json.loads(response.read())
-        data = result.get("data", {})
-        if not isinstance(data, dict) or data.get("success") is not True:
-            logger.warning("TextBee did not confirm queue acceptance")
-            return
-        # Batch ID enables tracing in the TextBee dashboard, not proof of delivery.
-        logger.info("TextBee accepted SMS; batch=%s; delivery not yet confirmed", data.get("smsBatchId", "unavailable"))
+            result = json.loads(response.read() or b"{}")
+        # The job id is how the dashboard traces the message; it proves the
+        # queue accepted the work, not that a handset received it.
+        logger.info("OpenSMS accepted SMS job %s (%s); delivery not yet confirmed",
+                    result.get("id", "unavailable"), result.get("status", "unknown"))
     except urllib.error.HTTPError as exc:
-        logger.warning("TextBee rejected SMS (HTTP %s)", exc.code)
+        logger.warning("OpenSMS rejected SMS (HTTP %s)", exc.code)
     except Exception as exc:
         # Do not log provider bodies, credentials or recipient numbers.
-        logger.warning("TextBee SMS attempt failed (%s)", type(exc).__name__)
+        logger.warning("OpenSMS SMS attempt failed (%s)", type(exc).__name__)
 
 
 def send_sms(to: str, message: str, *, idempotency_key: Optional[str] = None) -> bool:
     """Start a local send worker, not a delivery guarantee.
 
-    idempotency_key is retained for older callers; TextBee's documented endpoint
-    does not promise this header, so it must not be presented as deduplication.
+    idempotency_key is retained for older callers. The gateway API documents no
+    idempotency header, so it must not be presented as deduplication.
     """
     phone = _normalise_phone(to)
     if not phone:
         return False
-    if not config.TEXTBEE_API_KEY:
-        logger.warning("SMS not sent: configure MYTURN_TEXTBEE_API_KEY")
+    if not config.OPENSMS_API_KEY:
+        logger.warning("SMS not sent: configure MYTURN_OPENSMS_API_KEY")
         return False
-    payload = {"recipients": [phone], "message": message}
-    if config.TEXTBEE_DEVICE_ID:
-        payload["deviceId"] = config.TEXTBEE_DEVICE_ID
+    payload = {"to": phone, "message": message}
+    if config.OPENSMS_DEVICE_ID:
+        payload["deviceId"] = config.OPENSMS_DEVICE_ID
     try:
         threading.Thread(target=_post, args=(payload,), daemon=True).start()
         return True

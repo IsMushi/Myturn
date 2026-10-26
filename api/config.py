@@ -100,8 +100,9 @@ CORS_ORIGINS = [
 
 
 # Visitor call notifications. Secrets stay on the API, never in Next.js.
-TEXTBEE_API_KEY = os.environ.get("MYTURN_TEXTBEE_API_KEY", os.environ.get("TEXTBEE_API_KEY", ""))
-TEXTBEE_DEVICE_ID = os.environ.get("MYTURN_TEXTBEE_DEVICE_ID", "")
+OPENSMS_API_KEY = os.environ.get("MYTURN_OPENSMS_API_KEY", "")
+OPENSMS_API_URL = os.environ.get("MYTURN_OPENSMS_API_URL", "https://opensms.dev")
+OPENSMS_DEVICE_ID = os.environ.get("MYTURN_OPENSMS_DEVICE_ID", "")
 SMS_COUNTRY_CODE = os.environ.get("MYTURN_SMS_COUNTRY_CODE", "250")
 SMTP_HOST = os.environ.get("MYTURN_SMTP_HOST", "")
 SMTP_PORT = int(os.environ.get("MYTURN_SMTP_PORT", "587"))

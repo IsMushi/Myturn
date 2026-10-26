@@ -266,7 +266,7 @@ input, textarea, select, button {
 }
 
 /* Field controls take their radius from `inputClass` / `selectTriggerClass`
-   (`rounded-full`), so a text input, a textarea and a select trigger line up
+   (`rounded-xl`), so a text input, a textarea and a select trigger line up
    exactly. Pinning a second radius here would win over the utility — this
    file is unlayered, utilities are not — and the select, a button, would keep
    the larger one while the input shrank. */

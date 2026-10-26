@@ -27,7 +27,7 @@ def _masked(contact: str) -> str:
 def _configured(channel: str) -> bool:
     if channel == "email":
         return bool(config.SMTP_HOST and config.SMTP_FROM)
-    return bool(config.TEXTBEE_API_KEY)
+    return bool(config.OPENSMS_API_KEY)
 
 
 def record_development_call(ticket_label: str, desk_name: str, contact: str,

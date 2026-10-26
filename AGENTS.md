@@ -1,31 +1,27 @@
 # AGENTS.md
 
-This folder holds two very different things:
+This folder **is** the git repository, and it is the prototype: `api/` (Flask), `web/` (Next.js), `firmware/` (ESP32), `docs/` (the briefs, `sensor-tuning.md`, `visitor-notifications.md`). Branch `main`, remote `origin` = `IsMushi/Myturn`. The course documents are in `docs/support-docs/`; the sibling folder `..\support-docs\` keeps the INES guidelines, the cover template and `Final project.pdf`, and neither folder's contents beyond `docs/` are in the repository.
 
-- `myturn/` - the MyTurn prototype: Flask API, Next.js app, ESP32 firmware. **This is the git repository** (branch `master`, 3 commits, no remote).
-- the root itself - the course documents (`MyTurn_Project_Proposal.*`, `MyTurn_Project_Report.*`), `assets/`, and the INES guidelines PDF.
+The accounts, home page and ticket work is committed and pushed - the "dirty on purpose" tree that earlier notes describe no longer exists. Keep it that way, and treat anything uncommitted you find as somebody's work: never `git checkout`, `reset`, `clean` or `stash` to "tidy up". Before a pull, close PowerPoint and Word - an open `MyTurn_Presentation.pptx` makes git fail with `unable to unlink old ... Invalid argument`, which reads like a permissions bug and is not one.
 
-The working tree under `myturn/` is dirty on purpose: the whole accounts, home page and ticket experience is uncommitted, finished and verified. Never `git checkout`, `reset`, `clean` or `stash` to "tidy up".
-
-`myturn/README.md` is the source of truth for routes, pages, server rules and the demonstration script. Read it first. This file carries only what it does not: how to run, verify, and avoid the traps that already cost time.
+`README.md` is the source of truth for routes, pages, server rules and the demonstration script. Read it first. This file carries only what it does not: how to run, verify, and avoid the traps that already cost time.
 
 ## Run it
 
 ```powershell
-cd myturn
 .\dev.ps1                                              # API :5000 + web :3000 in one window
 ```
 
 Or one at a time:
 
 ```powershell
-cd myturn\api;  .\.venv\Scripts\python.exe app.py      # http://127.0.0.1:5000
-cd myturn\web; npm run dev                             # http://localhost:3000
+cd api;  .\.venv\Scripts\python.exe app.py      # http://127.0.0.1:5000
+cd web; npm run dev                             # http://localhost:3000
 ```
 
-- The backend interpreter is always `myturn\api\.venv\Scripts\python.exe`. The bare `python` on PATH is a different interpreter and will not have Flask; it is the right one for `tools\capture-figures.py` and the Playwright checks.
+- The backend interpreter is always `api\.venv\Scripts\python.exe`. The bare `python` on PATH is a different interpreter and will not have Flask; it is the right one for `tools\capture-figures.py` and the Playwright checks.
 - The browser only ever talks to `localhost:3000`: `/api/*` is rewritten to Flask in `web/next.config.ts`. `BACKEND_ORIGIN` overrides that; do not introduce CORS calls from pages.
-- `api/.env` exists and is gitignored; it holds the demo administrator's credentials (`MYTURN_ADMIN_EMAIL` / `MYTURN_ADMIN_PASSWORD`). Read them from there - never hardcode them, put them on a page, or paste them into a report or a commit. `web/.env.local` is optional and only needed to move the API off `:5000`.
+- `api/.env` exists and is gitignored; it holds the demo administrator's credentials (`MYTURN_ADMIN_EMAIL` / `MYTURN_ADMIN_PASSWORD`) **and the visitor-notification secrets** (`MYTURN_SMTP_*`, `MYTURN_OPENSMS_*`). Read them from there - never hardcode them, put them on a page, or paste them into a report or a commit. `web/.env.local` is optional and only needed to move the API off `:5000`.
 
 ### Stopping a server is not `Stop-Process` on the listener
 
@@ -45,7 +41,7 @@ Run `powershell -ExecutionPolicy Bypass -File tools\start-hotspot.ps1`; it reads
 
 This adapter does **not** support the legacy hosted network (`netsh wlan show drivers` says so), so `netsh wlan start hostednetwork` cannot work - only the Mobile Hotspot API can, and that is what the script calls. If the hotspot comes back on a different subnet, the board will connect to the Wi-Fi and then fail to reach the API, so check the `gateway the board uses` line the script prints against `API_BASE`.
 
-## Backend (`myturn/api`)
+## Backend (`api`)
 
 - Flask 3.1 + `python-dotenv`, no ORM and no pytest. Raw `sqlite3` with `Row`; `db.apply_schema()` runs `schema.sql` on every start and every statement is `create ... if not exists`, so new tables need no migration. **The move to several desks needed the one real migration**: the `tickets` table is rebuilt once, because SQLite cannot drop the old global `ticket_no unique` and the number is now unique per service; `desk_settings` and `devices` each gained a `desk_id` column by a guarded `alter table` after a `pragma table_info` check. `devices` also gained `chip_id` / `mac_address` (the board's own identity, reported by the firmware) the same way - `create table if not exists` cannot add a column to a table that already exists, so every one of them needs that guarded `alter table`. `desk_settings` also gained `pause_reason` and `paused_until` that way, which is where a pause keeps the desk's own words.
 - Tables: `ticket_numbers`, `services`, `desks`, `tickets`, `ticket_events`, `desk_settings`, `devices`, `device_reports`, `users`, `invitations`, `password_resets`, and `account_events` (the account history the Activity page reads). A **service** is a queue with a letter (A, B, C) that prefixes its ticket numbers, a name, a description and an optional target time; a **desk** is a counter that serves exactly one service. Both are edited at `/admin/settings`. `ticket_numbers` holds one row per service (`ticket:A`) with the next number to issue; it was called `counters` before, which read as if it described a physical counter, and `db._rename_counters_table()` carries an old database over once. The `tickets` table carries a unique index that allows one `called` row **per desk**, so two desks may hold two calls of the same service at once.
@@ -54,12 +50,13 @@ This adapter does **not** support the legacy hosted network (`netsh wlan show dr
 - The first administrator exists only because `seed_admin.py` ran; nothing in the running app reads `MYTURN_ADMIN_PASSWORD`. An invitation can only ever create `staff` (asking for `admin` is a 400), and public registration can never grant admin.
 - CSRF is a double-submit token: the server keeps it in the Flask session, the browser keeps it in memory (`web/src/lib/api.ts`, `setCsrfToken`) and sends `X-CSRF-Token`. It is enforced only on authenticated writes.
 - Real time is Server-Sent Events: `GET /api/events?ticket=<token>`, and routes call `broadcast.signal()` after committing; the stream re-reads the database rather than carrying state. `broadcast` and the rate-limit counters (`security.py`) are **per-process memory**, so the prototype has to run as a single worker - which is also why restarting the API clears rate limits.
-- There is no mail server: invitation and reset links are returned in the response and logged while `MYTURN_DEV_TOKENS=1`.
+- **Visitor call notifications are real; invitation and reset mail is not.** `notifications.notify_called()` sends to the contact the visitor gave with the ticket: an email address (anything containing `@`) goes over SMTP in `email_notifications.py`, anything else is treated as a phone number and goes over OpenSMS in `sms.py` (normalised to E.164 using `MYTURN_SMS_COUNTRY_CODE`). It is called only after the call has committed, from `call_next`, `call_chosen` and `recall` in `routes/staff.py`, and it never raises - a notification failure must never turn a committed call into an error that tempts staff to call twice. SMTP is TLS only (`starttls` or `ssl`, certificates validated, no plaintext fallback) and `MYTURN_SMTP_FROM` must be an address the account may send as.
+- **Neither transport proves delivery.** Both post from a daemon thread and report only that the provider *accepted* the message; the log line says `inbox delivery not confirmed` and that is exactly as far as it goes. Nothing is retried, because acceptance may already have happened, and a shutdown can lose a pending attempt - this is best effort, not a queue. With no provider configured for a channel, `MYTURN_NOTIFY_DEV_SINK=1` appends one line per call to `data/notifications.log` with the contact masked and `"delivered": false`; it records what *would* have been sent and must never be presented as sending. Setup, limits and the safe test procedure: `docs/visitor-notifications.md`. Invitations and password resets still have **no** mail server - those links come back in the response and are logged while `MYTURN_DEV_TOKENS=1`.
 - **The office is in Kigali, and the times shown are Kigali's.** What is stored is UTC; the day boundary, the hourly statistics and the shift tally are Kigali's (UTC+2, no daylight saving, so a fixed offset). `util.py` holds `KIGALI`, `local_date()`, `local_midnight()`, `local_iso()` and `local_sql()`; the browser is pinned to the zone in `web/src/lib/format.ts` (`TIME_ZONE`), so a tablet in another country still shows the office's time. Do not use `datetime.now()` without the zone in either half.
 - A board is a piece of hardware, not a property of a counter: `devices.desk_id` names the one counter it watches, and the office may own several. Boards are registered, moved and retired at `/admin/board` (`GET`/`POST /api/auth/devices`, `POST /api/auth/devices/<id>`, `POST /api/auth/devices/<id>/key`, `DELETE /api/auth/devices/<id>`, admin + CSRF). Registering answers with the one copy of the board's key - only the digest is stored, so a lost key is replaced, never recovered - and the page shows it once, with the line to put in the firmware. A move is written to the account history and clears the readings taken at the counter it left, because the obstruction rule asks what was seen *there*. A counter without a board still serves visitors; the hold rule keeps its full length at that counter and the desk page says so. `seed.py` still registers the first board and writes its key to `data/device_key.txt`.
 - `seed.py` creates the database, seeds the three starter services and their desks, attaches the board to a desk and prints the device key to `data/device_key.txt`; a board registered later from `/admin/board` is added to the same list, and `reset.py` clears the queue, zeroes every per-service counter and pauses every desk, but must never delete accounts.
 
-## Web app (`myturn/web`)
+## Web app (`web`)
 
 - Next.js 16.4 (Turbopack) + React 19 + Tailwind v4 + `cacheComponents: true`.
 - **Middleware is `src/proxy.ts` and exports `proxy`** - there is no `middleware.ts` in this version. It only checks that a `session` cookie exists to skip a redirect; the API is the real gate. Its matcher covers every console page (`/staff/:path*`, `/admin/:path*`, `/account`) and the auth pages, so a visitor with no cookie is sent to the sign-in page by the server rather than after the console has painted and asked who they are. A cookie the API refuses names nobody - a deleted or switched-off account, a changed signing key - and `/api/auth/me` answers 401 while telling the browser to drop it; without that the sign-in page, which turns away anyone holding a cookie, and the console would send the browser back and forth for ever.
@@ -87,9 +84,10 @@ This adapter does **not** support the legacy hosted network (`netsh wlan show dr
 ## Verifying
 
 ```powershell
-cd myturn\api;  .\.venv\Scripts\python.exe smoke_test.py   # 305 checks, 0 failed - needs the API running
-cd myturn\api;  .\.venv\Scripts\python.exe check_device_ws.py --smoke  # the same suite plus the WebSocket checks, in a disposable office
-cd myturn\web; npx tsc --noEmit; npx eslint .; npm run build
+cd api;  .\.venv\Scripts\python.exe smoke_test.py   # 305 checks, 0 failed - needs the API running
+cd api;  .\.venv\Scripts\python.exe check_device_ws.py --smoke  # the same suite plus the WebSocket checks, in a disposable office
+cd api;  .\.venv\Scripts\python.exe check_notifications.py  # 15 tests, mocked transports - sends nothing, needs no servers
+cd web; npx tsc --noEmit; npx eslint .; npm run build
 python C:\Users\Isaac\AppData\Local\Temp\opencode\verify_ui.py  # 71 checks, 0 failed - needs both servers
 python C:\Users\Isaac\AppData\Local\Temp\opencode\check_sidebar.py   # 8 checks
 python C:\Users\Isaac\AppData\Local\Temp\opencode\check_console.py   # 45 checks, creates and removes its own account
@@ -99,17 +97,17 @@ python C:\Users\Isaac\AppData\Local\Temp\opencode\check_console.py   # 45 checks
   `& "$env:LOCALAPPDATA\Programs\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe" compile --fqbn esp32:esp32:esp32 firmware\myturn_desk`
   The core (3.3.12), ArduinoJson (7.4.3) and WebSockets (2.7.2) are already installed, and `firmware/myturn_desk/secrets.h` is the local copy of `secrets.example.h`. **Compile the sketch after any firmware change** - the ESP-IDF version matters: ESP-IDF 5 has no `portMUTEX_TYPE` (a FreeRTOS 8 type), a mutex is a `SemaphoreHandle_t`.
 
-- There is no unit-test framework. `smoke_test.py` (the API) and the Playwright scripts (the interface) are the entire suite. "Verified" means these were run, not that the code reads correctly.
+- There is no pytest suite, but `check_notifications.py` is stdlib `unittest` and is the only place with real mocks: fake SMTP and OpenSMS transports and a disposable database, so it never sends a message or touches the live queue. Between it, `smoke_test.py`, `check_device_ws.py` and the Playwright scripts, that is the whole suite. "Verified" means these were run, not that the code reads correctly.
 - `smoke_test.py` resets the transactional tables and the one account it creates, so it is repeatable - but it deliberately exhausts the forgot-password bucket (5 per 15 minutes, per process). A second run without restarting the API fails in the reset section with 429. **Restart the API between runs.**
 - `check_device_ws.py --smoke` runs the same 305 checks against a **disposable** API, database and device key, and adds the WebSocket checks. Use it when the real board is connected: the live board reports every five seconds, so it can overwrite the reading the suite is asserting on, and the run becomes a race. The disposable run is the one that means something.
 - `verify_ui.py`, `check_sidebar.py` and `check_console.py` live outside the repository, in the temp folder, and can be cleared at any time; recreate them rather than assuming they are there. Each registers its own account and removes it afterwards. Keep it that way - earlier runs left `staff...@example.com` accounts behind and the database had to be cleaned.
 - `check_console.py` needs the API restarted first, like `verify_ui.py`: it signs in several times, and the sign-in bucket is per process.
 - Kill port 3000 before `npm run build`, then restart the dev server.
-- Report figures: `python myturn\tools\capture-figures.py` writes the four `assets\figure-*.png` the report uses. It needs both servers and resets the queue first (`--skip-reset` to keep the current one).
+- Report figures: `python tools\capture-figures.py --out docs\support-docs\assets` writes the four `figure-*.png` the report uses. Pass `--out` every time: the script's default is still `..\assets`, a folder that belonged to the old layout and no longer exists. It needs both servers and resets the queue first (`--skip-reset` to keep the current one).
 
-## Documents (the root of this folder)
+## Documents (`docs/support-docs`)
 
-- The report and proposal are generated by scripts in `C:\Users\Isaac\AppData\Local\Temp\opencode\` (`build_report.py`, `content_*.py`, `report_lib.py`, `export_report.ps1`, libraries in `myturn-doc-libs`, use `$env:PYTHONPATH` for those libs). That folder is outside the repository and is not backed up: if it is gone, rebuild from the `.docx` that is already at the root.
+- The report and proposal are generated by scripts in `C:\Users\Isaac\AppData\Local\Temp\opencode\` (`build_report.py`, `content_*.py`, `report_lib.py`, `export_report.ps1`, libraries in `myturn-doc-libs`, use `$env:PYTHONPATH` for those libs). That folder is outside the repository and is not backed up: if it is gone, rebuild from the `.docx` already in `docs/support-docs/` (the parent folder `..` keeps a second copy). Those scripts still hard-code the **old** layout: `report_lib.BASE` is `...\New folder`, so `ASSETS` resolves to `..\assets` and the cover template to `..\Cover page_INES FORMAT.docx` - neither exists any more (the assets and the cover page are now under `docs/support-docs\`). Fix `BASE`/`ASSETS` or pass an explicit output path before trusting a rebuild.
 - INES house style, which the markers check: Times New Roman 12 pt (10 pt in tables and captions), 1.5 line spacing, A4 with a 3.8 cm left margin, captions as real Word `SEQ` fields, captions above tables and below figures. Word (v16) keeps documents open and blocks the DOCX-to-PDF copy step - close Word first.
 - The report is marked out of 20: cover 2, abstract 2, table of contents 1, introduction 3, literature review 3, methodology 4, results and discussion 3, conclusion and references 2.
 - Never invent a measurement. The abstract's `[number]`, Table 10, the section 4.7 figures and Figures 8-10 are knowingly left blank until the team supplies real numbers and a photograph of the desk rig.
@@ -117,6 +115,7 @@ python C:\Users\Isaac\AppData\Local\Temp\opencode\check_console.py   # 45 checks
 ## Rules this project is judged on
 
 - Do not report a feature as complete unless it is implemented and verified.
+- **A message the provider accepted is not a message the visitor received.** OpenSMS and SMTP report acceptance only, so say "accepted by the provider" or "inbox delivery not confirmed" until the recipient confirms it arrived. Never present `data/notifications.log` as sending - it is a development record with `"delivered": false`. Live delivery stays unverified until an approved test contact confirms receipt, and that is the only thing that makes it verified.
 - The sensors only measure. The PIR reports an approach; occupancy is the HC-SR04's alone; nothing counts or identifies people. The one exception is the **static obstruction**: an object that has sat still at the counter for `MYTURN_OBSTRUCTION_SECONDS`, with no approach seen near it in that whole window, does not block the desk from calling. It is a bag, not a visitor. A visitor who walked up and then stood still brought an approach with them and is never written off as a bag, and the hold rule is not relaxed at all - only the call guard is.
 - Every delay and every sensitivity is written down in `docs/sensor-tuning.md`: the HC-SR501's own two trimmers (Sx = range, Tx = time delay), the firmware's PIR and ultrasonic constants, the report rate, and the symptoms to fixes. Occupancy takes about 2.75 s to believe and the same to release.
 - The ticket number comes from the server's counter, never the browser, and the tracking URL uses an opaque token, never a sequential id. Every service has its own counter, and the number carries the letter of its service: A001, B001.
