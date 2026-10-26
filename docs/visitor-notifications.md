@@ -5,6 +5,11 @@ an email through SMTP; phone numbers receive an SMS through OpenSMS. Messages
 contain the ticket label and destination service point. New calls and recalls
 notify only after the waiting line transaction commits. A refused call never notifies.
 
+A call that outlives its hold is put back at the end of its service's line with
+a fresh number, and the visitor is told which number replaced the one that
+expired. That notice is sent after the requeue has committed, from the same
+channel, and only when the ticket carried a contact.
+
 This is separate from administrator invitations and password-reset links; those
 retain the prototype's existing development-link flow.
 
@@ -85,13 +90,14 @@ transport, and it must not be presented as delivery.
 
 ## Verification and limits
 
-`api/.venv/Scripts/python.exe api/check_notifications.py` runs fifteen automated
+`api/.venv/Scripts/python.exe api/check_notifications.py` runs eighteen automated
 checks with mocked transports and a disposable database. It sends no real
 messages. It covers OpenSMS request/authentication, E.164 normalization, missing
 configuration, HTTP failures, SMTP TLS/login/content, header injection, channel
-selection, real Flask call/recall paths, failure containment, and the development
-record above (written when asked for, silent when a provider sent, off by
-default, contact never written whole).
+selection, real Flask call/recall paths, the requeue notice after the hold ends
+(both the background sweep and the staff-triggered path), failure containment,
+and the development record above (written when asked for, silent when a provider
+sent, off by default, contact never written whole).
 
 For actual delivery, use an approved test phone/email address, take its ticket,
 then call it from the staff page. Verify the matching ticket and service point

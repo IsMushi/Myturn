@@ -29,7 +29,7 @@ from security import (
     staff_required,
 )
 from util import local_date, local_midnight, local_sql, now, seconds_since, soon
-from notifications import notify_called
+from notifications import notify_called, notify_requeued
 
 bp = Blueprint("staff", __name__)
 
@@ -512,16 +512,20 @@ def queue():
 # ---------------------------------------------------------------------------
 # calling and deciding
 # ---------------------------------------------------------------------------
-def _clear_expired_call(conn, desk_id):
+def _clear_expired_call(conn, desk_id, notices=None):
     """Put an expired call back in its queue before this desk calls again.
 
     The caller owns the transaction. Returns a refusal while the desk is still
     inside a live call, and None when there was no call or it has been requeued.
     Shared by calling the next number and calling a chosen one, so the two can
     never disagree about when a call has run out.
+
+    A requeue appends ``(previous_label, new_label, desk_name, contact)`` to
+    ``notices``. The caller owns the commit, so it must send them only after
+    the transaction succeeded: a rolled-back requeue must not message anybody.
     """
     called = conn.execute(
-        "select ticket_id, ticket_no, called_at, desk_id from tickets "
+        "select ticket_id, ticket_no, called_at, desk_id, contact from tickets "
         "where desk_id = ? and status = 'called'",
         (desk_id,),
     ).fetchone()
@@ -540,11 +544,18 @@ def _clear_expired_call(conn, desk_id):
             409,
         )
 
-    requeue(
+    new_label, previous = requeue(
         conn,
         called,
         "service point empty; hold ended early" if shortened else "hold time ended",
     )
+    if notices is not None:
+        desk = conn.execute(
+            "select name from desks where desk_id = ?", (desk_id,)
+        ).fetchone()
+        notices.append(
+            (previous, new_label, desk["name"] if desk else None, called["contact"])
+        )
     return None
 
 
@@ -591,8 +602,9 @@ def call_next():
     # call, which made the hold unreachable: a visitor who walked away could
     # block the desk for good, and the refusal carried no hold time.
     conn.execute("begin immediate")
+    notices = []
     try:
-        conflict = _clear_expired_call(conn, desk_id)
+        conflict = _clear_expired_call(conn, desk_id, notices)
         if conflict is not None:
             conn.execute("rollback")
             return conflict
@@ -619,6 +631,10 @@ def call_next():
         raise
 
     signal()
+    # The expired call is told first: its number changed, and the visitor may
+    # be the one being called again straight away.
+    for notice in notices:
+        notify_requeued(*notice)
     label = ticket_label(row["service_letter"], nxt["ticket_no"])
     notify_called(label, row["name"], nxt["contact"])
     return jsonify(
@@ -744,8 +760,9 @@ def call_chosen():
         )
 
     conn.execute("begin immediate")
+    notices = []
     try:
-        conflict = _clear_expired_call(conn, desk_id)
+        conflict = _clear_expired_call(conn, desk_id, notices)
         if conflict is not None:
             conn.execute("rollback")
             return conflict
@@ -791,6 +808,8 @@ def call_chosen():
         raise
 
     signal()
+    for notice in notices:
+        notify_requeued(*notice)
     label = ticket_label(row["service_letter"], ticket["ticket_no"])
     notify_called(label, row["name"], ticket["contact"])
     return jsonify(

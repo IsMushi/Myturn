@@ -77,3 +77,35 @@ def notify_called(ticket_label: str, desk_name: str, contact: Optional[str]) -> 
         logger.warning("Visitor notification failed (%s)", type(exc).__name__)
     if not sent and config.NOTIFY_DEV_SINK and not _configured(channel):
         record_development_call(ticket_label, desk_name, contact, message, channel)
+
+
+def notify_requeued(previous_label: str, new_label: str, desk_name: Optional[str],
+                    contact: Optional[str]) -> None:
+    """Tell a visitor that a call expired and which number replaced it.
+
+    The waiting line has already moved by the time this runs, so a provider
+    failure is logged and dropped: a message that did not leave must never
+    stall the queue or undo the requeue.
+    """
+    if not contact:
+        return
+    channel = "email" if "@" in (contact or "") else "sms"
+    where = desk_name or "the service point"
+    message = (
+        f"MyTurn: your ticket {previous_label} was not answered in time, so it "
+        f"is back in the waiting line as {new_label}. Please return to {where}."
+    )
+    sent = False
+    try:
+        if channel == "email":
+            sent = send_email(
+                contact.strip(),
+                f"MyTurn: ticket {previous_label} was missed - new number {new_label}",
+                message,
+            )
+        else:
+            sent = send_sms(contact, message)
+    except Exception as exc:
+        logger.warning("Requeue notification failed (%s)", type(exc).__name__)
+    if not sent and config.NOTIFY_DEV_SINK and not _configured(channel):
+        record_development_call(new_label, where, contact, message, channel)

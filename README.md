@@ -396,7 +396,9 @@ finished ticket is not asked about again.
 ## Visitor notifications and live ticket summary
 
 Visitor call/recall notifications use **OpenSMS SMS** for phone contacts and
-**TLS SMTP email** for email contacts. Configure secrets only in `api/.env`;
+**TLS SMTP email** for email contacts. The same channel also tells a visitor
+when an unanswered call was put back in line with a new number. Configure
+secrets only in `api/.env`;
 see [visitor notifications](docs/visitor-notifications.md) for setup, safe tests,
 and delivery limitations. Unconfigured channels do not send. Provider acceptance
 is not confirmed delivery. Invitation/reset development links are unchanged.

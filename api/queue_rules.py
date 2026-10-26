@@ -18,6 +18,7 @@ from flask import current_app
 
 from broadcast import signal
 from journal import log_event
+from notifications import notify_requeued
 from util import now, seconds_since
 
 
@@ -198,6 +199,9 @@ def requeue(conn, called, detail):
     The caller owns the transaction, so the new counter value, the updated
     ticket and the event that records both land together. The number comes from
     the service's own counter, so A numbers stay A numbers.
+
+    Returns the new label and the one that was given up, so a caller can tell
+    the visitor after the transaction has committed.
     """
     row = conn.execute(
         "select t.service_id, s.letter from tickets t "
@@ -232,7 +236,7 @@ def requeue(conn, called, detail):
         "system",
         "%s (was %s)" % (detail, previous),
     )
-    return seq
+    return "%s%03d" % (row["letter"], seq), previous
 
 
 def sweep_queue(conn):
@@ -267,7 +271,7 @@ def _sweep_one(conn, called):
     conn.execute("begin immediate")
     try:
         current = conn.execute(
-            "select ticket_id, ticket_no, called_at, desk_id from tickets "
+            "select ticket_id, ticket_no, called_at, desk_id, contact from tickets "
             "where ticket_id = ? and status = 'called'",
             (called["ticket_id"],),
         ).fetchone()
@@ -281,13 +285,21 @@ def _sweep_one(conn, called):
             conn.execute("commit")
             return False
 
-        requeue(
+        desk = conn.execute(
+            "select name from desks where desk_id = ?", (current["desk_id"],)
+        ).fetchone()
+        new_label, previous = requeue(
             conn,
             current,
             "service point empty; hold ended early" if shortened else "hold time ended",
         )
         conn.execute("commit")
-        return True
     except Exception:
         conn.execute("rollback")
         raise
+
+    # The requeue is committed, so the visitor can be told which number took
+    # the place of the one that expired. Best effort, after the transaction.
+    notify_requeued(previous, new_label, desk["name"] if desk else None,
+                    current["contact"])
+    return True
