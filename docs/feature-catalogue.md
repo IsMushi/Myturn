@@ -284,16 +284,18 @@ The rules that make the waiting line trustworthy. This is the part the report de
 
 | ID | Feature | Status | Milestone |
 |---|---|---|---|
-| COM-01 | Invitation link | Built | - |
+| COM-01 | Invitation link by email | Built | - |
 | COM-02 | Password reset link | Built | - |
-| COM-03 | Email delivery through a mail provider | Designed | M2 |
+| COM-03 | TLS SMTP delivery shared by visitor calls and invitations | Built | - |
 | COM-04 | SMS reminder of a turn | Designed | M3 |
 | COM-05 | Browser notification for "your turn" | Designed | M2 |
 | COM-06 | Outbound webhook for tickets and desk events | Designed | M3 |
 
-* COM-01 and COM-02 are held in the response and the log while `MYTURN_DEV_TOKENS`
-  is on, because the prototype has no mail server. That switch is a development
-  affordance; COM-03 replaces it with a real delivery path.
+* COM-01 emails the registration link through the SMTP settings and also returns
+  the absolute link to the signed-in administrator as a fallback; `email_queued`
+  is scheduling, not delivery. COM-02 is still held in the response and the log
+  while `MYTURN_DEV_TOKENS` is on, because the prototype has no password-reset
+  mail path.
 
 ## 8. Analytics (ANL)
 
@@ -378,7 +380,7 @@ The rules that make the waiting line trustworthy. This is the part the report de
 | OPS-03 | Reset script that clears the waiting line but not the accounts | Built | - |
 | OPS-04 | One-command development launcher | Built | - |
 | OPS-05 | Schema applied automatically on every start | Built | - |
-| OPS-06 | API test suite (305 checks) | Built | - |
+| OPS-06 | API test suite (321 checks) | Built | - |
 | OPS-07 | Browser test suite (71 checks) | Built | - |
 | OPS-08 | Report figure capture | Built | - |
 | OPS-09 | The single-worker limit is documented, not discovered | Built | - |

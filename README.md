@@ -59,7 +59,9 @@ Check the whole API while the server is up:
 
 The test follows one real session from end to end and prints one line per check.
 It covers the waiting line, the device, the hold rule, and the account system: signing
-in, roles, invitations, registration, password reset, CSRF and rate limiting.
+in, roles, invitations, registration, password reset, CSRF and rate limiting. The
+invitation email itself is checked with mocked SMTP by `check_notifications.py`,
+because a live send must not run in a test.
 
 Two more checks cover the move from one desk to one office:
 
@@ -92,7 +94,7 @@ the real one is never touched by a test.
 | `POST /api/auth/forgot-password` | Forgotten password page | Issues a reset link for a known address |
 | `POST /api/auth/reset-password` | Reset page | Changes the password once, from that link |
 | `GET /api/auth/users` | Team page | Accounts and pending invitations (administrators only) |
-| `POST /api/auth/invitations` | Admin dashboard | Invites a staff member |
+| `POST /api/auth/invitations` | Team page | Invites a staff member, or resends and replaces a pending invitation link |
 | `POST /api/auth/users/<id>/active` | Team page | Switches an account off, or back on |
 | `DELETE /api/auth/users/<id>` | Team page | Permanently deletes another account after email confirmation; keeps activity history, revokes reset links and open sessions (administrators only) |
 | `POST /api/auth/users/batch` | Team page | Atomically switches selected accounts on/off or permanently deletes them after count confirmation; refuses self-selection and stale account data (administrators only) |
@@ -401,7 +403,10 @@ when an unanswered call was put back in line with a new number. Configure
 secrets only in `api/.env`;
 see [visitor notifications](docs/visitor-notifications.md) for setup, safe tests,
 and delivery limitations. Unconfigured channels do not send. Provider acceptance
-is not confirmed delivery. Invitation/reset development links are unchanged.
+is not confirmed delivery. Administrator invitations use the same SMTP transport;
+their registration links are built from `MYTURN_WEB_URL` and are also returned to
+the administrator as a fallback. Password-reset links still use the development
+flow.
 
 The `/ticket` waiting line facts use borderless summary rows with a matching request
 skeleton. Both service-choice counts and summary facts follow the live stream,
@@ -513,8 +518,9 @@ Two windows open, one for each server.
    open `/display` on the second screen.
 2. Sign in at `/auth/login` as the administrator from `api/.env`. The
    dashboard opens on `/admin/dashboard`.
-3. Invite a staff member, copy the registration link the page shows, and open it
-   in a second browser. Create the account and land on `/staff/dashboard`.
+3. Invite a staff member and open the emailed registration link in a second
+   browser. If mail is unavailable, copy the link the page still shows. Create
+   the account and land on `/staff/dashboard`.
 4. Open `/ticket` on a phone, pick **Admissions** in step 1 and press **Get My
    Ticket** - the number is B001. Take two or three more from other browsers
    for **General Service**, and they are A002, A003: every service has its own
@@ -561,9 +567,11 @@ Two windows open, one for each server.
   service it was taken for until it is closed.
 * A service keeps its number sequence for ever, so a letter is never reused
   and a number is never given out twice.
-* The prototype has no mail server, so an invitation link and a reset link are
-  returned in the response and written to the log while `MYTURN_DEV_TOKENS=1`.
-  That switch must be off anywhere real, where the link would be emailed.
+* Invitation links are emailed through the configured SMTP sender and built from
+  `MYTURN_WEB_URL`. The response also returns the link to the administrator as a
+  fallback; `email_queued` is not delivery. Password-reset links still have no
+  mail server, so they are returned in the response and written to the log while
+  `MYTURN_DEV_TOKENS=1`. That switch must be off anywhere real.
 * Rate limiting counts attempts in memory, per server process. Several workers
   would need the counts moved into the database.
 * The development servers are HTTP. The hosted demonstration is served through

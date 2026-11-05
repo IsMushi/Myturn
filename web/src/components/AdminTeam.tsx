@@ -15,7 +15,7 @@ import { focusFirstError } from "@/lib/forms";
 import { calendarDate, relative } from "@/lib/format";
 import { usePolling } from "@/lib/usePolling";
 import { useSession, type SessionState } from "@/lib/useSession";
-import type { Account, AccountsListing, Role } from "@/lib/types";
+import type { Account, AccountsListing, InvitationSummary, Role } from "@/lib/types";
 import { inviteSchema, type InviteValues } from "@/lib/validation";
 
 /**
@@ -40,6 +40,13 @@ const ADMIN_NOTICE = "admin-notice";
  * dropdown; the invitation itself still sends an empty `desk_id` for any desk.
  */
 const ANY_DESK = "any";
+
+/** The freshly created invitation, and whether the mail was queued. */
+type InvitationNotice = {
+  email: string;
+  url: string;
+  queued: boolean;
+};
 
 function confirm(title: string, description?: string) {
   toast.success(title, { id: ADMIN_NOTICE, testId: ADMIN_NOTICE, description });
@@ -71,7 +78,7 @@ function TeamPanel({ session }: { session: Extract<SessionState, { status: "in" 
   const loadDesks = useCallback(() => api.deskList(), []);
   const desks = usePolling(loadDesks, 30000);
   const [failure, setFailure] = useState<string | null>(null);
-  const [invited, setInvited] = useState<string | null>(null);
+  const [invited, setInvited] = useState<InvitationNotice | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [deleting, setDeleting] = useState<Account | null>(null);
   const [confirmEmail, setConfirmEmail] = useState("");
@@ -79,6 +86,7 @@ function TeamPanel({ session }: { session: Extract<SessionState, { status: "in" 
   const [deletingBusy, setDeletingBusy] = useState(false);
   const accountsHeading = useRef<HTMLHeadingElement>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [invitationBusyId, setInvitationBusyId] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [openMenu, setOpenMenu] = useState<number | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -113,18 +121,34 @@ function TeamPanel({ session }: { session: Extract<SessionState, { status: "in" 
     setInvited(null);
     try {
       const created = await api.invite(values.email, values.desk_id ? Number(values.desk_id) : null);
-      setInvited(created.register_path ?? null);
+      setInvited({
+        email: created.email,
+        url: created.register_url || created.register_path,
+        queued: created.email_queued,
+      });
       confirm(
-        created.replaced
-          ? `A fresh link replaces the one already waiting for ${created.email}.`
-          : `Invitation ready for ${created.email}.`,
-        `It stays usable for ${created.expires_in_hours} hours.`,
+        created.email_queued
+          ? `Invitation email queued for ${created.email}.`
+          : `Invitation created for ${created.email}.`,
+        created.email_queued
+          ? `It stays usable for ${created.expires_in_hours} hours. Delivery is not confirmed until the recipient receives it.`
+          : `The email could not be queued. Share the registration link instead; it stays usable for ${created.expires_in_hours} hours.`,
       );
       form.reset();
       await refresh();
       setInviteOpen(false);
     } catch (e) {
       setFailure(e instanceof Error ? e.message : "The invitation could not be created");
+    }
+  }
+
+  async function copyInvitationLink() {
+    if (!invited) return;
+    try {
+      await navigator.clipboard.writeText(invited.url);
+      toast.success("The registration link is on the clipboard.", { id: ADMIN_NOTICE });
+    } catch {
+      setFailure("The link could not be copied. Select it and copy it manually.");
     }
   }
 
@@ -165,8 +189,34 @@ function TeamPanel({ session }: { session: Extract<SessionState, { status: "in" 
     }
   }
 
+  async function resend(invitation: InvitationSummary) {
+    setInvitationBusyId(invitation.invitation_id);
+    setFailure(null);
+    try {
+      const created = await api.invite(invitation.email, invitation.desk_id);
+      setInvited({
+        email: created.email,
+        url: created.register_url || created.register_path,
+        queued: created.email_queued,
+      });
+      confirm(
+        created.email_queued
+          ? `A fresh invitation email was queued for ${created.email}.`
+          : `A fresh invitation was created for ${created.email}.`,
+        created.email_queued
+          ? "The previous link no longer works. Delivery is not confirmed until the recipient receives it."
+          : "The previous link no longer works. The email could not be queued; copy the new link instead.",
+      );
+      await refresh();
+    } catch (e) {
+      setFailure(e instanceof Error ? e.message : "The invitation could not be resent");
+    } finally {
+      setInvitationBusyId(null);
+    }
+  }
+
   async function withdraw(invitationId: number) {
-    setBusyId(invitationId);
+    setInvitationBusyId(invitationId);
     setFailure(null);
     try {
       const gone = await api.revokeInvitation(invitationId);
@@ -175,7 +225,7 @@ function TeamPanel({ session }: { session: Extract<SessionState, { status: "in" 
     } catch (e) {
       setFailure(e instanceof Error ? e.message : "The invitation could not be withdrawn");
     } finally {
-      setBusyId(null);
+      setInvitationBusyId(null);
     }
   }
 
@@ -281,12 +331,30 @@ function TeamPanel({ session }: { session: Extract<SessionState, { status: "in" 
 
         {failure && !inviteOpen && <div className="mt-4"><Alert tone="error" focus>{failure}</Alert></div>}
         {invited && (
-          <p className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-soft-mint px-3.5 py-3 text-sm text-deep-green">
-            <Link2 className="size-4" aria-hidden="true" />
-            <span className="break-all">Register link: {invited}</span>
-          </p>
+          <div className="mt-3 rounded-xl bg-soft-mint px-3.5 py-3 text-sm text-deep-green">
+            <div className="flex flex-wrap items-center gap-2">
+              <Link2 className="size-4 shrink-0" aria-hidden="true" />
+              <span className="min-w-0 break-all">
+                <span className="font-semibold">Register link:</span> {invited.url}
+              </span>
+              <Button
+                type="button"
+                variant="quiet"
+                className="ml-auto shrink-0"
+                onClick={() => void copyInvitationLink()}
+              >
+                Copy link
+              </Button>
+            </div>
+            <p className={`mt-2 text-xs ${invited.queued ? "text-medium-green" : "text-danger"}`}>
+              {invited.queued ? (
+                <>An invitation email was queued for {invited.email}. Delivery is not confirmed until the recipient receives it. You can also copy the link.</>
+              ) : (
+                <>The invitation email could not be queued. Copy the link and send it to {invited.email}.</>
+              )}
+            </p>
+          </div>
         )}
-        {invited && <p className="mt-3 text-xs text-medium-green">There is no mail server in this prototype. Share the registration link above with the invited person.</p>}
       </section>
 
       <Dialog open={inviteOpen} onOpenChange={(open) => {
@@ -321,7 +389,7 @@ function TeamPanel({ session }: { session: Extract<SessionState, { status: "in" 
               </Select>
             </Field>
             {failure && <Alert tone="error" focus>{failure}</Alert>}
-            <p className="text-xs text-medium-green">This prototype has no mail server. You can copy the registration link after creating the invitation.</p>
+            <p className="text-xs text-medium-green">The registration link is emailed to this address. If the mail service is unavailable, the link is shown after creation so you can share it.</p>
             <DialogFooter>
               <Button type="button" variant="quiet" disabled={form.formState.isSubmitting}
                 onClick={() => { form.reset(); setFailure(null); setInviteOpen(false); }}>Cancel</Button>
@@ -445,6 +513,7 @@ function TeamPanel({ session }: { session: Extract<SessionState, { status: "in" 
             <h3 className="text-sm font-semibold text-deep-green">Waiting to be accepted</h3>
             <p className="mt-1 text-xs text-medium-green">
               Inviting the same address again replaces its link; the older one stops working.
+              Use Resend invitation to email a fresh link to an address that is already waiting.
             </p>
             <ul className="mt-2 space-y-2 text-sm text-medium-green">
               {data.invitations.map((invitation) => (
@@ -455,13 +524,24 @@ function TeamPanel({ session }: { session: Extract<SessionState, { status: "in" 
                   <CheckCircle2 className="size-4 text-medium-green" aria-hidden="true" />
                   <span className="font-medium text-deep-green">{invitation.email}</span>
                   <span>expires {calendarDate(invitation.expires_at)}</span>
-                  <button
-                    onClick={() => void withdraw(invitation.invitation_id)}
-                    disabled={busyId === invitation.invitation_id}
-                    className="ml-auto rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-deep-green hover:bg-soft-mint disabled:opacity-50"
-                  >
-                    {busyId === invitation.invitation_id ? "Working…" : "Withdraw invitation"}
-                  </button>
+                  <span className="ml-auto flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void resend(invitation)}
+                      disabled={invitationBusyId === invitation.invitation_id}
+                      className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-deep-green hover:bg-soft-mint disabled:opacity-50"
+                    >
+                      {invitationBusyId === invitation.invitation_id ? "Sending…" : "Resend invitation"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void withdraw(invitation.invitation_id)}
+                      disabled={invitationBusyId === invitation.invitation_id}
+                      className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-deep-green hover:bg-soft-mint disabled:opacity-50"
+                    >
+                      {invitationBusyId === invitation.invitation_id ? "Working…" : "Withdraw invitation"}
+                    </button>
+                  </span>
                 </li>
               ))}
             </ul>

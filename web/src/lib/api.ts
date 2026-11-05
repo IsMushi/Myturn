@@ -256,7 +256,9 @@ export const api = {
       role: Role;
       replaced: boolean;
       expires_in_hours: number;
-      register_path?: string;
+      email_queued: boolean;
+      register_path: string;
+      register_url: string;
     }>("/api/auth/invitations", { method: "POST", body: { email, role: "staff", desk_id: deskId ?? null } }),
 
   revokeInvitation: (invitationId: number) =>

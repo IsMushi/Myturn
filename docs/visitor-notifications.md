@@ -10,8 +10,8 @@ a fresh number, and the visitor is told which number replaced the one that
 expired. That notice is sent after the requeue has committed, from the same
 channel, and only when the ticket carried a contact.
 
-This is separate from administrator invitations and password-reset links; those
-retain the prototype's existing development-link flow.
+Administrator invitations use the same SMTP transport. Password-reset links still
+use the prototype's development-link flow.
 
 ## OpenSMS
 
@@ -66,6 +66,24 @@ For implicit TLS, use `MYTURN_SMTP_SECURITY=ssl` and the provider's port (usuall
 supported. Some providers require an app password rather than the account
 password. Restart the API after changing settings.
 
+Addresses at the reserved documentation and test domains (`example.com`,
+`example.net`, `example.org`, `.test`, `.invalid`, `localhost`) are never handed
+to SMTP. They cannot receive mail, so the transport reports them as not queued.
+This also keeps the live smoke test from sending an invitation.
+
+## Administrator invitations
+
+`POST /api/auth/invitations` commits the invitation first, then schedules an email
+to the address. The registration link is built from `MYTURN_WEB_URL` (default
+`http://localhost:3000`) and carries a single-use token. Set it to the public web
+app address whenever the app is not on localhost.
+
+The response always carries `register_url` and `register_path` so the
+administrator can copy the link if mail is unavailable. `email_queued` means the
+daemon thread was started; it never means the provider accepted the message or
+that the recipient received it. A refused or failed send does not remove the
+invitation.
+
 ## Demonstrating without a provider
 
 Between them, OpenSMS and SMTP need a paired phone and an authorized sender. When
@@ -90,20 +108,25 @@ transport, and it must not be presented as delivery.
 
 ## Verification and limits
 
-`api/.venv/Scripts/python.exe api/check_notifications.py` runs eighteen automated
-checks with mocked transports and a disposable database. It sends no real
-messages. It covers OpenSMS request/authentication, E.164 normalization, missing
-configuration, HTTP failures, SMTP TLS/login/content, header injection, channel
-selection, real Flask call/recall paths, the requeue notice after the hold ends
-(both the background sweep and the staff-triggered path), failure containment,
-and the development record above (written when asked for, silent when a provider
-sent, off by default, contact never written whole).
+`api/.venv/Scripts/python.exe api/check_notifications.py` runs twenty-two
+automated checks with mocked transports and a disposable database. It sends no
+real messages. It covers OpenSMS request/authentication, E.164 normalization,
+missing configuration, HTTP failures, SMTP TLS/login/content, header injection,
+invitation recipient/subject/link/expiry/inviter content, missing-SMTP fallback,
+email scheduling failure without rollback or token logging, resend replacing the
+old link while keeping its desk, channel selection,
+real Flask call/recall paths, the requeue notice after the hold ends (both the
+background sweep and the staff-triggered path), failure containment, and the
+development record above (written when asked for, silent when a provider sent,
+off by default, contact never written whole).
 
-For actual delivery, use an approved test phone/email address, take its ticket,
-then call it from the staff page. Verify the matching ticket and service point
-in the received message. For OpenSMS, inspect the logged job id and its status
-in the OpenSMS dashboard (or `GET /api/v1/messages/{id}`). SMTP acceptance alone does not prove inbox delivery;
-check the mailbox and spam folder. Test recall as well.
+For actual delivery, use an approved test phone/email address. For an invitation,
+use an approved address and confirm the registration email arrives. For a visitor
+call, take a ticket, then call it from the staff page and verify the matching
+ticket and service point in the received message. For OpenSMS, inspect the logged
+job id and its status in the OpenSMS dashboard (or `GET /api/v1/messages/{id}`).
+SMTP acceptance alone does not prove inbox delivery; check the mailbox and spam
+folder. Test recall as well.
 
 Background workers are best effort, not a persistent message queue. Process
 shutdown can lose a pending attempt. Provider failures/timeouts are logged

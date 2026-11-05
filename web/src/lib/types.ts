@@ -43,6 +43,7 @@ export interface InvitationSummary {
   invitation_id: number;
   email: string;
   role: Role;
+  desk_id: number | null;
   created_at: string;
   expires_at: string;
 }

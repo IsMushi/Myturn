@@ -98,6 +98,10 @@ CORS_ORIGINS = [
     if origin.strip()
 ]
 
+# The address people open in a browser. Invitation email needs an absolute
+# registration link, and the API does not sit on the web app's origin.
+WEB_URL = (os.environ.get("MYTURN_WEB_URL") or "http://localhost:3000").rstrip("/")
+
 
 # Visitor call notifications. Secrets stay on the API, never in Next.js.
 OPENSMS_API_KEY = os.environ.get("MYTURN_OPENSMS_API_KEY", "")
@@ -109,6 +113,11 @@ SMTP_PORT = int(os.environ.get("MYTURN_SMTP_PORT", "587"))
 SMTP_USERNAME = os.environ.get("MYTURN_SMTP_USERNAME", "")
 SMTP_PASSWORD = os.environ.get("MYTURN_SMTP_PASSWORD", "")
 SMTP_FROM = os.environ.get("MYTURN_SMTP_FROM", "")
+# The name the recipient sees, not the authenticated mailbox: Gmail and most
+# providers refuse a sender address the account may not send as, but a display
+# name is free. "MyTurn" keeps the brand in the inbox without pretending to be
+# a mailbox nobody owns.
+SMTP_FROM_NAME = os.environ.get("MYTURN_SMTP_FROM_NAME", "MyTurn")
 SMTP_SECURITY = os.environ.get("MYTURN_SMTP_SECURITY", "starttls").lower()
 
 # When no provider is configured, a call can still be recorded locally so the

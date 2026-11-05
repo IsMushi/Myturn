@@ -10,6 +10,7 @@ from flask import Blueprint, current_app, jsonify, request, session
 
 from broadcast import signal
 from db import get_db
+from email_notifications import send_email
 from routes.visitor import (
     LONGEST_SERVICE_SECONDS,
     desk_state,
@@ -562,9 +563,9 @@ def forgot_password():
                 ),
             )
             if current_app.config["DEV_TOKENS"]:
-                # Development shortcut. There is no mail server in the
-                # prototype, so the link comes back in the response and is
-                # written to the log. Turn MYTURN_DEV_TOKENS off to stop it.
+                # Development shortcut. Password resets have no mail path, so
+                # the link comes back in the response and is written to the
+                # log. Turn MYTURN_DEV_TOKENS off to stop it.
                 body["reset_path"] = "/auth/reset-password?token=" + token
                 current_app.logger.warning(
                     "development reset link for %s: /auth/reset-password?token=%s",
@@ -665,6 +666,7 @@ def create_invitation():
         ), 400
 
     # An invitation may pin the new staff member to one desk. Null means any.
+    conn = get_db()
     desk_id = None
     raw_desk = data.get("desk_id")
     if raw_desk not in (None, ""):
@@ -672,19 +674,22 @@ def create_invitation():
             desk_id = int(raw_desk)
         except (TypeError, ValueError):
             return jsonify(error="unknown desk"), 400
-        exists = conn if False else None
-        desk_row = get_db().execute(
+        desk_row = conn.execute(
             "select desk_id from desks where desk_id = ? and is_active = 1", (desk_id,)
         ).fetchone()
         if desk_row is None:
             return jsonify(error="unknown desk"), 400
 
-    conn = get_db()
     if find_user(conn, email) is not None:
         return jsonify(error="an account already exists for that address"), 409
 
     days = current_app.config["INVITATION_TTL_HOURS"]
     token = new_token()
+    expires_at = soon(days * 60 * 60)
+    actor = current_user()
+    register_path = "/auth/register?token=" + token
+    web_url = str(current_app.config["WEB_URL"]).rstrip("/")
+    register_url = web_url + register_path
 
     # One live link per address. Asking again replaces the previous link rather
     # than leaving two that both work, which is what makes "send it again" safe.
@@ -695,22 +700,57 @@ def create_invitation():
     conn.execute(
         "insert into invitations (email, role, desk_id, token_hash, invited_by, created_at, expires_at) "
         "values (?, 'staff', ?, ?, ?, ?, ?)",
-        (email, desk_id, token_digest(token), current_user()["email"], now(), soon(days * 60 * 60)),
+        (email, desk_id, token_digest(token), actor["email"], now(), expires_at),
     )
     log_account_event(
-        conn, "invitation replaced" if replaced else "invited", email,
-        current_user()["email"],
+        conn, "invitation replaced" if replaced else "invited", email, actor["email"],
     )
+
+    # The link is emailed; the response also carries it so an administrator can
+    # still help when the mail provider is unavailable. Scheduling is not
+    # delivery, so the status says "queued", never "sent".
+    expiry = parse(expires_at)
+    expiry_text = (
+        expiry.astimezone(KIGALI).strftime("%d %B %Y at %H:%M")
+        if expiry is not None else expires_at
+    )
+    email_body = (
+        "Hello,\n\n"
+        f"{actor['full_name']} ({actor['email']}) invited you to join the MyTurn "
+        "team as a staff member.\n\n"
+        "Create your account with this link:\n"
+        f"{register_url}\n\n"
+        f"The link can be used once and expires on {expiry_text} (Kigali time), "
+        f"about {days} hours from now.\n\n"
+        "If you were not expecting this invitation, you can ignore this message.\n"
+    )
+    try:
+        email_queued = send_email(email, "Your MyTurn staff invitation", email_body)
+    except Exception as exc:
+        # The invitation is already committed. A mail failure must not undo it,
+        # and the exception text may contain the address or link, so log only
+        # its type.
+        current_app.logger.warning(
+            "Invitation email could not be queued (%s)", type(exc).__name__
+        )
+        email_queued = False
 
     body = {
         "email": email,
         "role": "staff",
         "replaced": bool(replaced),
         "expires_in_hours": days,
-        "message": "Invitation created. Send this link to the new staff member.",
+        "email_queued": email_queued,
+        "register_path": register_path,
+        "register_url": register_url,
+        "message": (
+            "Invitation created and email queued. Delivery is not confirmed until "
+            "the recipient receives it."
+            if email_queued
+            else "Invitation created, but the email could not be queued. Share the "
+                 "registration link instead."
+        ),
     }
-    if current_app.config["DEV_TOKENS"]:
-        body["register_path"] = "/auth/register?token=" + token
     return jsonify(**body), 201
 
 

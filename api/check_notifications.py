@@ -86,12 +86,12 @@ class NotificationTests(unittest.TestCase):
         smtp.__enter__.return_value = smtp
         smtp.send_message.return_value = {}
         with patch("email_notifications.threading.Thread", ImmediateThread), patch("email_notifications.smtplib.SMTP", return_value=smtp):
-            self.assertTrue(email_notifications.send_email("visitor@example.test", "Ticket A001", "Go to service point 1"))
+            self.assertTrue(email_notifications.send_email("visitor@myturn.ac.rw", "Ticket A001", "Go to service point 1"))
             smtp.starttls.assert_called_once()
             smtp.login.assert_called_once_with("test-user", "test-password")
             message = smtp.send_message.call_args.args[0]
-            self.assertEqual(message["To"], "visitor@example.test")
-            self.assertEqual(message["From"], "queue@example.test")
+            self.assertEqual(message["To"], "visitor@myturn.ac.rw")
+            self.assertEqual(message["From"], "MyTurn <queue@example.test>")
             self.assertIn("service point 1", message.get_content())
             methods = [call[0] for call in smtp.method_calls]
             self.assertLess(methods.index("starttls"), methods.index("login"))
@@ -103,7 +103,7 @@ class NotificationTests(unittest.TestCase):
         with patch.object(config, "SMTP_SECURITY", "ssl"), patch.object(config, "SMTP_PORT", 465), \
              patch("email_notifications.threading.Thread", ImmediateThread), \
              patch("email_notifications.smtplib.SMTP_SSL", return_value=smtp) as connect:
-            self.assertTrue(email_notifications.send_email("visitor@example.test", "Ticket", "Called"))
+            self.assertTrue(email_notifications.send_email("visitor@myturn.ac.rw", "Ticket", "Called"))
             self.assertEqual(connect.call_args.args, ("smtp.example.test", 465))
             smtp.starttls.assert_not_called()
             smtp.send_message.assert_called_once()
@@ -112,11 +112,14 @@ class NotificationTests(unittest.TestCase):
         with patch("email_notifications.threading.Thread") as worker:
             for recipient in ["bad", "x@example.test\r\nBcc: other@example.test", "a@example.test,b@example.test"]:
                 self.assertFalse(email_notifications.send_email(recipient, "Ticket", "Called"))
-            self.assertFalse(email_notifications.send_email("a@example.test", "Ticket\r\nBcc: b@example.test", "Called"))
+            self.assertFalse(email_notifications.send_email("a@myturn.ac.rw", "Ticket\r\nBcc: b@example.test", "Called"))
             with patch.object(config, "SMTP_HOST", ""):
-                self.assertFalse(email_notifications.send_email("a@example.test", "Ticket", "Called"))
+                self.assertFalse(email_notifications.send_email("a@myturn.ac.rw", "Ticket", "Called"))
             with patch.object(config, "SMTP_SECURITY", "none"):
-                self.assertFalse(email_notifications.send_email("a@example.test", "Ticket", "Called"))
+                self.assertFalse(email_notifications.send_email("a@myturn.ac.rw", "Ticket", "Called"))
+            with self.assertLogs("myturn.email", "WARNING"):
+                for recipient in ["a@example.com", "a@example.test", "a@example.invalid", "a@localhost"]:
+                    self.assertFalse(email_notifications.send_email(recipient, "Ticket", "Called"))
             worker.assert_not_called()
 
     def test_smtp_failure_is_contained(self):
@@ -125,8 +128,161 @@ class NotificationTests(unittest.TestCase):
         smtp.send_message.side_effect = email_notifications.smtplib.SMTPException("test")
         with patch("email_notifications.threading.Thread", ImmediateThread), \
              patch("email_notifications.smtplib.SMTP", return_value=smtp), \
-             self.assertLogs("myturn.email", "WARNING"):
-            self.assertTrue(email_notifications.send_email("a@example.test", "Ticket", "Called"))
+             self.assertLogs("myturn.email", "WARNING") as logs:
+            self.assertTrue(email_notifications.send_email("a@myturn.ac.rw", "Ticket", "Called"))
+        self.assertNotIn("a@myturn.ac.rw", " ".join(logs.output))
+
+    def _signed_in_admin(self):
+        """Create and sign in an administrator for the invitation routes."""
+        from db import get_db
+        from security import hash_password
+        from util import now
+
+        email = "invitation-admin@example.test"
+        password = "Invitation-check-password-1"
+        with app.app_context():
+            conn = get_db()
+            conn.execute("delete from invitations where email in (?, ?)",
+                         (email, "invitation-recipient@myturn.ac.rw"))
+            conn.execute("delete from users where email = ?", (email,))
+            conn.execute(
+                "insert into users (full_name, email, password_hash, role, "
+                "desk_id, is_active, created_at) "
+                "values (?, ?, ?, 'admin', null, 1, ?)",
+                ("Invitation Admin", email, hash_password(password), now()),
+            )
+        self.addCleanup(self._clear_invitation_fixtures)
+        client = app.test_client()
+        response = client.post(
+            "/api/auth/login", json={"email": email, "password": password}
+        )
+        self.assertEqual(response.status_code, 200, response.json)
+        return client, {"X-CSRF-Token": response.json["csrf_token"]}
+
+    def _clear_invitation_fixtures(self):
+        from db import get_db
+
+        with app.app_context():
+            conn = get_db()
+            conn.execute(
+                "delete from invitations where email in (?, ?)",
+                ("invitation-admin@example.test", "invitation-recipient@myturn.ac.rw"),
+            )
+            conn.execute(
+                "delete from users where email = ?", ("invitation-admin@example.test",)
+            )
+
+    def test_invitation_email_has_recipient_link_expiry_and_inviter(self):
+        client, headers = self._signed_in_admin()
+        recipient = "invitation-recipient@myturn.ac.rw"
+        with patch("routes.auth.send_email", return_value=True) as send, \
+             patch.dict(app.config, {
+                 "WEB_URL": "https://myturn.example.test",
+                 "INVITATION_TTL_HOURS": 72,
+             }):
+            response = client.post(
+                "/api/auth/invitations", json={"email": recipient}, headers=headers
+            )
+        self.assertEqual(response.status_code, 201, response.json)
+        self.assertTrue(response.json["email_queued"])
+        self.assertEqual(response.json["email"], recipient)
+        self.assertEqual(
+            response.json["register_url"],
+            "https://myturn.example.test" + response.json["register_path"],
+        )
+
+        send.assert_called_once()
+        to, subject, body = send.call_args.args
+        self.assertEqual(to, recipient)
+        self.assertIn("MyTurn staff invitation", subject)
+        self.assertIn(response.json["register_url"], body)
+        self.assertIn("72 hours", body)
+        self.assertIn("Invitation Admin", body)
+        self.assertIn("invitation-admin@example.test", body)
+        self.assertRegex(
+            body, r"expires on \d{2} [A-Z][a-z]+ \d{4} at \d{2}:\d{2} \(Kigali time\)"
+        )
+
+    def test_missing_smtp_keeps_invitation_and_returns_fallback_link(self):
+        client, headers = self._signed_in_admin()
+        recipient = "invitation-recipient@myturn.ac.rw"
+        with patch.object(config, "SMTP_HOST", ""), \
+             patch.object(config, "SMTP_FROM", ""):
+            with self.assertLogs("myturn.email", "WARNING") as logs:
+                response = client.post(
+                    "/api/auth/invitations", json={"email": recipient}, headers=headers
+                )
+        self.assertEqual(response.status_code, 201, response.json)
+        self.assertFalse(response.json["email_queued"])
+        self.assertIn("/auth/register?token=", response.json["register_url"])
+        token = response.json["register_url"].rsplit("token=", 1)[1]
+        self.assertNotIn(token, " ".join(logs.output))
+
+        details = app.test_client().get("/api/auth/invitation?token=" + token)
+        self.assertEqual(details.status_code, 200, details.json)
+        self.assertEqual(details.json["email"], recipient)
+
+    def test_mail_scheduling_exception_never_undoes_the_invitation(self):
+        client, headers = self._signed_in_admin()
+        recipient = "invitation-recipient@myturn.ac.rw"
+        with patch("routes.auth.send_email", side_effect=RuntimeError("simulated")):
+            with self.assertLogs(level="WARNING") as logs:
+                response = client.post(
+                    "/api/auth/invitations", json={"email": recipient}, headers=headers
+                )
+        self.assertEqual(response.status_code, 201, response.json)
+        self.assertFalse(response.json["email_queued"])
+        token = response.json["register_url"].rsplit("token=", 1)[1]
+        self.assertNotIn(token, " ".join(logs.output))
+        details = app.test_client().get("/api/auth/invitation?token=" + token)
+        self.assertEqual(details.status_code, 200, details.json)
+
+    def test_resending_replaces_the_link_and_keeps_the_desk(self):
+        from db import get_db
+
+        client, headers = self._signed_in_admin()
+        recipient = "invitation-recipient@myturn.ac.rw"
+        with app.app_context():
+            desk = get_db().execute(
+                "select desk_id from desks order by desk_id limit 1"
+            ).fetchone()
+        self.assertIsNotNone(desk, "the isolated office has a desk to pin")
+        desk_id = desk["desk_id"]
+
+        with patch("routes.auth.send_email", return_value=True) as send:
+            first = client.post(
+                "/api/auth/invitations",
+                json={"email": recipient, "desk_id": desk_id}, headers=headers,
+            )
+            second = client.post(
+                "/api/auth/invitations",
+                json={"email": recipient, "desk_id": desk_id}, headers=headers,
+            )
+        self.assertEqual(first.status_code, 201, first.json)
+        self.assertEqual(second.status_code, 201, second.json)
+        self.assertFalse(first.json["replaced"])
+        self.assertTrue(second.json["replaced"])
+        old_token = first.json["register_path"].rsplit("token=", 1)[1]
+        new_token = second.json["register_path"].rsplit("token=", 1)[1]
+        self.assertNotEqual(old_token, new_token)
+        self.assertEqual(send.call_count, 2)
+        self.assertIn(second.json["register_url"], send.call_args_list[-1].args[2])
+
+        with app.app_context():
+            rows = get_db().execute(
+                "select desk_id from invitations where email = ? and accepted_at is null",
+                (recipient,),
+            ).fetchall()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["desk_id"], desk_id)
+
+        self.assertEqual(
+            app.test_client().get("/api/auth/invitation?token=" + old_token).status_code,
+            404,
+        )
+        fresh = app.test_client().get("/api/auth/invitation?token=" + new_token)
+        self.assertEqual(fresh.status_code, 200, fresh.json)
+        self.assertEqual(fresh.json["email"], recipient)
 
     def test_dispatch_uses_only_the_chosen_channel(self):
         with patch("notifications.send_email") as email, patch("notifications.send_sms") as text:

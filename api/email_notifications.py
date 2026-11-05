@@ -1,5 +1,6 @@
-"""Visitor call email through an explicitly configured TLS SMTP service."""
+"""Email through an explicitly configured TLS SMTP service."""
 from email.message import EmailMessage
+from email.utils import formataddr
 import logging
 import re
 import smtplib
@@ -10,6 +11,26 @@ import config
 
 logger = logging.getLogger("myturn.email")
 EMAIL = re.compile(r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$")
+RESERVED_DOMAINS = ("example.com", "example.net", "example.org", "example", "test", "invalid", "localhost")
+
+
+def _reserved_domain(address: str) -> bool:
+    domain = str(address).rsplit("@", 1)[-1].lower().rstrip(".")
+    return any(domain == suffix or domain.endswith("." + suffix) for suffix in RESERVED_DOMAINS)
+
+
+def _from_header() -> str:
+    """`MyTurn <mailbox>`: a readable name over a mailbox the account may use.
+
+    Providers (Gmail included) refuse a sender address the authenticated
+    account cannot send as, but they accept any display name, so the brand
+    belongs in the name and the real mailbox stays in the address. The name is
+    configuration, so line breaks are stripped rather than trusted.
+    """
+    name = re.sub(r"[\r\n]+", " ", str(config.SMTP_FROM_NAME or "")).strip()
+    if not name:
+        return config.SMTP_FROM
+    return formataddr((name, config.SMTP_FROM))
 
 
 def _deliver(message: EmailMessage) -> None:
@@ -28,16 +49,23 @@ def _deliver(message: EmailMessage) -> None:
                 client.login(config.SMTP_USERNAME, config.SMTP_PASSWORD)
             refused = client.send_message(message)
             if refused:
-                logger.warning("SMTP refused the visitor notification")
+                logger.warning("SMTP refused the message")
             else:
-                logger.info("SMTP accepted visitor notification; inbox delivery not confirmed")
+                logger.info("SMTP accepted the message; inbox delivery not confirmed")
     except Exception as exc:
-        logger.warning("Visitor email attempt failed (%s)", type(exc).__name__)
+        logger.warning("Email attempt failed (%s)", type(exc).__name__)
 
 
 def send_email(to: str, subject: str, body: str) -> bool:
-    """Schedule email without allowing SMTP failures to break a committed call."""
+    """Schedule email without allowing SMTP failures to break a committed write.
+
+    A True result means the daemon thread was started. It is not provider
+    acceptance and never proof of inbox delivery.
+    """
     if not EMAIL.fullmatch(to or ""):
+        return False
+    if _reserved_domain(to):
+        logger.warning("Email not sent: recipient domain is reserved for testing")
         return False
     if not config.SMTP_HOST or not EMAIL.fullmatch(config.SMTP_FROM):
         logger.warning("Email not sent: configure MYTURN_SMTP_HOST and MYTURN_SMTP_FROM")
@@ -47,7 +75,7 @@ def send_email(to: str, subject: str, body: str) -> bool:
         return False
     try:
         message = EmailMessage()
-        message["From"] = config.SMTP_FROM
+        message["From"] = _from_header()
         message["To"] = to
         message["Subject"] = subject
         message.set_content(body)
